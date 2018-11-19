@@ -3,7 +3,7 @@ function [adt]=adaptive_time_step(x_mc,y_mc,S,phiw)
 
 n_mc=length(find(isnan(x_mc)))+1;
 for i_mc=1:n_mc
-    n_mc=length(find(isnan(x_mc)))+1;
+    n_mc=length(find(isnan(x_mc)))+1; %test
     if i_mc>n_mc
         break
     end
