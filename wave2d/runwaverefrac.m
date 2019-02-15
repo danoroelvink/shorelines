@@ -1,7 +1,7 @@
 clear all;close all
-W0.gridfile='..\Ria_rec_grid_UTM_rot.grd';
-W0.depfile='..\Ria_rec_dep_UTM_rot.dep';
-W0.wavefile='..\Ria_Formosa';
+W0.gridfile='RiaFormosa\Ria_rec_grid_UTM_rot.grd';
+W0.depfile='RiaFormosa\Ria_rec_dep_UTM_rot.dep';
+W0.wavefile='RiaFormosa\Ria_Formosa';
 W0.ntheta=18;           % Number of directional bins
 W0.thetamin=90;         % In Nautical convention: 0 i FROM north
 W0.thetamax=270;        % In Nautical convention: 0 i FROM north
