@@ -3,11 +3,11 @@ function [QS,QSmax,adt]=transport(S,it,s,philoc_cor,hsbr,sphibr)
 if strcmpi(S.trform,'CERC')
     k=0.2;                                                      % using CERC (1984) value of k(SPM,Hs)=0.39
     % b_theory = k * (S.rhow * S.g^0.5 / (16 * sqrt(S.gamma)* (S.rhos-S.rhow) * (1-S.porosity)));  % b_theory = 0.0946 * 365*24*60*60 = 2.9833E+6
-    QS=S.b*S.Hso.^2.5*sin(2*(philoc_cor));QScerc=QS;
+    QS=S.b*S.Hso.^2.5.*sin(2*(philoc_cor));QScerc=QS;
 %         QS=(31536000)*sin(2*(philoc_cor));QScerc=QS; % for test1
     %Smax=S.b*S.Hso^2.5;
 %     adt=0.25*S.ds0^2/(S.b*S.Hso^2.5*1)*S.d %(365*24*60*60)^2 %assumption cos2deltb=1
-    QSmax=S.b*max(S.Hso)^2.5*sin(2*(45*pi/180));
+    QSmax=S.b*max(S.Hso).^2.5*sin(2*(45*pi/180));
 %     QSmax=(31536000)*sin(2*(45*pi/180)); %for test1
 end
 if strcmpi(S.trform,'CERC2')

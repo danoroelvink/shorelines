@@ -7,8 +7,9 @@ addpath(genpath('..\functions\'))
 S=struct;
 S.reftime='2017-04-09';
 S.endofsimulation='2067-04-09';
-S.Hso=1;                                                                   % wave height [m]
-S.phiw0=270*pi/180;                                                        % deep water wave angle [°N]
+S.Hso=1;      % wave height [m]
+S.Hs0_in=1;
+S.phiw0=240*pi/180;                                                        % deep water wave angle [°N]
 S.spread=360;                                                               % wave spreading [°] (wave_dir from range:  phiw0 +/- 0.5*spread)
 S.d=10;                                                                    % active profile height [m]
 S.b=.5e6;                                                                   % CERC : coeff in simple cerc formula

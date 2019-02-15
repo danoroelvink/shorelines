@@ -4,13 +4,6 @@ function [W]=waverefrac_implicit(W0);
 %% Default values
 W.eps=1e-6;
 W.crit=0.001;
-W.ntheta=36;
-W.thetamin=-180;
-W.thetamax=0;
-W.dtheta=(W.thetamax-W.thetamin)/W.ntheta;
-W.theta=W.thetamin+.5*W.dtheta+[0:W.ntheta-1]*W.dtheta;
-W.theta=W.theta*pi/180;
-W.dtheta=W.dtheta*pi/180;
 W.dt=1000
 W.niter=50;
 W.g=9.81;
@@ -25,6 +18,7 @@ W.alfa=1;
 W.gridfile=''
 W.wavefile='';
 W.depfile='';
+W.anim=0;
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %% SET INPUT DATA
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
@@ -34,6 +28,11 @@ for ii=1:length(fieldnms)
 end
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+W.dtheta=(W.thetamax-W.thetamin)/W.ntheta;
+W.theta=W.thetamin+.5*W.dtheta+[0:W.ntheta-1]*W.dtheta;
+W.theta=270-W.theta(end:-1:1);    % convert to cartesian
+W.theta=W.theta*pi/180;
+W.dtheta=W.dtheta*pi/180;
 
 
 grid=wlgrid('read',W.gridfile);
@@ -56,18 +55,25 @@ end
 W.theta=W.theta-alfagrid;
 zb=-wldep('read',W.depfile,grid);
 zb=zb(1:end-1,1:end-1);
-figure;
+% zb=W.zg;
+figure(20);
 pcolor(xg,yg,zb);
 shading flat;
-colormap jet;
+%colormap jet;
 axis equal;
 colorbar
+caxis([-50 5])
 idir=0;
-for dirnaut=60;%-90:20:90
+
+print((strcat(W.wavefile)),'-djpeg', '-r300')
+close (figure(20));
+
+for dirnaut=[W.dirmin:W.dirstep:W.dirmax];
     dir0=mod(270-dirnaut,360);
+    %     dir0=dirnaut;
     idir=idir+1
     iT=0;
-    for T=10;%4:2:10
+    for T=W.Tmin:W.Tstep:W.Tmax;%[0.7,2:2:18,19]
         iT=iT+1;
         omega=2*pi/T;
         fp=1/T;
@@ -95,6 +101,8 @@ for dirnaut=60;%-90:20:90
         E=1/8*W.rho*W.g*H.^2;%zeros(size(x));
         psi=zeros(size(x));
         coef=zeros(size(x));
+        D=zeros(size(x));
+        DoverE=zeros(size(x));
         Hmax=0.88./k.*tanh(W.gamma*k.*h/0.88);
         Emax=1/8*W.rho*W.g*Hmax.^2;
         ee=squeeze(zeros([size(x),W.ntheta]));
@@ -132,7 +140,13 @@ for dirnaut=60;%-90:20:90
         j_bt2=j_bt1+1;
         w2=(j_bt-j_bt1)./(j_bt2-j_bt1);
         w1=1-w2;
-        
+        if W.anim
+            figure(2)
+            p=pcolor(xg,yg,H);
+            shading flat;
+            axis equal;
+            colorbar;
+        end
         for i=2:size(x,1);
             for j=1:size(x,2);
                 Hold=1000;
@@ -206,31 +220,44 @@ for dirnaut=60;%-90:20:90
                     end
                 end
             end
+            if W.anim
+                set(p,'cdata',H);
+                title([num2str(i),' ',num2str(iter)])
+                drawnow
+                disp([num2str(i),' ',num2str(iter)])
+            end
+        end
+        if W.anim
+            set(p,'cdata',H);
+            title([num2str(i),' ',num2str(iter)])
+            drawnow
         end
         toc
         dir=dir+alfagrid;
         figure;
         pcolor(xg,yg,H);shading flat;colorbar
-        colormap jet
         hold on;
         contour(xg,yg,zb,[-10:1],'k')
         caxis([0 max(max(H))])
         scale=.8*dx/H(1,1);
-        vecx=[xg(:),xg(:)+scale*H(:).*cos(dir(:))];
-        vecy=[yg(:),yg(:)+scale*H(:).*sin(dir(:))];
-        plot(vecx',vecy','k',vecx(:,1),vecy(:,1),'.k','linewidth',1)
+        if 0
+            vecx=[xg(:),xg(:)+scale*H(:).*cos(dir(:))];
+            vecy=[yg(:),yg(:)+scale*H(:).*sin(dir(:))];
+            plot(vecx',vecy','k',vecx(:,1),vecy(:,1),'.k','linewidth',1)
+        end
         axis equal
         
-        fname=[W.wavefile,num2str(dir0),'Tp',num2str(T),'.jpg'];
+        fname=[W.wavefile,num2str(dirnaut),'Tp',num2str(T),'.jpg'];
         print('-djpeg',fname);
-        Hg(:,:,idir,iT)=H;
-        dirg(:,:,idir,iT)=mod(270-dir*180/pi,360);
+        Hg_all(:,:,idir,iT)=H;
+        phiwg_all(:,:,idir,iT)=mod(270-dir*180/pi,360);
         
         dirtab(idir)=dirnaut;
         Tptab(iT)=T;
     end
 end
-save(W.wavefile,'xg','yg','zb','Hg','dirg','dirtab','Tptab');
+save(W.wavefile,'xg','yg','zb','Hg_all','phiwg_all','dirtab','Tptab');
+W.wavefile=strcat(W.wavefile,'.mat');
 % subplot(411)
 
 % plot(x,h,x,H,'linewidth',2);colorbar

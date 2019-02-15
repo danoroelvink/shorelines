@@ -17,6 +17,7 @@ function [phiw,S]=introduce_wave(S,WVC,WC,tnow)
         S.tper=WC.Tp(iwc);
     else
         phiw=S.phiw0+(rand-.5)*pi/180*S.spread;
+        S.Hso=S.Hso_in;
     end
 %     if S.wave_interaction
 %         [ Hg, phiwg ] = get_interpolated_wavefield( S.xg,S.yg,S.Hg_all,S.phiwg_all,S.Hso,phiw*180/pi);
