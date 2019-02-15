@@ -204,7 +204,7 @@ while  tnow<tend
         %% Angles
         [philoc,thetacrit,hsbr,sphibr,hbr]=angles(S,s,x,y,n,phiwi);
         %% Shadowing effect on Transport
-        [xS,yS,shadowS,shadowS_h,shadow,philoc_cor,sphibr]=transport_shadow_treat(x,y,x_mc,y_mc,x_hard,y_hard,phiw,philoc,sphibr);
+        [xS,yS,shadowS,shadowS_h,shadow,philoc_cor,sphibr,S,hsbr]=transport_shadow_treat(x,y,x_mc,y_mc,x_hard,y_hard,phiw,philoc,sphibr,S,hsbr);
         %% Long shore Transport
         [QS,QSmax]=transport(S,it,s,philoc_cor,hsbr,sphibr);
         %% wave diffraction
