@@ -1,0 +1,26 @@
+Conference Papers
+https://github.com/danoroelvink/shorelines/blob/master/doc/ICEC2018_Paper_Roelvink_final_14-8.pdf
+
+Msc Thesis
+1.Efficient modelling of coastal evolution : development, verification and validation of ShorelineS model (Elghandour 2018)
+https://cdm21063.contentdm.oclc.org/digital/collection/masters2/id/81532#
+2.Recent developments in numerical modelling of coastline evolution : Advanced development and evaluation of ShorelineS Coastline Model (Ghonim 2019)
+https://cdm21063.contentdm.oclc.org/digital/collection/masters2/id/85031#
+3.Development and verification of ShorelineS on longshore sediment transport and spit formation (Mudde 2019)
+http://resolver.tudelft.nl/uuid:b5845e73-c410-4145-8b1b-cad843d9a107
+
+Presentations & Webinar
+1.Coastal evolution and management: A new tool to understand the past and future  (Roelvink 2019)
+https://www.youtube.com/watch?v=9OsPZqz5ljg
+2.DSD-INT 2019 ShorelineS and future coastline modelling - Roelvink
+https://www.slideshare.net/Delft_Software_Days/dsdint-2019-shorelines-and-future-coastline-modelling-roelvink
+
+Abstracts
+1.NCK 2017
+https://library.wur.nl/WebQuery/wurpubs/fulltext/410129
+2.NCK 2018 
+https://www.nck-web.org/content/documents/BoA_2018-compressed.pdf
+3.NCK 2019
+https://www.nck-web.org/boa-2019/159-recent-developments-in-numerical-modellimg-of-coastline-evolution-advanced-development-and-evaluation-of-shorelines-coastline-model
+4.ICOPMAS 2018
+https://icopmas.pmo.ir/Uploads/ICOPMAS%202018/PROCEEDINGS/KEYNOTE%20LECTURES.pdf
