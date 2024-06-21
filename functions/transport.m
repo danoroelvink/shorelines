@@ -138,7 +138,7 @@ function [TRANSP]=transport(TRANSP,WAVE,TIDE,STRUC,useQSmax)
     %% Transport : Mil-Homens (2013)
     elseif strcmpi(TRANSP.trform,'MILH')
         QSmilhmass=TRANSP.qscal .* 0.15.* WAVE.TP.^0.89 .* TRANSP.tanbeta.^0.86 .* TRANSP.d50.^-0.69 .* WAVE.HStdp.^2.75 .*( abs(sind(2*WAVE.dPHIbr)).^0.5.*sign(WAVE.dPHIbr) - 2.*cosd(WAVE.dPHIbr).*dHS ); % <- this is the immersed mass under water
-        QS = TRANSP.qscal .* 365*24*60*60*(QSkampmass /(TRANSP.rhos-TRANSP.rhow)) /(1.0-TRANSP.porosity);
+        QS = TRANSP.qscal .* 365*24*60*60*(QSmilhmass /(TRANSP.rhos-TRANSP.rhow)) /(1.0-TRANSP.porosity);
         QS(abs(WAVE.dPHIbr)>90)=0;     % Set transport to 0 when angle exceeds 180 degrees
     
     %% Transport : Van Rijn (2014)        
