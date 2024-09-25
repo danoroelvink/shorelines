@@ -1,21 +1,21 @@
-function [CC]=prepare_climatechange(S, TIME)
-% function [CC]=prepare_climatchange(S, TIME)
+function [CC]=prepare_climatechange(S,TIME)
+% function [CC]=prepare_climatchange(S,TIME)
 %
-% Read climate change related corrections and initialize structure 
+% Read climate change related corrections and initialize data-structure CC.
 %
-% INPUT:
+% INPUT: 
 %   S
-%      .ccSLR    change in sea level, constant rate [m/yr] or time series of change since beginning simulation [m]
-%      .ccHS     change in wave height constant rate [m/yr] or time series of change since beginning simulation [m]
-%      .ccDIR    change in wave direction constant rate [deg/yr] or time series of change since beginning simulation [deg]
+%       .ccslr     : change in sea level, constant rate [m/yr] or time series of change since beginning simulation [m]
+%       .cchs      : change in wave height constant rate [m/yr] or time series of change since beginning simulation [m]
+%       .ccdir     : change in wave direction constant rate [deg/yr] or time series of change since beginning simulation [deg]
 %
 %
 % OUTPUT:
 %   CC
-%       .timenum     time axis, datenum format
-%       .SLR         instantaneous correction rate SLR (m)        
-%       .HS          instantaneous correction rate Hs (m)
-%       .DIR         instantaneous correction rate PHIw  (radians cartesian)
+%       .timenum   : time axis, datenum format
+%       .SLR       : instantaneous correction rate SLR (m)        
+%       .HS        : instantaneous correction rate Hs (m)
+%       .DIR       : instantaneous correction rate PHIw  (radians cartesian)
 %
 %% Copyright notice
 %   --------------------------------------------------------------------
@@ -38,11 +38,11 @@ function [CC]=prepare_climatechange(S, TIME)
 %
 %   This library is distributed in the hope that it will be useful,
 %   but WITHOUT ANY WARRANTY; without even the implied warranty of
-%   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
+%   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU
 %   Lesser General Public License for more details.
 %
 %   You should have received a copy of the GNU Lesser General Public
-%   License along with this library. If not, see <http://www.gnu.org/licenses
+%   License along with this library. If not, see <http://www.gnu.org/licenses>
 %   --------------------------------------------------------------------
 
     fprintf('  Prepare climate change parameters \n');
@@ -59,15 +59,15 @@ function [CC]=prepare_climatechange(S, TIME)
     CC.SLRo=0.0;       % default rate of sea level rise [m/yr], which is used in the bruun-formula for coastal retreat in 'coastline_change' routine.
     
     %% 1. Sea level rise
-    if isscalar(S.ccSLR)             
+    if isscalar(S.ccslr)             
        CC.timenum=[];
-       CC.SLR=S.ccSLR;   % constant rate ccSLR=0.002 [m/yr]
+       CC.SLR=S.ccslr;   % constant rate ccslr=0.002 [m/yr]
         
-    elseif (ischar(S.ccSLR) && ~isempty(S.ccSLR)) || (isnumeric(S.ccSLR) && length(S.ccSLR)>=2)   % we have a timeseries with dMSL wrt initial MSL in time from file: yyyymmdd dMSL [m]
-        if ischar(S.ccSLR)
-            CCraw = load(S.ccSLR);
+    elseif (ischar(S.ccslr) && ~isempty(S.ccslr)) || (isnumeric(S.ccslr) && length(S.ccslr)>=2)   % we have a timeseries with dMSL wrt initial MSL in time from file: yyyymmdd dMSL [m]
+        if ischar(S.ccslr)
+            CCraw = load(S.ccslr);
         else
-            CCraw = S.ccSLR;
+            CCraw = S.ccslr;
         end
         try
             CC.timenum=datenum(num2str(CCraw(:,1)),'yyyymmdd');
@@ -90,15 +90,15 @@ function [CC]=prepare_climatechange(S, TIME)
     
     
     %% 2. Wave characteristics correction
-    if isscalar(S.ccHS)
+    if isscalar(S.cchs)
         CC.timenum=[];
-        CC.HS=S.ccHS; % constant rate of increase of HS [m/yr]
+        CC.HS=S.cchs; % constant rate of increase of HS [m/yr]
         
-    elseif (ischar(S.ccHS) && ~isempty(S.ccHS)) || (isnumeric(S.ccHS) && length(S.ccHS)>=2)
-        if ischar(S.ccHS)
-            CCraw = load(S.ccHS);
+    elseif (ischar(S.cchs) && ~isempty(S.cchs)) || (isnumeric(S.cchs) && length(S.cchs)>=2)
+        if ischar(S.cchs)
+            CCraw = load(S.cchs);
         else
-            CCraw = S.ccHS;
+            CCraw = S.cchs;
         end
         
         try
@@ -120,15 +120,15 @@ function [CC]=prepare_climatechange(S, TIME)
         
     end
     
-    if isscalar(S.ccDIR)
+    if isscalar(S.ccdir)
         CC.timenum=[];
-        CC.DIR=S.ccDIR; % constant rate of change of the DIR [°/yr]
+        CC.DIR=S.ccdir; % constant rate of change of the DIR [°/yr]
         
-    elseif (ischar(S.ccDIR) && ~isempty(S.ccDIR)) || (isnumeric(S.ccDIR) && length(S.ccDIR)>=2)
-        if ischar(S.ccDIR)
-            CCraw = load(S.ccDIR);
+    elseif (ischar(S.ccdir) && ~isempty(S.ccdir)) || (isnumeric(S.ccdir) && length(S.ccdir)>=2)
+        if ischar(S.ccdir)
+            CCraw = load(S.ccdir);
         else
-            CCraw = S.ccDIR;
+            CCraw = S.ccdir;
         end
         try
             CC.timenum=datenum(num2str(CCraw(:,1)),'yyyymmdd');

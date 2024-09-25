@@ -1,9 +1,7 @@
 function [FORMAT] = initialize_plot(S,COAST)
-% function [FORMAT.plot_time,FORMAT.tsl,FORMAT.tplot,FORMAT.xp_mc,FORMAT.yp_mc] = initialize_plot_variables(S)
-% function [xl,yl,phirf,vi,vii,FORMAT.xmax,FORMAT.ymax,FORMAT.xmin,FORMAT.ymin,FORMAT.nmax,iwtw,FORMAT.plot_time,FORMAT.tsl,FORMAT.tplot,FORMAT.xp_mc,FORMAT.yp_mc,CLplot,CLplot2,iint,BWplot,BWplot2,innt,ds_cl,qwave,qwind,time,step,int,bermW,x_trans,y_trans,n_trans] = initialize_plot_variables(S,x_mc,y_mc,x_hard,y_hard,x_dune,y_dune,timenum0)
+% function [FORMAT] = initialize_plot(S,COAST)
 %
-% UNTITLED5 Summary of this function goes here
-% Detailed explanation goes here
+% Initialization function of the plot parameters stored in 'FORMAT'.
 %
 %% Copyright notice
 %   --------------------------------------------------------------------
@@ -26,11 +24,11 @@ function [FORMAT] = initialize_plot(S,COAST)
 %
 %   This library is distributed in the hope that it will be useful,
 %   but WITHOUT ANY WARRANTY; without even the implied warranty of
-%   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
+%   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU
 %   Lesser General Public License for more details.
 %
 %   You should have received a copy of the GNU Lesser General Public
-%   License along with this library. If not, see <http://www.gnu.org/licenses
+%   License along with this library. If not, see <http://www.gnu.org/licenses>
 %   --------------------------------------------------------------------
 
     fprintf('  Initialize plot \n');
@@ -38,15 +36,15 @@ function [FORMAT] = initialize_plot(S,COAST)
     % Set x and y limits
     if isempty(S.xlimits)
         xlims=[min(COAST.x_mc),max(COAST.x_mc)];
-        S.xlimits = [min(xlims)-0.05*diff(xlims),max(xlims)+0.05*diff(xlims)] - S.XYoffset(1);
+        S.xlimits = [min(xlims)-0.05*diff(xlims),max(xlims)+0.05*diff(xlims)] - S.xyoffset(1);
     else
-        S.xlimits = S.xlimits - S.XYoffset(1);
+        S.xlimits = S.xlimits - S.xyoffset(1);
     end
     if isempty(S.ylimits)
         ylims=[min(COAST.y_mc),max(COAST.y_mc)];
-        S.ylimits = [min(ylims)-0.05*diff(ylims),max(ylims)+0.05*diff(ylims)] - S.XYoffset(2);
+        S.ylimits = [min(ylims)-0.05*diff(ylims),max(ylims)+0.05*diff(ylims)] - S.xyoffset(2);
     else
-        S.ylimits = S.ylimits - S.XYoffset(2);
+        S.ylimits = S.ylimits - S.xyoffset(2);
     end
     S.xlimits(2)=max(S.xlimits(1)+500,S.xlimits(2)); 
     S.ylimits(2)=max(S.ylimits(1)+500,S.ylimits(2)); 
@@ -54,7 +52,7 @@ function [FORMAT] = initialize_plot(S,COAST)
     S.ylimits=sort(S.ylimits); 
     FORMAT.xlimits=S.xlimits; 
     FORMAT.ylimits=S.ylimits; 
-    FORMAT.XYoffset=S.XYoffset; 
+    FORMAT.xyoffset=S.xyoffset; 
 
     % Format figures
     if S.plotvisible==0
@@ -104,12 +102,12 @@ function [FORMAT] = initialize_plot(S,COAST)
     FORMAT.yp_mc={};
     
     % empty land polygon 
-    FORMAT.xb=[];
-    FORMAT.yb=[];
+    FORMAT.xb={};
+    FORMAT.yb={};
     
     % Other plot formatting
-    if ~isempty(S.SLplot)  % For extracting specific shorelines
-        FORMAT.plot_time(:)=datenum(S.SLplot(:,1),'yyyy-mm-dd');
+    if ~isempty(S.slplot)  % For extracting specific shorelines
+        FORMAT.plot_time(:)=datenum(S.slplot(:,1),'yyyy-mm-dd');
         FORMAT.tsl=1;
         FORMAT.tplot=FORMAT.plot_time(FORMAT.tsl);
         FORMAT.plot_time(end+1)=0;
@@ -127,19 +125,19 @@ function [FORMAT] = initialize_plot(S,COAST)
     FORMAT.plotinterval=S.plotinterval;
     FORMAT.usefill=S.usefill;
     FORMAT.usefillpoints=S.usefillpoints;
-    FORMAT.LDBplot=S.LDBplot;
+    FORMAT.ldbplot=S.ldbplot;
     FORMAT.llocation=S.llocation;
-    FORMAT.SLplot=S.SLplot;
+    FORMAT.slplot=S.slplot;
     FORMAT.video=S.video;
     FORMAT.outputdir=S.outputdir;
     FORMAT.fignryear=S.fignryear;
     FORMAT.ld=S.ld;
-    FORMAT.XYwave=S.XYwave;
-    FORMAT.plotQS=S.plotQS;
-    FORMAT.plotHS=S.plotHS;
-    FORMAT.plotDIR=S.plotDIR;
-    FORMAT.plotUPW=S.plotUPW;
-    FORMAT.print_fig=S.print_fig;
+    FORMAT.xywave=S.xywave;
+    FORMAT.plotqs=S.plotqs;
+    FORMAT.ploths=S.ploths;
+    FORMAT.plotdir=S.plotdir;
+    FORMAT.plotupw=S.plotupw;
+    FORMAT.printfig=S.printfig;
     FORMAT.fastplot=S.fastplot;
     FORMAT.plotprofiles=[];
     FORMAT.xyprofiles=S.xyprofiles;

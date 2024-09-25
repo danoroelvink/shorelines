@@ -1,7 +1,7 @@
-function r = isoctave()
-% function r = isoctave()
+function [ z ] = get_mod( x,y )
+% function [ z ] = get_mod( x,y )
 %
-% This function checks what Octave version is used.
+% modified mod function that returns y instead of 0 if x==y
 %
 %% Copyright notice
 %   --------------------------------------------------------------------
@@ -31,9 +31,7 @@ function r = isoctave()
 %   License along with this library. If not, see <http://www.gnu.org/licenses>
 %   --------------------------------------------------------------------
 
-    persistent isoctv;
-    if (isempty (isoctv))
-        isoctv = exist ('OCTAVE_VERSION', 'builtin');
-    end
-    r = isoctv;
+    z=mod(x,y);
+    z(z==0)=y;
 end
+

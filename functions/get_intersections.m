@@ -1,10 +1,31 @@
 function [xcr,ycr,indc,inds,indi,indj,ui,uj]=get_intersections(xi0,yi0,xj0,yj0)
-% function [xcr,ycr,indc,inds,indi,indj,ui,uj]=find_crossing(xi,yi,xj,yj)
+% function [xcr,ycr,indc,inds,indi,indj,ui,uj]=get_intersections(xi0,yi0,xj0,yj0)
 % 
 % finds all crossings of polygons
 % xcr and ycr are the crossing points.
 % indi and indj provide the index of the vertex of the polygons i and j.
 % (so indi=10 corresponds with points i=10 to i=11)
+% 
+% finds all crossings of polygons
+% xcr and ycr are the crossing points.
+% indi and indj provide the index of the vertex of the polygons i and j.
+% (so indi=10 corresponds with points i=10 to i=11)
+%
+% INPUT:
+%     xi        : x-coordinates of polygon 1 [m]
+%     yi        : y-coordinates of polygon 1 [m]
+%     xj        : x-coordinates of polygon 2 [m]
+%     yj        : y-coordinates of polygon 2 [m]
+% 
+% OUTPUT: 
+%     xcr       : x-coordinates of crossings [m]
+%     ycr       : y-coordinates of crossings [m]
+%     indc      : index on polygon 1 of the crossing (=index of last point + fraction of last vertex) 
+%     inds      : index on polygon 2 of the crossing (=index of last point + fraction of last vertex) 
+%     indi      : index of last point of polygon 1 before the crossing (truncated version of indc)
+%     indj      : index of last point of polygon 2 before the crossing (truncated version of inds)
+%     ui        : fraction of polygon 1 up till crossing (from indi onwards)
+%     uj        : fraction of polygon 2 up till crossing (from indj onwards)
 % 
 %% Copyright notice
 %   --------------------------------------------------------------------
@@ -27,11 +48,11 @@ function [xcr,ycr,indc,inds,indi,indj,ui,uj]=get_intersections(xi0,yi0,xj0,yj0)
 %
 %   This library is distributed in the hope that it will be useful,
 %   but WITHOUT ANY WARRANTY; without even the implied warranty of
-%   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
+%   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU
 %   Lesser General Public License for more details.
 %
 %   You should have received a copy of the GNU Lesser General Public
-%   License along with this library. If not, see <http://www.gnu.org/licenses
+%   License along with this library. If not, see <http://www.gnu.org/licenses>
 %   --------------------------------------------------------------------
 
     eps=1e-5;

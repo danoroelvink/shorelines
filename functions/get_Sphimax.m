@@ -1,18 +1,25 @@
 function [WAVE,TRANSP]=get_Sphimax(WAVE,TIDE,TRANSP,STRUC)
-% function [dPHImax,QSmax,dPHIbrmax]=get_Sphimax(TRANSP,HStdp,htdp,TP,gamma)
-%
-% INPUT:
+% function [WAVE,TRANSP]=get_Sphimax(WAVE,TIDE,TRANSP,STRUC)
+% 
+% The maximum transport (QSmax) is computed under high-angle wave incidence, 
+% as well as the critical wave angle with respect to the coastline at
+% the depth-of-closure (.dPHIcrit) and at the point of breaking (.dPHIcritbr). 
+% 
+% INPUT: 
 %    WAVE
-%        .HStdp  : wave height at nearshore location (depth-of-closure) [1xN]
-%        .htdp   : water depth at nearshore location (depth-of-closure)
-%        .TP     : wave period at nearshore location (depth-of-closure) 
-%    TRANSP      : input structure with TRANSPORT data  
-%        .gamma  : wave breaking coefficient
+%       .HStdp      : wave height at nearshore location (depth-of-closure)
+%       .htdp       : water depth at nearshore location (depth-of-closure)
+%       .TP         : wave period at nearshore location (depth-of-closure) 
+%    TRANSP         : input structure with TRANSPORT data  
+%       .gamma      : wave breaking coefficient
 % 
 % OUTPUT:
-%    dPHImax  : critical angle at nearshore location (depth-of-closure) [1xN]      
-%    QSmax    : maximum transport at nearshore location (depth-of-closure) [1xN]        
-%
+%    TRANSP
+%       .QSmax      : maximum transport at high-angle wave incidence [m3/yr]
+%    WAVE
+%       .dPHIcrit   : critical angle at depth-of-closure [°]
+%       .dPHIcritbr : critical angle at point of breaking [°]
+% 
 %% Copyright notice
 %   --------------------------------------------------------------------
 %   Copyright (C) 2020 IHE Delft & Deltares
@@ -34,11 +41,11 @@ function [WAVE,TRANSP]=get_Sphimax(WAVE,TIDE,TRANSP,STRUC)
 %
 %   This library is distributed in the hope that it will be useful,
 %   but WITHOUT ANY WARRANTY; without even the implied warranty of
-%   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
+%   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU
 %   Lesser General Public License for more details.
 %
 %   You should have received a copy of the GNU Lesser General Public
-%   License along with this library. If not, see <http://www.gnu.org/licenses
+%   License along with this library. If not, see <http://www.gnu.org/licenses>
 %   --------------------------------------------------------------------
 
 

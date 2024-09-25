@@ -1,15 +1,15 @@
 function [FNOUR] = get_fnourishment(TIME,COAST,FNOUR,WAVE,i_mc)
-% function [FNOUR]=get_fnourishment(TIME,COAST,FNOUR,WAVE,i_mc)
+% function [FNOUR] = get_fnourishment(TIME,COAST,FNOUR,WAVE,i_mc)
 % 
 % Computes the instantaneous source term of the shoreface nourishment to
 % the coastline and the remaining volume of the shoreface nourishment
 %
-% INPUT: 
-%    TIME
-%    COAST         
-%    FNOUR    
-%    WAVE
-%    i_mc 
+% INPUT:  
+%    TIME               : time data structure, with fields
+%    COAST              : coast data structure, with fields   
+%    FNOUR              : shoreface nourishment data structure, with fields 
+%    WAVE               : wave data structure, with fields
+%    i_mc               : index of the active coastal element
 %
 % OUTPUT:
 %     FNOUR
@@ -36,11 +36,11 @@ function [FNOUR] = get_fnourishment(TIME,COAST,FNOUR,WAVE,i_mc)
 %
 %   This library is distributed in the hope that it will be useful,
 %   but WITHOUT ANY WARRANTY; without even the implied warranty of
-%   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
+%   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU
 %   Lesser General Public License for more details.
 %
 %   You should have received a copy of the GNU Lesser General Public
-%   License along with this library. If not, see <http://www.gnu.org/licenses
+%   License along with this library. If not, see <http://www.gnu.org/licenses>
 %   --------------------------------------------------------------------
 
 eps=1e-6;  % default minimum volume for shoreface nourishment
@@ -98,7 +98,7 @@ if FNOUR.fnourish == 1 % if shoreface nourishments are activated
                 V1          = FNOUR.Vt(n,t) * fraction(i_mc);
                 V1dens      = V1 / dxnour(i_mc); % [m3/m]
                 idx_mc      = idx{i_mc};
-                dt          = TIME.dt * 365 * 24 * 60 * 60; % days -> [s]
+                dt          = TIME.dt * 365 * 24 * 60 * 60; % yrs -> [s]
                 dtsteps     = 1;
                 [V2dens,Qend] = get_fnourishment_rate(dt, dtsteps, V1dens, labda0, w, mb, K, WAVE, idx_mc, xn, yn);
                 

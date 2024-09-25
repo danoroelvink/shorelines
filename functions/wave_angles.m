@@ -1,31 +1,43 @@
 function [WAVE,TRANSP]=wave_angles(COAST,WAVE,TIDE,TRANSP,STRUC)
-% function [WAVE,TRANSP]=wave_angles(COAST,WAVE,TRANSP,STRUC)
+% function [WAVE,TRANSP]=wave_angles(COAST,WAVE,TIDE,TRANSP,STRUC)
 %
-% Computation of critical wave angles and TRANSP.QSmax at dynamic boundary and point of breaking.
+% Computation of critical wave angles and QSmax at dynamic boundary and point of breaking.
 % S-Phi curve at point of breaking to obtain 'critical coastline orientation' with respect to offshore conditions ('dPHI')
 %
-% INPUT:
+% INPUT: 
 %    COAST
-%       .n           : number of coastline points
+%       .nq                : number of qs-points
 %    WAVE
-%       .PHItdp      : Incoming wave direction (in degrees North)
-%       .HStdp       : Incoming wave height
-%       .TP          : Wave period [s]
-%       .dnearshore  : depth of dynamic boundary
-%       .c1          : coefficient describing the curvature of the QS-Phi curve (only used in case trform='RAY')
-%       .c2          : coefficient describing the curvature of the QS-Phi curve (only used in case trform='RAY')
-%       .QSoffset    : coefficient describing the curvature of the QS-Phi curve (only used in case trform='RAY')
+%       .HStdp             : incoming wave height at depth-of-closure [m]
+%       .PHItdp            : incoming wave direction at depth-of-closure [°N]
+%       .TP                : wave period [s]
+%       .dnearshore        : depth of dynamic boundary
+%       .c1                : coefficient describing the curvature of the QS-Phi curve (only used in case trform='RAY')
+%       .c2                : coefficient describing the curvature of the QS-Phi curve (only used in case trform='RAY')
+%       .QSoffset          : coefficient describing the curvature of the QS-Phi curve (only used in case trform='RAY')
 %    TRANSP 
-%       .trform            transport formulation (either 'CERC', 'KAMP', 'MILH', 'CERC3', 'VR14')
-%       .gamma             Breaking coefficient [-]
-%       .alpha             Calibration factor for point of breaking (e.g. 1.8 for Egmond)
-%       .<various transport formulation variables>
+%       .trform            : transport formulation (either 'CERC', 'KAMP', 'MILH', 'CERC3', 'VR14')
+%       .gamma             : depth-induced breaking coefficient [-]
+%       .alpha             : calibration factor for point of braking [-]
+%       .qscal             : calibration coefficient for the transport computations [-]
+%       .b                 : transport factor of CERC formula (only CERC)
+%       .d50               : median grain size [um]
+%       .d90               : 90-th percentile grain size [um]
+%       .ks                : roughness height [m] 
+%       .tanbeta           : slope [1:n] (only Kamphuis and Milhomens)
+%       .pswell            : relative part of the pswell (in percentage, specify a value between 0 and 100)
+%       .rhos              : density of sediment [kg/m3]
+%       .rhow              : density of water [kg/m3]
+%       .porosity          : porosity [-]
+%       .g                 : acceleration of gravity [m/s2]
+%       .suppresshighangle : switch to suppress high-angle instabilities
 % 
 % OUTPUT:
 %    WAVE
-%       .dPHIcrit    : Critical orientation of the coastline with respect to breaking waves ([2] or [Nx2] Radians)
+%       .dPHIcrit          : Critical orientation of the coastline with respect to waves at the depth-of-closure (Nx2) [°]
+%       .dPHIbr            : Critical orientation of the coastline with respect to waves at the point of breaking (Nx2) [°]
 %    TRANSP
-%       .QSmax       : Maximum transport foir critical wave angle
+%       .QSmax             : Maximum transport foir critical wave angle [m3/yr]
 %
 %% Copyright notice
 %   --------------------------------------------------------------------
@@ -48,22 +60,18 @@ function [WAVE,TRANSP]=wave_angles(COAST,WAVE,TIDE,TRANSP,STRUC)
 %
 %   This library is distributed in the hope that it will be useful,
 %   but WITHOUT ANY WARRANTY; without even the implied warranty of
-%   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
+%   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU
 %   Lesser General Public License for more details.
 %
 %   You should have received a copy of the GNU Lesser General Public
-%   License along with this library. If not, see <http://www.gnu.org/licenses
+%   License along with this library. If not, see <http://www.gnu.org/licenses>
 %   --------------------------------------------------------------------
 
     if ~strcmpi(TRANSP.trform,'RAY')
         PHIlocal = WAVE.PHItdp;
         HSlocal  = WAVE.HStdp;
         DEPlocal = repmat(WAVE.dnearshore,[1,COAST.nq]);
-        [kh1,WAVE.ctdp]=wave_GUO2002(WAVE.TP,DEPlocal);
-        WAVE.ntdp = 0.5.*(1.+(2.*kh1)./sinh(2.*kh1));
-        if length(kh1)==1
-            kh1=repmat(kh1,[1,COAST.nq]);
-        end
+        [~,WAVE.ctdp,~,WAVE.ntdp]=get_disper(DEPlocal,WAVE.TP);
         if length(WAVE.TP)==1
             WAVE.TP=repmat(WAVE.TP,[1,COAST.nq]);
         end
@@ -119,7 +127,7 @@ function [WAVE,TRANSP]=wave_angles(COAST,WAVE,TIDE,TRANSP,STRUC)
     end
     
     %% Limit high-angle instabilities by forcing maximum transport when the angle is larger than dPHIcrit
-    if TRANSP.suppress_highangle==1 
+    if TRANSP.suppresshighangle==1 
        id=abs(WAVE.dPHItdp)>WAVE.dPHIcrit;
        WAVE.dPHItdp=sign(WAVE.dPHItdp).*min([abs(WAVE.dPHItdp);WAVE.dPHIcrit],[],1);        
        WAVE.dPHIbr(id)=sign(WAVE.dPHIbr(id)).*min([abs(WAVE.dPHIbr(id));WAVE.dPHIcritbr(id)],[],1);        

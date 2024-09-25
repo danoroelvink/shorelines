@@ -1,15 +1,22 @@
 function [COAST]=get_coastline_orientation(COAST)
 % function [COAST]=get_coastline_orientation(COAST)
 % 
-% INPUT:
+% INPUT: 
 %   COAST
-%     .x          x-coordinate of coastal segment [m]
-%     .y          y-coordinate of coastal segment [m]
+%     .x                      : x-coordinates at coastline points [m]
+%     .y                      : y-coordinates at coastline points [m]
+%     .xq                     : x-coordinates at qs-points [m]
+%     .yq                     : y-coordinates at qs-points [m]
+%     .cyclic                 : index indicating cyclicality of the active element (0/1)
 %
 % OUTPUT:
 %   COAST
-%     .PHIc       Coastline orientation at transport grid points [°N]
-%     .PHIcxy      Coastline orientation at coastline grid points [°N]
+%     .PHIc                   : coastline orientation at transport grid points [°N]
+%     .PHIcxy                 : coastline orientation at coastline grid points [°N]
+%     .PHIcs                  : smoothed coastline orientation at transport grid points [°N], used only for refraction
+%     .PHIc0bnd               : orientation of the coastline at the boundary points at t0 [°N]
+%     .boundaryconditionstart : orientation is fixed of the boundary condition at to when 'Angleconstant'
+%     .boundaryconditionend   : orientation is fixed of the boundary condition at to when 'Angleconstant'
 %
 %% Copyright notice
 %   --------------------------------------------------------------------
@@ -32,11 +39,11 @@ function [COAST]=get_coastline_orientation(COAST)
 %
 %   This library is distributed in the hope that it will be useful,
 %   but WITHOUT ANY WARRANTY; without even the implied warranty of
-%   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
+%   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU
 %   Lesser General Public License for more details.
 %
 %   You should have received a copy of the GNU Lesser General Public
-%   License along with this library. If not, see <http://www.gnu.org/licenses
+%   License along with this library. If not, see <http://www.gnu.org/licenses>
 %   --------------------------------------------------------------------
 
     % coast angles (PHIc) at transport points (only in-between coastline points, not at 'boundary transport points')    
@@ -65,20 +72,20 @@ function [COAST]=get_coastline_orientation(COAST)
         % store coast-angle at bounary at t0 for 'angleconstant' boundary conditions
         % or use a prescribed angle for the boundary
         % and re-use this angle at later timesteps. 
-        if strcmpi(COAST.boundary_condition_start{1},'Angleconstant') || ...
-           strcmpi(COAST.boundary_condition_start{1},'Gradient') 
-            if isnan(COAST.boundary_condition_start{2})
-                COAST.boundary_condition_start{2}=COAST.PHIc(1);
+        if strcmpi(COAST.boundaryconditionstart{1},'Angleconstant') || ...
+           strcmpi(COAST.boundaryconditionstart{1},'Gradient') 
+            if isnan(COAST.boundaryconditionstart{2})
+                COAST.boundaryconditionstart{2}=COAST.PHIc(1);
             else
-                COAST.PHIc(1)=COAST.boundary_condition_start{2};
+                COAST.PHIc(1)=COAST.boundaryconditionstart{2};
             end
         end
-        if strcmpi(COAST.boundary_condition_end{1},'Angleconstant') || ...
-           strcmpi(COAST.boundary_condition_end{1},'Gradient') 
-            if isnan(COAST.boundary_condition_end{2})
-                COAST.boundary_condition_end{2}=COAST.PHIc(end);
+        if strcmpi(COAST.boundaryconditionend{1},'Angleconstant') || ...
+           strcmpi(COAST.boundaryconditionend{1},'Gradient') 
+            if isnan(COAST.boundaryconditionend{2})
+                COAST.boundaryconditionend{2}=COAST.PHIc(end);
             else
-                COAST.PHIc(end)=COAST.boundary_condition_end{2};
+                COAST.PHIc(end)=COAST.boundaryconditionend{2};
             end
         end
     end

@@ -1,5 +1,5 @@
-function [Vend,Qend,Fac] = get_fnourishment_rate(dt,dtsteps, V0, labda0, w, mb, K, WAVE, idx_mc, x_fnour, y_fnour)
-% function [Vend,Qend,Fac] = get_fnourishment_rate(dt,dtsteps, V0, labda0, w, mb, K, WAVE, idx_mc, x_fnour, y_fnour)
+function [Vend,Qend,Fac] = get_fnourishment_rate(dt,dtsteps,V0,labda0,w,mb,K,WAVE,idx_mc,x_fnour,y_fnour)
+% function [Vend,Qend,Fac] = get_fnourishment_rate(dt,dtsteps,V0,labda0,w,mb,K,WAVE,idx_mc,x_fnour,y_fnour)
 %
 % Get the relative volume of a shoreface nourishment still present at the
 % starting time of the simulation if starting time nourishment < starting
@@ -26,11 +26,11 @@ function [Vend,Qend,Fac] = get_fnourishment_rate(dt,dtsteps, V0, labda0, w, mb, 
 %
 %   This library is distributed in the hope that it will be useful,
 %   but WITHOUT ANY WARRANTY; without even the implied warranty of
-%   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
+%   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU
 %   Lesser General Public License for more details.
 %
 %   You should have received a copy of the GNU Lesser General Public
-%   License along with this library. If not, see <http://www.gnu.org/licenses
+%   License along with this library. If not, see <http://www.gnu.org/licenses>
 %   --------------------------------------------------------------------  
 
     %% Get average wave conditions over the considered 1) time period and 2) spatial impact area

@@ -1,11 +1,29 @@
 function [x_mc,y_mc,i1,i2]=insert_section(xnew,ynew,x_mc,y_mc,i_mc)
 % function [x_mc,y_mc,i1,i2]=insert_section(xnew,ynew,x_mc,y_mc,i_mc)
-% OR
+%  OR
 % function [x_mc,i1,i2]=insert_section(xnew,x_mc,i_mc)
 % 
-% UNTITLED Summary of this function goes here
-% Detailed explanation goes here
+% This routine inserts sections of data (e.g. vectors of x-coordinates)
+% into the overarching 'mc' variable, which contains data for all the 
+% coastal elements (n_mc) at position of element i_mc.
+% The existing data of element 'i_mc' is replaced by the new data. 
+% It is possible to perform this action at once for two data variables
+% with exactly the same size (e.g. x_mc and y_mc) or for just a single
+% variable (e.g. QS_mc). 
 %
+% INPUT:
+%     x_mc       : variable with a vector containing data of all the coastal segments separated by NaNs (e.g. x-coordinates)
+%     y_mc       : (optional) additional variable with a vector containing other data of all the coastal segments separated by NaNs (e.g. y-coordinates) with exactly the same size as the x_mc
+%     i_mc       : index of the element to be replaced in the x_mc / y_mc variables. 
+%     xnew       : new data vector for element i_mc (e.g. y-coordinates for an element) with exactly the same size as the xnew
+%     ynew       : (optional) additional new data vector for element i_mc (e.g. y-coordinates for an element) with exactly the same size as the xnew
+% 
+% OUTPUT: 
+%     x_mc       : updated variable with a vector containing data of all the coastal segments separated by NaNs (e.g. x-coordinates)
+%     y_mc       : (optional) additional updated variable with a vector containing other data of all the coastal segments separated by NaNs (e.g. y-coordinates) with exactly the same size as the x_mc
+%     i_1        : index of the first point of the i_mc element in the original x_mc variable (up to this index-1 the original x_mc was preserved)
+%     i_2        : index of the last point of the i_mc element in the original x_mc variable (from this index+1 the original x_mc was preserved)
+% 
 %% Copyright notice
 %   --------------------------------------------------------------------
 %   Copyright (C) 2020 IHE Delft & Deltares
@@ -27,11 +45,11 @@ function [x_mc,y_mc,i1,i2]=insert_section(xnew,ynew,x_mc,y_mc,i_mc)
 %
 %   This library is distributed in the hope that it will be useful,
 %   but WITHOUT ANY WARRANTY; without even the implied warranty of
-%   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
+%   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU
 %   Lesser General Public License for more details.
 %
 %   You should have received a copy of the GNU Lesser General Public
-%   License along with this library. If not, see <http://www.gnu.org/licenses
+%   License along with this library. If not, see <http://www.gnu.org/licenses>
 %   --------------------------------------------------------------------
 
     if nargin==3

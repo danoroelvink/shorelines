@@ -1,22 +1,26 @@
 function [DELTA]=prepare_delta(S)
-% [DELTA]=prepare_delta(S)
+% function [DELTA]=prepare_delta(S)
 %
-% INPUT:
+% Prepares the DELTA data-structure.
+%
+% INPUT: 
 %    S
-%         .flood_delta    :  
-%         .x_flood_pol    :  
-%         .y_flood_pol    :  
-%         .x_spit_pol     :  
-%         .y_spit_pol     :  
-%         .dxf            :  
-%         .overdepth      :  
+%         .flooddelta    : switch (0/1) for flood delta 
+%         .ldbflood      : file with x and y coordinates of the flood delta polygon [Nx2] or directly provide a matrix
+%         .xfloodpol     : x-coordinates of flood delta polygon
+%         .yfloodpol     : y-coordinates of flood delta polygon
+%         .ldbspit       : file with x and y coordinates of the spit polygon [Nx2] or directly provide a matrix
+%         .xspitpol      : x-coordinates of the spit polygon
+%         .yspitpol      : y-coordinates of the spit polygon
+%         .dxf           : resolution of flood delta area [m]
+%         .overdepth     : initial overdepth flood delta [m]
 %         
 % OUTPUT:
 %    DELTA
-%         .x_flood
-%         .y_flood
-%         .flood_deficit
-%         .fcell_area
+%         .xflood        : x-coordinates of flood delta polygon
+%         .yflood        : y-coordinates of flood delta polygon
+%         .flooddeficit  : flood delta volume deficit
+%         .fcellarea     : flood delta area
 %
 %% Copyright notice
 %   --------------------------------------------------------------------
@@ -39,46 +43,46 @@ function [DELTA]=prepare_delta(S)
 %
 %   This library is distributed in the hope that it will be useful,
 %   but WITHOUT ANY WARRANTY; without even the implied warranty of
-%   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
+%   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU
 %   Lesser General Public License for more details.
 %
 %   You should have received a copy of the GNU Lesser General Public
-%   License along with this library. If not, see <http://www.gnu.org/licenses
+%   License along with this library. If not, see <http://www.gnu.org/licenses>
 %   --------------------------------------------------------------------
 
     fprintf('  Prepare delta \n');
     
     %% Flood delta
     DELTA=struct;
-    DELTA.x_flood=[];
-    DELTA.y_flood=[];
-    DELTA.flood_deficit=[];
-    DELTA.fcell_area=[];
+    DELTA.xflood=[];
+    DELTA.yflood=[];
+    DELTA.flooddeficit=[];
+    DELTA.fcellarea=[];
     
-    if S.flood_delta & S.channel
-        if ~isempty(S.x_flood_pol)
-            x_flood_pol=S.x_flood_pol;
-            y_flood_pol=S.y_flood_pol;
-            x_spit_pol=S.x_spit_pol;
-            y_spit_pol=S.y_spit_pol;
-        elseif ~isempty(S.LDBflood)
-            xy_flood=load(S.LDBflood);
-            x_flood_pol=xy_flood(:,1)'-S.XYoffset(1);
-            y_flood_pol=xy_flood(:,2)'-S.XYoffset(2);
-            xy_spit=load(S.LDBspit);
-            x_spit_pol=xy_spit(:,1)'-S.XYoffset(1);
-            y_spit_pol=xy_spit(:,2)'-S.XYoffset(2);
+    if S.flooddelta & S.channel
+        if ~isempty(S.xfloodpol)
+            xfloodpol=S.xfloodpol;
+            yfloodpol=S.yfloodpol;
+            xspitpol=S.xspitpol;
+            yspitpol=S.yspitpol;
+        elseif ~isempty(S.ldbflood)
+            xyflood=load(S.ldbflood);
+            xfloodpol=xyflood(:,1)'-S.xyoffset(1);
+            yfloodpol=xyflood(:,2)'-S.xyoffset(2);
+            xyspit=load(S.ldbspit);
+            xspitpol=xyspit(:,1)'-S.xyoffset(1);
+            yspitpol=xyspit(:,2)'-S.xyoffset(2);
         else
-            figure;plot(x_mc,y_mc,xr_mc,yr_mc,'--');axis equal;hold on;
+            figure;plot(x_mc,y_mc,xrmc,yrmc,'--');axis equal;hold on;
             disp('select flood delta outline');
-            [x_flood_pol,y_flood_pol]=select_multi_polygon('k');
+            [xfloodpol,yfloodpol]=select_multi_polygon('k');
             disp('select spit outline');
-            [x_spit_pol,y_spit_pol]=select_multi_polygon('k');
-            save('flood_delta.mat','x_flood_pol','y_flood_pol','x_spit_pol','y_spit_pol');
+            [xspitpol,yspitpol]=select_multi_polygon('k');
+            save('flooddelta.mat','xfloodpol','yfloodpol','xspitpol','yspitpol');
         end
-        [DELTA.x_flood,DELTA.y_flood,DELTA.flood_deficit,DELTA.fcell_area] = prepare_flood_delta(x_flood_pol,y_flood_pol,S.dxf,S.dxf,S.overdepth);
+        [DELTA.xflood,DELTA.yflood,DELTA.flooddeficit,DELTA.fcellarea] = prepare_flooddelta(xfloodpol,yfloodpol,S.dxf,S.dxf,S.overdepth);
+        
         %% write logfile
         % struct2log(DELTA,'DELTA','a');
-
     end
 end

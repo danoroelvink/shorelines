@@ -1,10 +1,12 @@
 function [data2]=interpNANs(data,useextrapolation)
-% function [data2]=interpNANs(data)
-%
-% INPUT:
-%     data                Array [Nx1] with data
-%     useextrapolation    switch to use extrapolation (use 'nearest' or 'linear' for extrapolation)
-%                         this does not affect the interpolation which will be 'linear' 
+% function [data2]=interpNANs(data,useextrapolation)
+% 
+% This function interpolates NaNs in vectors of scalar values.
+% 
+% INPUT: 
+%     data              :  Array [Nx1] with data
+%     useextrapolation  :  switch to use extrapolation (use 'nearest' or 'linear' for extrapolation)
+%                          this does not affect the interpolation which will be 'linear' 
 %
 % data = [10, 9, nan, 8, nan, 7.5, nan, nan]
 %
@@ -29,11 +31,11 @@ function [data2]=interpNANs(data,useextrapolation)
 %
 %   This library is distributed in the hope that it will be useful,
 %   but WITHOUT ANY WARRANTY; without even the implied warranty of
-%   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
+%   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU
 %   Lesser General Public License for more details.
 %
 %   You should have received a copy of the GNU Lesser General Public
-%   License along with this library. If not, see <http://www.gnu.org/licenses
+%   License along with this library. If not, see <http://www.gnu.org/licenses>
 %   --------------------------------------------------------------------
 
     if nargin<2

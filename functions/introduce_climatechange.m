@@ -3,20 +3,23 @@ function [CC]=introduce_climatechange(CC,TIME,i_mc)
 %
 % Derive climate change related corrections at considered time instance.
 %
-% INPUT:
-%   CC
-%      .timenum time in datenum
-%      .SLR     rate of sea level rise [m/yr]
-%      .HS      change in wave height since start simulation (m)
-%      .DIR     change in wave direction since start of simulation (deg)
+% INPUT: 
+%    CC
+%        .timenum  : time in datenum
+%        .SLR      : rate of sea level rise [m/yr]
+%        .HS       : change in wave height since start simulation (m)
+%        .DIR      : change in wave direction since start of simulation (deg)
 %
-%   TIME       current moment in time 'tnow' is used (in datnum format [days since 0000-00-01 00:00])
+%    TIME          : current moment in time 'tnow' is used (in datnum format [days since 0000-00-01 00:00])
+%        .timenum0 : time at model start t0 [in days in datenum format]
+%        .tnow     : current time [in days in datenum format]
+%        .tprev    : time at previous coastal timestep [in days in datenum format]
 %
 % OUTPUT:
-%   CC
-%              .SLRo            sea level rise at cosnidered time instance (m)
-%              .HScor           Significant wave height correction at considered time instance (m)
-%              .PHIcor          Wave direction correction at considered time instance (deg)
+%    CC
+%        .SLRo     : rate of sea level rise at considered time instance [m/yr]
+%        .HScor    : relative increase of the significant wave height at considered time instance w.r.t. t0 [-]
+%        .PHIcor   : relative change in wave direction at considered time instance w.r.t. t0 [delta °]
 %
 %% Copyright notice
 %   --------------------------------------------------------------------
@@ -39,11 +42,11 @@ function [CC]=introduce_climatechange(CC,TIME,i_mc)
 %
 %   This library is distributed in the hope that it will be useful,
 %   but WITHOUT ANY WARRANTY; without even the implied warranty of
-%   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
+%   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU
 %   Lesser General Public License for more details.
 %
 %   You should have received a copy of the GNU Lesser General Public
-%   License along with this library. If not, see <http://www.gnu.org/licenses
+%   License along with this library. If not, see <http://www.gnu.org/licenses>
 %   --------------------------------------------------------------------
 
     if i_mc==1
@@ -53,9 +56,9 @@ function [CC]=introduce_climatechange(CC,TIME,i_mc)
         if isempty(CC.timenum)
             % elapsed time
             dt=(TIME.tnow-TIME.timenum0)/365.;
-            CC.SLRo   = CC.SLR;   % goes *dt in calculation dn
-            CC.HScor  = 1 + CC.HS * dt;      % CC.HS is the relative increase of HS per year [1/yr]
-            CC.PHIcor = CC.DIR * dt;         % CC.DIR is the rotation of the DIR per year [°/yr]
+            CC.SLRo   = CC.SLR;              % rate of sea level rise at considered time instance (m/yr)
+            CC.HScor  = 1 + CC.HS * dt;      % relative increase of Hs at considered moment w.r.t. t0 [-]
+            CC.PHIcor = CC.DIR * dt;         % rotation of the wave direction at considered moment w.r.t. t0 [delta °]
 
         %% Time series    
         else
@@ -91,7 +94,8 @@ function [CC]=introduce_climatechange(CC,TIME,i_mc)
             end
 
             if length(CC.timenum(:))==length(CC.HS(:))
-                hsfactor     = interp1(CC.timenum(:),CC.HS(:),TIME.tnow);  % CC.HS is the relative increase in wave height w.r.t. HS at t0 [increase as fraction of initial wave height] (e.g. 0.04 means an increase of 4% in wave height w.r.t. t0)
+                % CC.HS is the relative increase in wave height w.r.t. HS at t0 [increase as fraction of initial wave height] (e.g. 0.04 means an increase of 4% in wave height w.r.t. t0)
+                hsfactor     = interp1(CC.timenum(:),CC.HS(:),TIME.tnow);  
                 if isnan(hsfactor)
                     error('Could not determine slr related wave height change factor. Check your input time series');
                 end

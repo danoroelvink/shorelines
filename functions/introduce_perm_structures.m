@@ -1,21 +1,29 @@
 function [WAVE]=introduce_perm_structures(STRUC,WAVE,COAST)
-% [Hsout]=introduce_perm_structures(STRUC,WAVE,COAST)
+% function [WAVE]=introduce_perm_structures(STRUC,WAVE,COAST)
 % 
-% INPUT:
+% This function introduces permeable structures by adjusting the 
+% wave conditions at the rear side of the structure. 
+%
+% INPUT: 
 %   STRUCT
-%       .x_perm         Coordinates of permeable breakwaters     
-%       .y_perm         Coordinates of permeable breakwaters     
+%       .xperm       : x-coordinates of permeable breakwaters     
+%       .yperm       : y-coordinates of permeable breakwaters     
 %   WAVE
-%       .HStdp          Significant wave height at considered time instance (m)
-%       .wavetransm     Array with transmission coefficients per section
+%       .HSo         : significant wave height at offshore location at considered time instance (m)
+%       .HStdp       : significant wave height at the depth-of-closure at considered time instance (m)
+%       .HSbr        : significant wave height at the point of breaking at considered time instance (m)
+%       .PHIo        : wave direction at offshore location at considered time instance (°N)
+%       .PHItdp      : wave direction at the depth-of-closure at considered time instance (°N)
+%       .PHIbr       : wave direction at the point of breaking at considered time instance (°N)
+%       .wavetransm  : Array with transmission coefficients per section
 %   COAST
-%       .x              Coordinates of current coast section
-%       .y              Coordinates of current coast section
+%       .x           : x-coordinates of current coast section
+%       .y           : y-coordinates of current coast section
 % 
 % OUTPUT:
-%   WAVE.HSo            Transmitted significant wave height at considered time instance at offshore location (m)
-%   WAVE.HStdp          Transmitted significant wave height at considered time instance at depth-of-closure (m)
-%   WAVE.HSbr           Transmitted significant wave height at considered time instance at point of breaking (m)
+%   WAVE.HSo         : transmitted significant wave height at considered time instance at offshore location (m)
+%   WAVE.HStdp       : transmitted significant wave height at considered time instance at depth-of-closure (m)
+%   WAVE.HSbr        : transmitted significant wave height at considered time instance at point of breaking (m)
 %
 %% Copyright notice
 %   --------------------------------------------------------------------
@@ -38,17 +46,17 @@ function [WAVE]=introduce_perm_structures(STRUC,WAVE,COAST)
 %
 %   This library is distributed in the hope that it will be useful,
 %   but WITHOUT ANY WARRANTY; without even the implied warranty of
-%   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
+%   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU
 %   Lesser General Public License for more details.
 %
 %   You should have received a copy of the GNU Lesser General Public
-%   License along with this library. If not, see <http://www.gnu.org/licenses
+%   License along with this library. If not, see <http://www.gnu.org/licenses>
 %   --------------------------------------------------------------------
 
     if STRUC.perm
-        [x_p,y_p,n_mc,i1,i2]=get_one_polygon(STRUC.x_perm,STRUC.y_perm,1);
+        [x_p,y_p,n_mc,i1,i2]=get_one_polygon(STRUC.xperm,STRUC.yperm,1);
         for i_mc=1:n_mc
-            [x_p,y_p,n_mc,i1,i2]=get_one_polygon(STRUC.x_perm,STRUC.y_perm,i_mc);
+            [x_p,y_p,n_mc,i1,i2]=get_one_polygon(STRUC.xperm,STRUC.yperm,i_mc);
             [ shadowP ] = find_shadows_mc(COAST.x,COAST.y,x_p,y_p,WAVE.PHIo,WAVE.PHItdp,WAVE.PHIbr);
             WAVE.HSo(shadowP)=WAVE.HSo(shadowP)*WAVE.wavetransm(i_mc);
             WAVE.HStdp(shadowP)=WAVE.HStdp(shadowP)*WAVE.wavetransm(i_mc);

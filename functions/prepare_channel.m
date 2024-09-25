@@ -1,22 +1,28 @@
 function [CHANNEL]=prepare_channel(S)
-% [xr_mc,yr_mc,channel_width,channel_fac,x_flood,y_flood,flood_deficit,fcell_area]=prepare_channel(S)
+% function [CHANNEL]=prepare_channel(S)
 %
-% INPUT:
+% Initialize the data-structure for the channel migration function ('CHANNEL').
+%
+% INPUT: 
 %    S
-%         .channel        :  
-%         .xr_mc          :  
-%         .yr_mc          :  
-%         .LDBchannel     :  
-%         .XYoffset       :  
+%         .channel          : switch for migrating inlet (0/1)
+%         .channelwidth     : target channel width [m]
+%         .channelfac       : adaptation factor, scales the response of the channel [-]
+%         .channeldischrate : discharge rate
+%         .channeldischr    : discharge rate of river
+%         .ldbchannel       : file with initial channel axis x and y coordinates, or directly a [Nx2] matrix (option 1)
+%         .xrmc             : x-coordinates of rivers [m] (option 2)
+%         .yrmc             : y-coordinates of rivers [m] (option 2)
+%         .xyoffset         : offset of x and y axis used for plotting [1x2]
 %         
 % OUTPUT:
 %    CHANNEL
-%         .xr_mc
-%         .yr_mc
-%         .width
-%         .fac
-%         .disch_rate
-%         .disch_R
+%         .xrmc             : x-coordinates of rivers [m]
+%         .yrmc             : y-coordinates of rivers [m]
+%         .width            : width of the channel [m]
+%         .fac              : factor for the reshaping of the channel, scales the response of the channel [-]
+%         .disch_rate       : discahrge rate
+%         .disch_R          : discharge rate of river
 %
 %% Copyright notice
 %   --------------------------------------------------------------------
@@ -39,11 +45,11 @@ function [CHANNEL]=prepare_channel(S)
 %
 %   This library is distributed in the hope that it will be useful,
 %   but WITHOUT ANY WARRANTY; without even the implied warranty of
-%   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
+%   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU
 %   Lesser General Public License for more details.
 %
 %   You should have received a copy of the GNU Lesser General Public
-%   License along with this library. If not, see <http://www.gnu.org/licenses
+%   License along with this library. If not, see <http://www.gnu.org/licenses>
 %   --------------------------------------------------------------------
 
     fprintf('  Prepare channel \n');
@@ -51,67 +57,81 @@ function [CHANNEL]=prepare_channel(S)
     %% Migrating channel
     CHANNEL=struct;
     CHANNEL.used=S.channel;
-    CHANNEL.xr_mc=[];
-    CHANNEL.yr_mc=[];
+    CHANNEL.xrmc=[];
+    CHANNEL.yrmc=[];
     CHANNEL.width=[];
     CHANNEL.fac=[];
     CHANNEL.disch_rate=[];
     CHANNEL.disch_R=[];
-
+    
     if S.channel
         % SET THE X,Y LOCATION
-        if ~isempty(S.xr_mc)
-            CHANNEL.xr_mc=S.xr_mc;
-            CHANNEL.yr_mc=S.yr_mc;
-        elseif ~isempty(S.LDBchannel)
-            xy_channel=load(S.LDBchannel);
-            try
-               CHANNEL.xr_mc=xy_channel(:,1)'-S.XYoffset(1);
-               CHANNEL.yr_mc=xy_channel(:,2)'-S.XYoffset(2);
-            catch
-                CHANNEL.xr_mc=xy_channel.xr_mc;
-                CHANNEL.yr_mc=xy_channel.yr_mc;
+        if ~isempty(S.xrmc)
+            % direct input via a keyword
+            CHANNEL.xrmc=S.xrmc;
+            CHANNEL.yrmc=S.yrmc;
+        elseif ~isempty(S.ldbchannel)
+            xy_channel=load(S.ldbchannel);
+            if isstruct(xy_channel)
+                % not-preferred option using a matlab structure
+                CHANNEL.xrmc=xy_channel.xrmc(:)'-S.xyoffset(1);
+                CHANNEL.yrmc=xy_channel.yrmc(:)'-S.xyoffset(2);
+            else
+                % preferred option using [Nx2] matrix for xr and yr
+                if size(xy_channel,2)>2
+                    xy_channel=xy_channel';
+                end
+                CHANNEL.xrmc=xy_channel(:,1)'-S.xyoffset(1);
+                CHANNEL.yrmc=xy_channel(:,2)'-S.xyoffset(2);
             end
         else
             figure(11);
-            plot(S.x_mc,S.y_mc,'linewidth',2)
-            hold on
             xl=xlim;yl=ylim;
             htxt2=text(xl(1)+0.02*diff(xl),yl(2)-0.01*diff(yl),'Add channel axis (LMB); Next channel (RMB); Exit (q)');set(htxt2,'HorizontalAlignment','Left','VerticalAlignment','Top','FontWeight','Bold','FontAngle','Italic','Color',[0.1 0.6 0.1]);
-            [xr_mc,yr_mc]=select_multi_polygon('k');
-            CHANNEL.xr_mc=xr_mc;
-            CHANNEL.yr_mc=yr_mc;
+            [xrmc,yrmc]=select_multi_polygon('k');
+            CHANNEL.xrmc=xrmc;
+            CHANNEL.yrmc=yrmc;
             set(htxt2,'Visible','off');
-            save('rivers.mat','xr_mc','yr_mc');
+            save('rivers.mat','xrmc','yrmc');
         end
         
         % SET THE WIDTH
-        if ~isempty(S.LDBchannel)
-            matname=S.LDBchannel;
-            matname(end-2:end)='mat';
-            if exist(matname)==2
+        % using predefined values for channel width
+        nriv=sum(isnan(CHANNEL.xrmc))+1;
+        CHANNEL.width=S.channelwidth;
+        CHANNEL.fac=S.channelfac;
+        CHANNEL.disch_rate=S.channeldischrate;
+        CHANNEL.disch_R=S.channeldischr;
+        
+        % make sure length is equal to 'nriv'
+        if length(CHANNEL.width)<nriv
+        CHANNEL.width=repmat(S.channelwidth,[nriv,1]);
+        end
+        if length(CHANNEL.fac)<nriv
+        CHANNEL.fac=repmat(S.channelfac,[nriv,1]);
+        end
+        if length(CHANNEL.disch_rate)<nriv
+        CHANNEL.disch_rate=repmat(S.channeldischrate,[nriv,1]);
+        end
+        if length(CHANNEL.disch_R)<nriv
+        CHANNEL.disch_R=repmat(S.channeldischr,[nriv,1]);
+        end
+        
+        % not-preferred option using a matlab structure (to be removed)
+        if ~isempty(S.ldbchannel)
+            matname=S.ldbchannel;
+            if strcmpi(matname(end-3:end),'.mat')
                 channels=struct;
                 load(matname);
                 n_chan=length(channels);
                 for ichan=1:n_chan
-                    CHANNEL.width(ichan)= channels(ichan).channel_width;
-                    CHANNEL.fac(ichan)  = channels(ichan).channel_fac;
+                    CHANNEL.width(ichan)= channels(ichan).channelwidth;
+                    CHANNEL.fac(ichan)  = channels(ichan).channelfac;
                 end
-            else
-                CHANNEL.width=S.channel_width;
-                CHANNEL.fac=S.channel_fac;
-                CHANNEL.disch_rate=S.channel_disch_rate;
-                CHANNEL.disch_R=S.channel_disch_R;
             end
-        else
-            nriv=sum(isnan(CHANNEL.xr_mc))+1;
-            CHANNEL.width=repmat(S.channel_width,[nriv,1]);
-            CHANNEL.fac=repmat(S.channel_fac,[nriv,1]);
-            CHANNEL.disch_rate=repmat(S.channel_disch_rate,[nriv,1]);
-            CHANNEL.disch_R=repmat(S.channel_disch_R,[nriv,1]);
         end
+        
         %% write logfile
         % struct2log(CHANNEL,'CHANNEL','a');
-
     end
 end

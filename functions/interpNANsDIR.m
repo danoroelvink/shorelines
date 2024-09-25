@@ -1,10 +1,11 @@
 function [data2]=interpNANsDIR(data)
 % function [data2]=interpNANsDIR(data)
 %
-% INPUT:
-%     data                Array [Nx1] with data
-%     useextrapolation    switch to use extrapolation (use 'nearest' or 'linear' for extrapolation)
-%                         this does not affect the interpolation which will be 'linear' 
+% This function interpolates NaNs in vectors with directional information.
+% For extrapolation the nearest value is used. 
+%
+% INPUT: 
+%     data           : Array [Nx1] with data
 %
 % [data2]=interpNANsDIR([nan;nan;30;nan;330;300;nan;320;300;nan;nan;nan;20;nan;nan;350;30;nan;285]);
 %
@@ -29,11 +30,11 @@ function [data2]=interpNANsDIR(data)
 %
 %   This library is distributed in the hope that it will be useful,
 %   but WITHOUT ANY WARRANTY; without even the implied warranty of
-%   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
+%   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU
 %   Lesser General Public License for more details.
 %
 %   You should have received a copy of the GNU Lesser General Public
-%   License along with this library. If not, see <http://www.gnu.org/licenses
+%   License along with this library. If not, see <http://www.gnu.org/licenses>
 %   --------------------------------------------------------------------
 
     rotate=0;

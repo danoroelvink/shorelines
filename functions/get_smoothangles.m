@@ -1,17 +1,22 @@
 function [COAST,TRANSP]=get_smoothangles(COAST,TRANSP)
 % function [COAST,TRANSP]=get_smoothangles(COAST,TRANSP)
-% limits the angles inbetween grid cells, thus affecting spit width and stabilizing small scale features in case of dense grids.
+%
+% limits the angles inbetween grid cells, 
+% thus affecting spit width and stabilizing 
+% small scale features in case of dense grids.
 % 
-% INPUT:
-%    COAST         coastline data structure
-%      .PHIc       coastline orientation at each transport grid cell [°]
-%      .maxangle   maximum coastline re-orientation between individual grid cells (default is 60°, with suggested range from 30° to 90°)
-%    TRANSP        transport data structure
-%      .QS         transport along the coast [m3/yr]
+% INPUT: 
+%    COAST       : coastline data structure
+%      .PHIc     : coastline orientation at each transport grid cell [°]
+%      .maxangle : maximum coastline re-orientation between individual grid cells (default is 60°, with suggested range from 30° to 90°)
+%    TRANSP      : transport data structure
+%      .QS       : transport along the coast [m3/yr]
 %
 % OUTPUT:
-%    TRANSP        transport data structure
-%      .QS         transport along the coast [m3/yr]
+%    COAST
+%      .dPHIc    : computed angle difference between two subsequent coastline points
+%    TRANSP
+%      .QS       : transport along the coast [m3/yr]
 %
 %% Copyright notice
 %   --------------------------------------------------------------------
@@ -34,17 +39,17 @@ function [COAST,TRANSP]=get_smoothangles(COAST,TRANSP)
 %
 %   This library is distributed in the hope that it will be useful,
 %   but WITHOUT ANY WARRANTY; without even the implied warranty of
-%   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
+%   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU
 %   Lesser General Public License for more details.
 %
 %   You should have received a copy of the GNU Lesser General Public
-%   License along with this library. If not, see <http://www.gnu.org/licenses
+%   License along with this library. If not, see <http://www.gnu.org/licenses>
 %   --------------------------------------------------------------------
     
+    %% computed angle difference between two subsequent coastline points
+    COAST.dPHIc=mod(diff(COAST.PHIc)+180,360)-180;
+    
     if COAST.clockwise
-        %% compute angle change at both sides of coastline points
-        COAST.dPHIc=mod(diff(COAST.PHIc)+180,360)-180;
-
         %% determine coastline points where angle is larger than the maxangle
         convexfactor=0.5; % factor determines sensitivity to max angles at concvex sections (e.g. if set to 0.5 then a gradual transition from 50% to 100% of maxangle is achieved for convex sections)
         idc1=find(COAST.dPHIc>COAST.maxangle*convexfactor & TRANSP.idrev(1:end-1)==0 & TRANSP.idrev(2:end)==0);

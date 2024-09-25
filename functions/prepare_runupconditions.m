@@ -1,6 +1,44 @@
 function [RUNUP]=prepare_runupconditions(S,TIME)
 % function [RUNUP]=prepare_runupconditions(S,TIME)
 %
+% The runup data is initialized in this function. 
+% Relevant input data is stored in the RUNUP data-structure. 
+% 
+% INPUT:
+%    S
+%         .swl0         : static value of the water-level [m w.r.t. MSL]
+%         .watfile      : filename with time-series data of water-levels (leave empty to use static value)
+%         .watclimfile  : alternative, older, filename for time-series data
+%         .hso          : static value of the offshore wave height [m]
+%         .tper		: static value of the offshore wave period [s]
+%         .phiw0	: static value of the offshore wave direction [°N]
+%         .wvdfile      : filename with time-series data of offshore waves (leave empty to use static values)
+%         .waveclimfile : alternative, older, filename for time-series data
+% 
+% OUTPUT:
+%    RUNUP
+%         .dune         : switch for computing dune evolution (0/1)
+%         .watfile      : filename with time-series data of water-levels (leave empty to use static value)
+%         .swl          : static value of the water-level [m w.r.t. MSL]
+%         .SWL          : data structure with time-series of the water-level (with timenum and data field) from 'watfile', which overrules the static .swl
+%             .timenum  : dates of water-level timeseries [days in datenum format]
+%             .swl      : timeseries of surge water-levels [m]
+%         .x            : field with the x-coordinates of the points with time-series of the water-level data
+%         .y            : field with the y-coordinates of the points with time-series of the water-level data
+%         .nloc         : number of points with time-series water-level data (is 0 when static values are used)
+%         .wvdfile      : filename with time-series data of offshore waves (leave empty to use static values)
+%         .Hs           : static value of the offshore wave height [m]
+%         .Tp           : static value of the offshore wave period [s]
+%         .Dir          : static value of the offshore wave direction [°N]
+%         .WVD          : data structure with time-series of the offshore wave conditions (with timenum and data field) from 'wvdfile', which overrules the static .Hs, .Tp and .Dir
+%             .timenum  : dates of wave timeseries [days in datenum format]
+%             .Hs       : timeseries of offshore wave height [m]
+%             .Tp       : timeseries of offshore wave period [s]
+%             .Dir      : timeseries of offshore wave direction [°N]
+%         .xw           : field with the x-coordinates of the points with time-series of the offshore wave data
+%         .yw           : field with the y-coordinates of the points with time-series of the offshore wave data
+%         .nlocw        : number of points with time-series offshore wave data (is 0 when static values are used)
+%    
 %% Copyright notice
 %   --------------------------------------------------------------------
 %   Copyright (C) 2020 IHE Delft & Deltares
@@ -22,11 +60,11 @@ function [RUNUP]=prepare_runupconditions(S,TIME)
 %
 %   This library is distributed in the hope that it will be useful,
 %   but WITHOUT ANY WARRANTY; without even the implied warranty of
-%   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
+%   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU
 %   Lesser General Public License for more details.
 %
 %   You should have received a copy of the GNU Lesser General Public
-%   License along with this library. If not, see <http://www.gnu.org/licenses
+%   License along with this library. If not, see <http://www.gnu.org/licenses>
 %   --------------------------------------------------------------------
 
     fprintf('  Prepare runup conditions \n');
@@ -36,30 +74,30 @@ function [RUNUP]=prepare_runupconditions(S,TIME)
         %% Waterlevel information for dune evolution and wave transmission over breakwaters
         % create structure
         RUNUP=struct;        
-        RUNUP.swl=S.SWL0;
-        RUNUP.WATfile=S.WATfile;
+        RUNUP.swl=S.swl0;
+        RUNUP.watfile=S.watfile;
 
-        % Use regular wave climate of WVDfile is not specified
-        if isempty(RUNUP.WATfile)
+        % Use regular wave climate of wvdfile is not specified
+        if isempty(RUNUP.watfile)
             % backward compatibility with other input
-            if isfield(S,'Watclimfile')
-            RUNUP.WATfile=S.Watclimfile;
+            if isfield(S,'watclimfile')
+            RUNUP.watfile=S.watclimfile;
             end
         end
         
         % Still water level data used for runup computations
         RUNUP.nloc=0;
         RUNUP.SWL=[];
-        if ~isempty(RUNUP.WATfile)   
+        if ~isempty(RUNUP.watfile)   
             % Read input files for water levels
             fprintf(' Read waterlevel conditions for runup at dunes or wave transmission over breakwaters\n');
-            [SWL]=get_inputfiledata(RUNUP.WATfile,TIME);
+            [SWL]=get_inputfiledata(RUNUP.watfile,TIME);
             RUNUP.nloc=length(SWL);
             RUNUP.SWL=SWL;
             
             % Set the xy locations for the water level locations
-            if isfield(S,'WatLocfile')
-                xyWat=load(S.WatLocfile);
+            if isfield(S,'watlocfile')
+                xyWat=load(S.watlocfile);
                 RUNUP.x=xyWat(:,1);
                 RUNUP.y=xyWat(:,2);
             else
@@ -75,18 +113,18 @@ function [RUNUP]=prepare_runupconditions(S,TIME)
         %% Offshore wave information for runup 
             % create structure          
             RUNUP.dune=S.dune;
-            RUNUP.Hs=S.Hso;
+            RUNUP.Hs=S.hso;
             RUNUP.Tp=S.tper;
             RUNUP.Dir=S.phiw0;
-            RUNUP.WVDfile=S.WVDfile;
+            RUNUP.wvdfile=S.wvdfile;
     
-            % Use regular wave climate of WVDfile is not specified
-            if isempty(RUNUP.WVDfile)
-                RUNUP.WVDfile=S.WVCfile;
+            % Use regular wave climate of wvdfile is not specified
+            if isempty(RUNUP.wvdfile)
+                RUNUP.wvdfile=S.wvcfile;
                 % backward compatibility with other input
-                if isfield(S,'Waveclimfile')
-                    if ~isempty(S.Waveclimfile)
-                    RUNUP.WVDfile=S.Waveclimfile;
+                if isfield(S,'waveclimfile')
+                    if ~isempty(S.waveclimfile)
+                    RUNUP.wvdfile=S.waveclimfile;
                     end
                 end
             end
@@ -94,18 +132,18 @@ function [RUNUP]=prepare_runupconditions(S,TIME)
             % Offshore wave data used for runup computations
             RUNUP.nlocw=0;
             RUNUP.WVD=[]; 
-            if ~isempty(RUNUP.WVDfile)
+            if ~isempty(RUNUP.wvdfile)
                 % Read input files for offshore waves
                 fprintf('  Read offshore wave conditions for runup at dunes\n');
-                [WVD]=get_inputfiledata(RUNUP.WVDfile,TIME);
+                [WVD]=get_inputfiledata(RUNUP.wvdfile,TIME);
                 RUNUP.nlocw=length(WVD);
                 RUNUP.WVD=WVD;
     
                 % Set the xy locations for the wave locations
                 if isfield(S,'WaveLocfile')
-                    xyWave=load(S.WaveLocfile);
-                    RUNUP.xw=xyWave(:,1);
-                    RUNUP.yw=xyWave(:,2);
+                    xywave=load(S.WaveLocfile);
+                    RUNUP.xw=xywave(:,1);
+                    RUNUP.yw=xywave(:,2);
                 else
                     for kk=1:length(WVD)
                     RUNUP.xw(kk)=WVD(kk).x;

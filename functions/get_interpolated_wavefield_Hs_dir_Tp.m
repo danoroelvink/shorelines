@@ -1,5 +1,5 @@
-function [ Hg, phiwg,iwtw,phiwg_wr,Hg_wr  ] = get_interpolated_wavefield_Hs_dir_Tp( xg,yg,Hg_all,phiwg_all,Hso,phiw0,Tp0,Hstab,dirtab,Tptab)
-% function [ Hg, phiwg,iwtw,phiwg_wr,Hg_wr  ] = get_interpolated_wavefield_dir_Tp( xg,yg,Hg_all,phiwg_all,Hso,phiw0,Tp0,dirtab,Tptab)
+function [ Hg,phiwg,iwtw,phiwg_wr,Hg_wr ] = get_interpolated_wavefield_Hs_dir_Tp( xg,yg,Hg_all,phiwg_all,Hso,phiw0,Tp0,Hstab,dirtab,Tptab )
+% function [ Hg,phiwg,iwtw,phiwg_wr,Hg_wr ] = get_interpolated_wavefield_Hs_dir_Tp( xg,yg,Hg_all,phiwg_all,Hso,phiw0,Tp0,Hstab,dirtab,Tptab )
 % 
 % GET_INTERPOLATED_WAVEFIELD - Interpolates a wave field (Hs, dir) based on
 % series of wave fields for different offshore wave heights and directions
@@ -27,16 +27,14 @@ function [ Hg, phiwg,iwtw,phiwg_wr,Hg_wr  ] = get_interpolated_wavefield_Hs_dir_
 %
 %   This library is distributed in the hope that it will be useful,
 %   but WITHOUT ANY WARRANTY; without even the implied warranty of
-%   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
+%   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU
 %   Lesser General Public License for more details.
 %
 %   You should have received a copy of the GNU Lesser General Public
-%   License along with this library. If not, see <http://www.gnu.org/licenses
+%   License along with this library. If not, see <http://www.gnu.org/licenses>
 %   --------------------------------------------------------------------
 
-    iwtw=0;
-    %phiw0=phiw0*180/pi;
-    
+    iwtw=0;    
     for i=2:length(dirtab)
         if dirtab(i)<dirtab(i-1)
             dirtab(i)=dirtab(i)+360;
@@ -104,16 +102,6 @@ function [ Hg, phiwg,iwtw,phiwg_wr,Hg_wr  ] = get_interpolated_wavefield_Hs_dir_
     end
     
     phiwg=mod(atan2d(sinphiwg,cosphiwg),360);
-    
-    
-    % row=[22,22,24,30,38];
-    % col=[40,46,52,60,63];
-    %  
-    % for iwr=1:5
-    %     phiwg_wr(iwr)=phiwg(row(iwr),col(iwr));
-    %     Hg_wr(iwr)=Hg(row(iwr),col(iwr));
-    %     % plot(xg(1,col(iwr)),yg(row(iwr),1)
-    % end
     phiwg_wr=[];
     Hg_wr=[];
 end

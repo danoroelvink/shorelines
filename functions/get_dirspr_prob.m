@@ -1,7 +1,7 @@
 function [prob]=get_dirspr_prob(dspr,dirout,mu)
 % function [prob]=get_dirspr_prob(dspr,dirout,mu)
 % 
-% INPUT:
+% INPUT: 
 %     dspr    directional spreading [°]
 %     dirout  (optional) vector with directions w.r.t. main direction (with default of [-40:10:40])
 %     mu      (optional) main wave direction, used to correct the dirout (directions used = dirout-mu)
@@ -30,11 +30,11 @@ function [prob]=get_dirspr_prob(dspr,dirout,mu)
 %
 %   This library is distributed in the hope that it will be useful,
 %   but WITHOUT ANY WARRANTY; without even the implied warranty of
-%   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
+%   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU
 %   Lesser General Public License for more details.
 %
 %   You should have received a copy of the GNU Lesser General Public
-%   License along with this library. If not, see <http://www.gnu.org/licenses
+%   License along with this library. If not, see <http://www.gnu.org/licenses>
 %   --------------------------------------------------------------------
 
     if nargin<3

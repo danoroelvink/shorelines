@@ -1,31 +1,79 @@
 function [COAST,STRUC,GROYNE]=prepare_grid_groyne(COAST,STRUC,yesplot)
 % function [COAST,STRUC,GROYNE]=prepare_grid_groyne(COAST,STRUC,yesplot)
 % 
-% Initialize coastline grid taking into account groynes that intersect
-% the coastline.
+% The routine initializes the coastline grid, taking into account groynes 
+% intersecting with the coastline. 
+% - Offshore breakwaters, revetments and groynes are differentiated (idgroyne)
+%   with an index 0 for revetments and offshore breakwaters and for  
+%   groynes an index number (larger than 0)
+% - The groyne order of coordinates is flipped if it is not clockwise. 
+%   The xhard and yhard are then updated. 
+% - The distance along the perimeter
+%   of the structures is computed (shard). 
+% - The model will find intersections between groynes and the coast. 
+%   If necessary the ends of the groyne are extended a bit virtually to
+%   allow for structures at the boudnary. 
+% - if a cyclical element (e.g. an offshore breakwater) intersects the coastline
+%   then it is checked if the first and last point can be moved 'inland', 
+%   basically re-organizing the structure (xhard and yhard) order of coordinates
+%   such that it can act as a groyne afterwards (e.g. when a tombolo has developed). 
+% - For the groynes their orientation (phigroyne), orientation of groyne at 
+%   location where it crosses the coast (phigroynesize) and the local coastline 
+%   orientation at these crossing locations are determined (phicoast), 
+%   as well as the difference in orientation with respect to the coast (PHIdn), 
+%   which is relevant for the wave diffraction later on. 
+% - The coastline will be split at the groynes (x_mc and y_mc), and the 
+%   index of the coastline sections at both sides of each groyne stored (idcoast)
+%   as well as the index of groynes at the ends of the coastline sections (i_groyne)
+%   These indices are relevant later on when the coastal elements are recombined.
 %
-% Input: 
-%   COAST
-%        .x_mc      : coastline x-coordinates
-%        .y_mc      : coastline y-coordinates
-%        .ds0       : grid resolution (m)
-%   STRUC
-%        .x_hard    : hard structure elements. Groynes must be represented
-%        .y_hard    : by polylines intersecting coastline twice; clockwise
-%   yesplot         : switch for plotting
-%
-% Output:
-%   COAST
-%        .x_mc      : coastline x-coordinates
-%        .y_mc      : coastline y-coordinates
-%   STRUC
-%        .s_hard    : cumulative distance along each groyne
-%   GROYNE
-%        .s         : along-groyne coordinates of both intersections for each groyne
-%        .x         : x-coordinates for each groyne and intersection
-%        .y         : y-coordinates for each groyne and intersection
+% INPUT:  
+%    COAST
+%        .x_mc                    : x-coordinates of the coastline [m]
+%        .y_mc                    : y-coordinates of the coastline [m]
+%        .ds0                     : grid cell size [m]
+%        .PHIcxy_mc               : (optional) orientation at coastline points [°N]
+%    STRUC
+%        .bypassdistpwr           : factor for the redistribution of bypassed sediment over the shadow zone of a groyne (default = 1)
+%        .xhard                   : x-coordinates of the structures [m]
+%        .yhard                   : y-coordinates of the structures [m]
+%        .nrevet                  : number of revetments (i.e. the last structures  in xhard/yhard are these revetments)
+%    yesplot                      : switch for debug plotting (0/1)
 % 
-%
+% OUTPUT:
+%    STRUC
+%        .nhard                   : number of structures (updated)
+%        .xhard                   : x-coordinates of the structures [m] (updated)
+%        .yhard                   : y-coordinates of the structures [m] (updated)
+%        .idgroyne                : index for each structure, indicating whether it is a groyne (with value = groyne number) or offshore breakwater/revetment (with value = 0) . 
+%        .shard                   : distance along structures [m], with NaNs separating the structures 
+%        .PHIs                    : orientation of path along the structure (xhard and yhard) [°N], with NaNs separating the structures
+%    GROYNE
+%        .n                       : number of active groynes
+%        .x                       : x-coordinates of crossings of each structure with the coast [Mx2] with at each line the first and second crossing [m]
+%        .y                       : y-coordinates of crossings of each structure with the coast [Mx2] with at each line the first and second crossing [m]
+%        .s                       : distance along the groyne perimeter with the crossing with the coast [Mx2] with at each line the first and second crossing [m]
+%        .xg                      : x-coordinate of the point inside the groyne (one value for each groyne) [m]
+%        .yg                      : y-coordinate of the point inside the groyne (one value for each groyne) [m]
+%        .QS                      : initialization of sediment transport bypass at both sides of the groyne for all groynes [Mx2] at zero [m3/yr]
+%        .tipindx                 : initialization of the tipindex at both sides of the groyne for all groynes [Mx2]
+%        .phicoast                : coastline orientation at crossing point of groyne and coast for all groynes [Mx2] [°N]
+%        .phigroyne               : average orientation of the groyne (i.e. begin and end point compared to average of rest of groyne) for all groynes [M] [°N]
+%        .phigroyneside           : orientation of the groyne itself at both crossings with the coast for all groynes [Mx2] [°N]
+%        .phicoastside            : coastline orientation at left and right side of groyne for all groynes [Mx2] [°N]
+%        .PHIdn                   : difference in angle between groyne and coast at both sides of the groyne for all groynes [Mx2] [°]
+%        .strucnum                : index of each groyne inside xhard-yhard, which also contains other structures [M]
+%        .idcoast                 : index of segments at both sides of the groyne, used for recombining elements after the coastline change [Mx2]
+%        .bypassdistpwr           : factor for the redistribution of bypassed sediment over the shadow zone of a groyne (default = 1)
+%    COAST
+%        .x_mc                    : x-coordinates of the coastline elements after splitting at groynes [m]
+%        .y_mc                    : y-coordinates of the coastline elements after splitting at groynes [m]
+%        .n_mc                    : number of coastline elements after splitting at groynes (updated)
+%        .x_mc0gridgroyne         : x-coordinates of the coastline before 'prepare groyne' [m]
+%        .y_mc0gridgroyne         : y-coordinates of the coastline before 'prepare groyne' [m]
+%        .i_groyne                : stores the index of the groynes (or locations of the splitting) along the coastline grid x_mc/y_mc (e.g. three groynes and four coastal sections : [0 0 0 0 0 0 1 0 0 0 0 0 2 0 0 0 3 0 0])
+%        .BNDgroyne               : index showing the presence of structures at the start-end of each coastal section, and their structure id [number of coastal elements x 2-sides]
+% 
 %% Copyright notice
 %   --------------------------------------------------------------------
 %   Copyright (C) 2020 IHE Delft & Deltares
@@ -47,11 +95,11 @@ function [COAST,STRUC,GROYNE]=prepare_grid_groyne(COAST,STRUC,yesplot)
 %
 %   This library is distributed in the hope that it will be useful,
 %   but WITHOUT ANY WARRANTY; without even the implied warranty of
-%   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
+%   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU
 %   Lesser General Public License for more details.
 %
 %   You should have received a copy of the GNU Lesser General Public
-%   License along with this library. If not, see <http://www.gnu.org/licenses
+%   License along with this library. If not, see <http://www.gnu.org/licenses>
 %   --------------------------------------------------------------------
     
     %fprintf('  Initialize groynes (grid) \n');   
@@ -63,7 +111,7 @@ function [COAST,STRUC,GROYNE]=prepare_grid_groyne(COAST,STRUC,yesplot)
     GROYNE.n=0;
     GROYNE.strucnum=[];
     GROYNE.idcoast=[];
-    GROYNE.bypassdistribution_power=STRUC.bypassdistribution_power;
+    GROYNE.bypassdistpwr=STRUC.bypassdistpwr;
     STRUC.idgroyne=[];
     COAST.BNDgroyne=zeros(COAST.n_mc,2);
     COAST.x_mc0gridgroyne=COAST.x_mc;
@@ -72,26 +120,26 @@ function [COAST,STRUC,GROYNE]=prepare_grid_groyne(COAST,STRUC,yesplot)
     GROYNE.yg=[];
     
     %% Find intersections with groynes, split coastline and store groyne intersections
-    if length(STRUC.x_hard)>1
-        n_st=length(find(isnan(STRUC.x_hard)))+1;                                    % Number of groynes
-        STRUC.n_hard=n_st;
+    if length(STRUC.xhard)>1
+        n_st=length(find(isnan(STRUC.xhard)))+1;                                    % Number of groynes
+        STRUC.nhard=n_st;
         ii=0;
         for ist=1:n_st
-            [ xs,ys,~,~,~ ] = get_one_polygon( STRUC.x_hard,STRUC.y_hard,ist);xs=xs(:)';ys=ys(:)';
+            [ xs,ys,~,~,~ ] = get_one_polygon( STRUC.xhard,STRUC.yhard,ist);xs=xs(:)';ys=ys(:)';
             STRUC.idgroyne(ist)=0;
 
-            % compute the distance (ss) along the polygon of the hard structure, and add it to 'STRUC.s_hard'.
+            % compute the distance (ss) along the polygon of the hard structure, and add it to 'STRUC.shard'.
             ss=[0,cumsum((diff(xs).^2+diff(ys).^2).^0.5)];
             if ist==1
-                STRUC.s_hard=[ss];
+                STRUC.shard=[ss];
             else
-                STRUC.s_hard=[STRUC.s_hard,nan,ss];
+                STRUC.shard=[STRUC.shard,nan,ss];
             end
             % orientation of groyne structure lines
-            STRUC.PHIs=mod(atan2d(diff(STRUC.x_hard),diff(STRUC.y_hard)),360);
+            STRUC.PHIs=mod(atan2d(diff(STRUC.xhard),diff(STRUC.yhard)),360);
             
             % a groyne strcuture should at least be 2 points long, and it should not be a revetment
-            if length(xs)>2 && ist<=n_st-STRUC.n_revet 
+            if length(xs)>2 && ist<=n_st-STRUC.nrevet 
                  % find intersections of current structure with full coastline
                 [str_int_x,str_int_y,indc,inds]=get_intersections(COAST.x_mc,COAST.y_mc,xs,ys);
                 
@@ -102,15 +150,15 @@ function [COAST,STRUC,GROYNE]=prepare_grid_groyne(COAST,STRUC,yesplot)
                     if cw~=1
                         xs=fliplr(xs);
                         ys=fliplr(ys);
-                        % add mirrored xs and ys to the x_hard and y_hard
-                        [STRUC.x_hard,STRUC.y_hard]=insert_section(xs,ys,STRUC.x_hard,STRUC.y_hard,ist);
+                        % add mirrored xs and ys to the xhard and yhard
+                        [STRUC.xhard,STRUC.yhard]=insert_section(xs,ys,STRUC.xhard,STRUC.yhard,ist);
                         [str_int_x,str_int_y,indc,inds]=get_intersections(COAST.x_mc,COAST.y_mc,xs,ys);
-                        % compute the distance (ss) along the polygon of the hard structure, and add it to 'STRUC.s_hard'.
+                        % compute the distance (ss) along the polygon of the hard structure, and add it to 'STRUC.shard'.
                         ss=fliplr(ss(end)-ss);
-                        % add new distance along structure to s_hard
-                        [STRUC.s_hard]=insert_section(ss,STRUC.s_hard,ist);
+                        % add new distance along structure to shard
+                        [STRUC.shard]=insert_section(ss,STRUC.shard,ist);
                         % orientation of groyne structure lines
-                        STRUC.PHIs=mod(atan2d(diff(STRUC.x_hard),diff(STRUC.y_hard)),360);
+                        STRUC.PHIs=mod(atan2d(diff(STRUC.xhard),diff(STRUC.yhard)),360);
                     end
                 end
                 
@@ -185,15 +233,15 @@ function [COAST,STRUC,GROYNE]=prepare_grid_groyne(COAST,STRUC,yesplot)
                             xs=fliplr(xs);
                             ys=fliplr(ys);
                         end
-                        % add mirrored xs and ys to the x_hard and y_hard
-                        [STRUC.x_hard,STRUC.y_hard]=insert_section(xs,ys,STRUC.x_hard,STRUC.y_hard,ist);
+                        % add mirrored xs and ys to the xhard and yhard
+                        [STRUC.xhard,STRUC.yhard]=insert_section(xs,ys,STRUC.xhard,STRUC.yhard,ist);
                         [str_int_x,str_int_y,indc,inds]=get_intersections(COAST.x_mc,COAST.y_mc,xs,ys);
-                        % compute the distance (ss) along the polygon of the hard structure, and add it to 'STRUC.s_hard'.
+                        % compute the distance (ss) along the polygon of the hard structure, and add it to 'STRUC.shard'.
                         ss=[0,cumsum((diff(xs).^2+diff(ys).^2).^0.5)];
-                        % add new distance along structure to s_hard
-                        [STRUC.s_hard]=insert_section(ss,STRUC.s_hard,ist);
+                        % add new distance along structure to shard
+                        [STRUC.shard]=insert_section(ss,STRUC.shard,ist);
                         % orientation of groyne structure lines
-                        STRUC.PHIs=mod(atan2d(diff(STRUC.x_hard),diff(STRUC.y_hard)),360);
+                        STRUC.PHIs=mod(atan2d(diff(STRUC.xhard),diff(STRUC.yhard)),360);
                     end
                 end
                 

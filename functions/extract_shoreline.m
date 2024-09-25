@@ -1,5 +1,5 @@
-function []=extract_shoreline(S,STRUC,COAST,FORMAT)
-% function []=extract_shoreline(S,STRUC,COAST,FORMAT)
+function extract_shoreline(S,STRUC,COAST,FORMAT)
+% function extract_shoreline(S,STRUC,COAST,FORMAT)
 % 
 % For plotting the shorelines at different time steps
 % export the shorelines coordinates
@@ -25,26 +25,26 @@ function []=extract_shoreline(S,STRUC,COAST,FORMAT)
 %
 %   This library is distributed in the hope that it will be useful,
 %   but WITHOUT ANY WARRANTY; without even the implied warranty of
-%   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
+%   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU
 %   Lesser General Public License for more details.
 %
 %   You should have received a copy of the GNU Lesser General Public
-%   License along with this library. If not, see <http://www.gnu.org/licenses
+%   License along with this library. If not, see <http://www.gnu.org/licenses>
 %   --------------------------------------------------------------------
 
-if FORMAT.print_fig
+if FORMAT.printfig
     if  S.diffraction==1
 %         print((strcat(S.trform,'_',num2str(2.33),'_ds0_',num2str(S.ds0),'_phi_',num2str(S.phiw0))),'-dpng', '-r300')
-        print((strcat('xhrd_',num2str(STRUC.x_hard),'_yhrd_',num2str(STRUC.y_hard),'_phi0_2',num2str(S.phiw0))),'-dpng', '-r300')
+        print((strcat('xhrd_',num2str(STRUC.xhard),'_yhrd_',num2str(STRUC.yhard),'_phi0_2',num2str(S.phiw0))),'-dpng', '-r300')
     else  
         %print((strcat(S.trform,'_',num2str(S.b/1e4),'_ds0_',num2str(S.ds0),'_phi_',num2str(S.phiw0))),'-dpng', '-r300')
         print('-djpeg','-r300',[FORMAT.outputdir,filesep,'Final']);
     end
 end
 
-if ~isempty(FORMAT.SLplot)
-    if ~isempty(FORMAT.LDBplot)
-        L2Name(:)=FORMAT.LDBplot(:,2);
+if ~isempty(FORMAT.slplot)
+    if ~isempty(FORMAT.ldbplot)
+        L2Name(:)=FORMAT.ldbplot(:,2);
     else
         L2Name(:)={};
         mm=0;
@@ -52,33 +52,33 @@ if ~isempty(FORMAT.SLplot)
     figure(12)
     hold on
     hps6=[];
-    for mm=1:size(FORMAT.LDBplot,1)
-        LDBplotval = get_landboundary(FORMAT.LDBplot{mm,1});
-        hps6(mm)=plot(LDBplotval(:,1)-FORMAT.XYoffset(1),LDBplotval(:,2)-FORMAT.XYoffset(2),FORMAT.LDBplot{mm,3},'linewidth',1.5,'MarkerSize',10,'MarkerIndices',1:10:length(COAST.x_mc0));
+    for mm=1:size(FORMAT.ldbplot,1)
+        ldbplotval = get_landboundary(FORMAT.ldbplot{mm,1});
+        hps6(mm)=plot(ldbplotval(:,1)-FORMAT.xyoffset(1),ldbplotval(:,2)-FORMAT.xyoffset(2),FORMAT.ldbplot{mm,3},'linewidth',1.5,'MarkerSize',10,'MarkerIndices',1:10:length(COAST.x_mc0));
     end
     for sl=1:size(FORMAT.xp_mc,1)
-        hps6(sl+mm)=plot(FORMAT.xp_mc{sl,:},FORMAT.yp_mc{sl,:},FORMAT.SLplot{sl,3},'linewidth',1.5);
-        L2Name(end+1)=FORMAT.SLplot(sl,2);
+        hps6(sl+mm)=plot(FORMAT.xp_mc{sl,:},FORMAT.yp_mc{sl,:},FORMAT.slplot{sl,3},'linewidth',1.5);
+        L2Name(end+1)=FORMAT.slplot(sl,2);
         
-        if S.extract_x_y
+        if S.extractxy
             xp{:}=FORMAT.xp_mc{sl,:};
             yp{:}=FORMAT.yp_mc{sl,:};
             out=[xp{:}',yp{:}'];
-            if S.DA==1 || S.BS==1
-                namefl=[cell2mat(FORMAT.SLplot(sl,4)) cell2mat(FORMAT.SLplot(sl,2))];
+            if S.da==1 || S.bs==1
+                namefl=[cell2mat(FORMAT.slplot(sl,4)) cell2mat(FORMAT.slplot(sl,2))];
             else
-                namefl=cell2mat(FORMAT.SLplot(sl,2));
+                namefl=cell2mat(FORMAT.slplot(sl,2));
             end
             save(namefl,'out','-ascii');
-            % save((strcat('xhrd_','_yhrd_',cell2mat(FORMAT.SLplot(sl,2)),'_phi0_2',num2str(S.phiw0))),'out','-ascii');
-            % save((strcat('xhrd_',num2str(STRUC.x_hard),'_yhrd_',num2str(STRUC.y_hard),cell2mat(FORMAT.SLplot(sl,2)),'_phi0_2',num2str(S.phiw0))),'out','-ascii');
+            % save((strcat('xhrd_','_yhrd_',cell2mat(FORMAT.slplot(sl,2)),'_phi0_2',num2str(S.phiw0))),'out','-ascii');
+            % save((strcat('xhrd_',num2str(STRUC.xhard),'_yhrd_',num2str(STRUC.yhard),cell2mat(FORMAT.slplot(sl,2)),'_phi0_2',num2str(S.phiw0))),'out','-ascii');
         else
             out=[];
         end
     end
     hlegs = legend(hps6,L2Name','Location',FORMAT.llocation);
     set(hlegs,'Box','off','Color','None');
-    plot(STRUC.x_hard,STRUC.y_hard,'k','linewidth',2,'DisplayName','Structures');
+    plot(STRUC.xhard,STRUC.yhard,'k','linewidth',2,'DisplayName','Structures');
     plot(COAST.x_mc0,COAST.y_mc0,'b--','linewidth',2,'DisplayName','Intial shoreline');
     hold off;
     xlim(FORMAT.xlimits);
@@ -87,8 +87,8 @@ if ~isempty(FORMAT.SLplot)
     set(gca,'YtickLabel',num2str(get(gca,'Ytick')'/1000,'%2.1f'));
     xlabel('Easting [km]');
     ylabel('Northing [km]');
-    if FORMAT.print_fig
-        % print((strcat('xhrd_',num2str(STRUC.x_hard),'_yhrd_',num2str(STRUC.y_hard),cell2mat(FORMAT.SLplot(sl,2)),'_phi0_',num2str(S.phiw0))),'-dpng', '-r300')
+    if FORMAT.printfig
+        % print((strcat('xhrd_',num2str(STRUC.xhard),'_yhrd_',num2str(STRUC.yhard),cell2mat(FORMAT.slplot(sl,2)),'_phi0_',num2str(S.phiw0))),'-dpng', '-r300')
         print('Output_without_fill','-dpng', '-r300')        
         % print('test1','-dpng', '-r300')
         % close(figure(12))

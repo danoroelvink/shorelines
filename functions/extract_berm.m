@@ -1,7 +1,7 @@
-function [] = extract_berm(S,step,qwind,qwave,time,bermW,WBplot2,ds_cl,CSplot2,n_trans)
-% function [] = extract_berm(S,step,qwind,qwave,time,bermW,WBplot2,ds_cl,CSplot2,n_trans)
+function extract_berm(S,step,qwind,qwave,time,bermW,WBplot2,ds_cl,csplot2,ntrans)
+% function extract_berm(S,step,qwind,qwave,time,bermW,WBplot2,ds_cl,csplot2,ntrans)
 %
-% Summary of this function goes here
+% This routine saves the wind, wave and berm width data. 
 %
 %% Copyright notice
 %   --------------------------------------------------------------------
@@ -24,14 +24,14 @@ function [] = extract_berm(S,step,qwind,qwave,time,bermW,WBplot2,ds_cl,CSplot2,n
 %
 %   This library is distributed in the hope that it will be useful,
 %   but WITHOUT ANY WARRANTY; without even the implied warranty of
-%   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
+%   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU
 %   Lesser General Public License for more details.
 %
 %   You should have received a copy of the GNU Lesser General Public
-%   License along with this library. If not, see <http://www.gnu.org/licenses
+%   License along with this library. If not, see <http://www.gnu.org/licenses>
 %   --------------------------------------------------------------------
 
-    if S.extract_berm_Plot
+    if S.extractbermplot
         save('step.txt','step','-ascii');
         save('qwind.txt','qwind','-ascii');
         save('qwave.txt','qwave','-ascii');
@@ -39,11 +39,11 @@ function [] = extract_berm(S,step,qwind,qwave,time,bermW,WBplot2,ds_cl,CSplot2,n
         saveas(figure(11),'plan.fig');
         saveas(figure(13),'trans.fig');
         if ~isempty(WBplot2)
-            %[~]=plot_wb(n_trans,bermW,WBplot2);
-            for i =1:n_trans
+            %[~]=plot_wb(ntrans,bermW,WBplot2);
+            for i =1:ntrans
                figure(14)
                hold on
-               subplot(n_trans,1,i)
+               subplot(ntrans,1,i)
                plot(WBplot2,bermW(i,:),'-b')
                datetick('x','mmm-yyyy');
                xlim([WBplot2(1) WBplot2(end)] )
@@ -57,15 +57,15 @@ function [] = extract_berm(S,step,qwind,qwave,time,bermW,WBplot2,ds_cl,CSplot2,n
             save('bermW.txt','bermW','-ascii');
             save('WBplot2.txt','WBplot2','-ascii');
         end
-        if ~isempty(CSplot2)
-            %[~]=plot_cl(n_trans,ds_cl,CSplot2);
+        if ~isempty(csplot2)
+            %[~]=plot_cl(ntrans,ds_cl,csplot2);
             figure(14)
             hold on
-            for i =1:n_trans
-                subplot(n_trans,1,i)
-                plot(CSplot2,ds_cl(i,:),'-b')
+            for i =1:ntrans
+                subplot(ntrans,1,i)
+                plot(csplot2,ds_cl(i,:),'-b')
                 datetick('x','mmm-yyyy');
-                xlim([CSplot2(1) CSplot2(end)] )
+                xlim([csplot2(1) csplot2(end)] )
                 title(['Berm width variation at Transect=',sprintf('%d',i)])
                 xlabel('Time');
                 ylabel(' Berm Width [m]');
@@ -73,7 +73,7 @@ function [] = extract_berm(S,step,qwind,qwave,time,bermW,WBplot2,ds_cl,CSplot2,n
             end
             print(gcf,'berm_width.jpg','-dpng','-r300')
             save('ds_cl.txt','ds_cl','-ascii');
-            save('CSplot2.txt','CSplot2','-ascii');
+            save('csplot2.txt','csplot2','-ascii');
         end
     end
 end

@@ -1,5 +1,6 @@
 function [var1i,var2i,idGRID,distw]=get_interpolation_on_grid(method,xq,yq,xw,yw,var1,var2,fldnms1,fldnms2)
-% function [var1i,var2i,idGRID,distw]=get_interpolation_on_grid(method,xq,yq,xw,yw,var1,var2,fldnms1,fldnms2);
+% function [var1i,var2i,idGRID,distw]=get_interpolation_on_grid(method,xq,yq,xw,yw,var1,var2,fldnms1,fldnms2)
+% OR
 % function [var1i,idGRID,distw]=get_interpolation_on_grid(method,xq,yq,xw,yw,var1,fldnms1,fldnms2);
 %
 % find the right alongshore location for each of the wave climates (xq and yq = transport points)
@@ -28,11 +29,11 @@ function [var1i,var2i,idGRID,distw]=get_interpolation_on_grid(method,xq,yq,xw,yw
 %
 %   This library is distributed in the hope that it will be useful,
 %   but WITHOUT ANY WARRANTY; without even the implied warranty of
-%   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
+%   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU
 %   Lesser General Public License for more details.
 %
 %   You should have received a copy of the GNU Lesser General Public
-%   License along with this library. If not, see <http://www.gnu.org/licenses
+%   License along with this library. If not, see <http://www.gnu.org/licenses>
 %   --------------------------------------------------------------------
 
     % allow model to deal with situation where 'var1' and/or 'var2' are specified as a vector. 
@@ -84,7 +85,7 @@ function [var1i,var2i,idGRID,distw]=get_interpolation_on_grid(method,xq,yq,xw,yw
     elseif isstruct(var2)
         % default, use all fields
     end
-
+    
     % find the fields with the data
     % the scalars as fields in 'var1'
     % any field with the directions in degrees in 'var2'
@@ -214,7 +215,7 @@ function [var1i,var2i,idGRID,distw]=get_interpolation_on_grid(method,xq,yq,xw,yw
         
         % sort locations alongshore
         [~,idu]=unique(dist0);
-        [WVCsort,IDS]=sort(idGRID);
+        [WVcsort,IDS]=sort(idGRID);
         IDS=intersect(IDS,idu);       
         dist0=dist0(IDS);
         idGRID=idGRID(IDS); 
@@ -336,11 +337,17 @@ function [var1i,var2i,idGRID,distw]=get_interpolation_on_grid(method,xq,yq,xw,yw
     
     % transpose data back
     for kk=1:length(fldnms1)
+        if ~isfield(var1i,fldnms1{kk})
+            var1i.(fldnms1{kk})=[];
+        end
         if transposedata(kk)==1
             var1i.(fldnms1{kk})=var1i.(fldnms1{kk})';
         end
     end
     for kk=1:length(fldnms2)
+        if ~isfield(var2i,fldnms2{kk})
+            var2i.(fldnms2{kk})=[];
+        end
         if transposedata(ff1+kk)==1
             var2i.(fldnms2{kk})=var2i.(fldnms2{kk})';
         end
@@ -354,7 +361,7 @@ function [var1i,var2i,idGRID,distw]=get_interpolation_on_grid(method,xq,yq,xw,yw
         var2i=var2i.data;
     end    
     
-    % in case the input is only for var1 and not for var2, then combine both.
+    % in case the input is only for var1 and not for var2, then combine both to one output structure again.
     if nargin==8
         for kk=1:length(fldnms2)
             var1i.(fldnms2{kk})=var2i.(fldnms2{kk});

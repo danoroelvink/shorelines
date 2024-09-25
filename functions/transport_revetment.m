@@ -5,27 +5,35 @@ function [TRANSP,COAST]=transport_revetment(COAST,STRUC,TRANSP,TIME)
 % the transport out of a cell to the volume of the cell divided by the 
 % timestep.
 %
-% INPUT :
+% INPUT: 
 %   COAST
-%         .x         : x-coordinate of coastline (only current section)
-%         .y         : y-coordinate of coastline (only current section)
+%         .x           : x-coordinate of coastline [m] (only current section)
+%         .y           : y-coordinate of coastline [m] (only current section)
+%         .s           : alongshore distance along the coastline [m]
+%         .ds0         : default grid cell size [m]
+%         .ds          : grid cell size [m]
+%         .h0          : active height of the profile [m]
 %   STRUC
-%         .x_revet   : x-coordinate of revetments
-%         .y_revet   : y-coordinate of revetments
+%         .xrevet      : x-coordinate of revetments [m]
+%         .yrevet      : y-coordinate of revetments [m]
+%         .iterrev     : iterations used for determining transports along revetments [-]
 %   TRANSP
-%         .xS        : x-coordinate of QS-points
-%         .yS        : y-coordinate of QS-points
-%         .QS        : transport
-%         .crit_width: critical beach width below which transport is reduced
+%         .QS          : transport rates [m3/yr]
+%         .critwidth   : critical beach width below which transport is reduced [m]
+%         .xsedlim     : x-coordinate of regions with sediment limitation [m]
+%         .ysedlim     : y-coordinate of regions with sediment limitation [m]
+%         .widthsedlim : critical width at regions with sediment limitation, below which transport is reduced [m]
 %   TIME
-%         .dt        : latest time step
+%         .it          : timestep index since model start [-]
+%         .adt         : time step [year]    
 %
 % OUTPUT:
 %   TRANSP
-%         .QS        : modified transport
+%         .QS          : modified transport
+%         .idrev       : index with locations of revetments
 %   COAST
-%         .x         : updated x-coordinate of coastline (only current section)
-%         .y         : updated y-coordinate of coastline (only current section)
+%         .x           : updated x-coordinate of coastline (only current section)
+%         .y           : updated y-coordinate of coastline (only current section)
 %
 %% Copyright notice
 %   --------------------------------------------------------------------
@@ -48,13 +56,14 @@ function [TRANSP,COAST]=transport_revetment(COAST,STRUC,TRANSP,TIME)
 %
 %   This library is distributed in the hope that it will be useful,
 %   but WITHOUT ANY WARRANTY; without even the implied warranty of
-%   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
+%   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU
 %   Lesser General Public License for more details.
 %
 %   You should have received a copy of the GNU Lesser General Public
-%   License along with this library. If not, see <http://www.gnu.org/licenses
+%   License along with this library. If not, see <http://www.gnu.org/licenses>
 %   --------------------------------------------------------------------
-%% Initializations
+
+    %% Initializations
     eps=1e-6;
     x        = COAST.x;                
     y        = COAST.y;               
@@ -62,7 +71,7 @@ function [TRANSP,COAST]=transport_revetment(COAST,STRUC,TRANSP,TIME)
     ds0      = COAST.ds0;
     ds       = COAST.ds; % cell size
     QS       = TRANSP.QS;              
-    wcrit    = TRANSP.crit_width;   
+    wcrit    = TRANSP.critwidth;   
     iterrev  = STRUC.iterrev;
     h0       = COAST.h0;
     reducfac = ones(size(QS));
@@ -76,23 +85,23 @@ function [TRANSP,COAST]=transport_revetment(COAST,STRUC,TRANSP,TIME)
         ds0=min(ds0(:,3));
     end
 
-    % get number of revetments
-    [x_str,y_str,n_str]=get_one_polygon(STRUC.x_revet,STRUC.y_revet,1);
-    [x_sed,y_sed,n_sed]=get_one_polygon(TRANSP.x_sedlim,TRANSP.y_sedlim,1);
+    %% get number of revetments
+    [x_str,y_str,n_str]=get_one_polygon(STRUC.xrevet,STRUC.yrevet,1);
+    [x_sed,y_sed,n_sed]=get_one_polygon(TRANSP.xsedlim,TRANSP.ysedlim,1);
     
     %% for all revetments
     if n_str>0 || n_sed>0
         for i_str = 1:n_str+n_sed
             if i_str<=n_str
                 % get the revetment
-                [x_rev,y_rev,n_str]=get_one_polygon(STRUC.x_revet,STRUC.y_revet,i_str);
-                wcrit = TRANSP.crit_width;
+                [x_rev,y_rev,n_str]=get_one_polygon(STRUC.xrevet,STRUC.yrevet,i_str);
+                wcrit = TRANSP.critwidth;
                 wreduce = 0;
             else
                 % get 'virtual revetment' with sediment limitation
                 i_sed=i_str-n_str;
-                [x_sed,y_sed,n_sed]=get_one_polygon(TRANSP.x_sedlim,TRANSP.y_sedlim,i_sed);
-                wcrit = mean(get_one_polygon(TRANSP.width_sedlim,i_sed));
+                [x_sed,y_sed,n_sed]=get_one_polygon(TRANSP.xsedlim,TRANSP.ysedlim,i_sed);
+                wcrit = mean(get_one_polygon(TRANSP.widthsedlim,i_sed));
                 wreduce = wcrit;
                 x_rev=x_sed;
                 y_rev=y_sed;
@@ -113,16 +122,6 @@ function [TRANSP,COAST]=transport_revetment(COAST,STRUC,TRANSP,TIME)
                 cr=a(1,:).*b(2,:)-a(2,:).*b(1,:);
                 % make dmin positive when coast seward of revetment
                 dmin(inside)=-dmin(inside).*sign(cr(inside));
-                dnrev(inside)=max(dmin(inside),0);
-
-                % coastline behind revetment; is fixed to revetment
-                behind=inside&dmin<wreduce;            
-                if sum(behind)>0
-                x(behind)=x_dmin(behind);
-                y(behind)=y_dmin(behind);
-                end
-                %% Reduction factor
-                reducfac(inside)=max(min(dnrev(inside)/wcrit,1),0);
             else
                 % extend with 0% of a standard grid cell size to get some extra coverage (avoid undermining)
                 dx=diff(x_rev);dx=[dx(1),dx(end)];
@@ -135,30 +134,34 @@ function [TRANSP,COAST]=transport_revetment(COAST,STRUC,TRANSP,TIME)
                 [dmin,x_dmin,y_dmin]=get_polydistance(x,y,x_revext,y_revext);
                 inside=~isnan(dmin);
                 dmin=-dmin;
-                dnrev(inside)=max(dmin(inside),0);
-                dnrevq=[dnrev(1),(dnrev(1:end-1)+dnrev(2:end))/2,dnrev(end)];
-                insideq=[inside;0] | [0;inside];
-                
-                % coastline behind revetment; is fixed to revetment
-                behind=inside&dmin<=wreduce; 
-                behindq=[behind;0] | [0;behind]; 
-                if sum(behind)>0 && TIME.it==0
-                    x(behind)=x_dmin(behind);
-                    y(behind)=y_dmin(behind);
-                    dnrevq(insideq)=max(dnrevq(insideq),0);
-                end
-                reducfac(insideq)=max(min(dnrevq(insideq)/wcrit,1),0);
-                
-                TRANSP.idrev=TRANSP.idrev | behindq(:)';    % QS-indices with a revetment -> used to communicate to 'upwind correction' and 'bypass function
             end
             
-            %% Debug plot
+            % computing the cross-shore distance to the revetment for the coastline points (dnrev) and for the qs-points (dnrevq)
+            dnrev(inside)=max(dmin(inside),0);
+            dnrevq=[dnrev(1),(dnrev(1:end-1)+dnrev(2:end))/2,dnrev(end)];
+            
+            % coastline behind revetment
+            insideq=[inside;0] | [0;inside];
+            behind=inside&dmin<=wreduce; 
+            behindq=[behind;0] | [0;behind]; 
+            
+            % at t0 the coast is fixed to revetment
+            if sum(behind)>0 && TIME.it==0
+                x(behind)=x_dmin(behind);
+                y(behind)=y_dmin(behind);
+                dnrevq(insideq)=max(dnrevq(insideq),0);
+            end
+            % reduction factor
+            reducfac(insideq)=max(min(dnrevq(insideq)/wcrit,1),0);               
+            TRANSP.idrev=TRANSP.idrev | behindq(:)';    % QS-indices with a revetment -> used to communicate to upwind correction and bypass function
+            
+            % debug plot
             % figure;plot(COAST.x,COAST.y,'k.-');hold on;plot(COAST.xq(insideq),COAST.yq(insideq),'gs');hold on;plot(COAST.x(inside),COAST.y(inside),'r+');
             
-            %% Reduce transports to mimic limitation to bypass
+            % reduce transports to mimic limitation to bypass
             QS=QS.*reducfac;
             
-            %% Reduce transports to avoid emptying coastal cells in front of revetments
+            % reduce transports to avoid emptying coastal cells in front of revetments
             iddivergence=QS(2:end)>0 & QS(1:end-1)<0;
             dnrev(iddivergence)=dnrev(iddivergence)/2;
             for iter=1:iterrev 

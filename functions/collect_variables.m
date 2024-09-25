@@ -1,15 +1,22 @@
 function [COAST,WAVE,TRANSP]=collect_variables(COAST,WAVE,TRANSP,DUNE,MUD,i_mc)
 % function [COAST,WAVE,TRANSP]=collect_variables(COAST,WAVE,TRANSP,DUNE,MUD,i_mc)
 %
-% INPUT
-%     WAVE
-%     COAST
-%     TRANSP
-%     i_mc
+% This routine collects the variables of the evaluation of section 'i_mc'
+% into the overarching variable that stores data for all sections, with '_mc' suffix. 
+% The x_mc and y_mc are temporarily stored in x1_mc and y1_mc, and written 
+% back to x_mc and y_mc when the last element has been evaluated.  
+% 
+% INPUT:
+%     COAST   : fields stored 's','ds','x1','y1','xq','yq','xq1','yq1','PHIc','dPHIc','PHIcxy','PHIf','h0','cyclic','clockwise'
+%     WAVE    : fields stored 'PHIo','PHItdp','PHIbr','HSo','HStdp','HSbr','dPHIo','dPHItdp','dPHIbr','TP','hbr','dPHIcrit','diff'
+%     TRANSP  : fields stored 'QS','QSmax','shadowS','shadowS_h','shadowS_hD','shadow','shadow_h','ivals','idrev'
+%     DUNE    : fields stored 'qs','qss','ql','qw','R','SWL','wberm','dfelev','dcelev','xtill'
+%     MUD     : fields stored 'Bf','Bm','Bfm','dndt_mud','dBfdt','dBmdt','dBfmdt'
+%     i_mc    : index of active coastal element
 %
-% OUTPUT
+% OUTPUT:
+%     COAST     with updated 'mc' (including MUD and DUNE properties)
 %     WAVE      with updated 'mc'
-%     COAST     with updated 'mc'
 %     TRANSP    with updated 'mc'
 %
 %% Copyright notice
@@ -33,11 +40,11 @@ function [COAST,WAVE,TRANSP]=collect_variables(COAST,WAVE,TRANSP,DUNE,MUD,i_mc)
 %
 %   This library is distributed in the hope that it will be useful,
 %   but WITHOUT ANY WARRANTY; without even the implied warranty of
-%   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
+%   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU
 %   Lesser General Public License for more details.
 %
 %   You should have received a copy of the GNU Lesser General Public
-%   License along with this library. If not, see <http://www.gnu.org/licenses
+%   License along with this library. If not, see <http://www.gnu.org/licenses>
 %   --------------------------------------------------------------------
 
     % temporarily store changes of x,y,xq,yq in a variable to not affect other coastal segments yet.
@@ -46,7 +53,7 @@ function [COAST,WAVE,TRANSP]=collect_variables(COAST,WAVE,TRANSP,DUNE,MUD,i_mc)
     COAST.xq1=COAST.xq;
     COAST.yq1=COAST.yq;
     fields={'s','ds','x1','y1','xq','yq','xq1','yq1','PHIc','dPHIc','PHIcxy','PHIf','h0','cyclic','clockwise'};
-    fieldsdune={'qs','ql','qw','R','SWL','Wberm','Dfelev','Dcelev','xtill'};%,'xhard'};
+    fieldsdune={'qs','qss','ql','qw','R','SWL','wberm','dfelev','dcelev','xtill'};%,'xhard'};
     fieldsmud={'Bf','Bm','Bfm','dndt_mud','dBfdt','dBmdt','dBfmdt'};
     if DUNE.used 
        fields={fields{:},fieldsdune{:}};

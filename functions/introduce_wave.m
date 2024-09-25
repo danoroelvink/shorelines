@@ -1,42 +1,55 @@
 function [WAVE]=introduce_wave(WAVE,TIME,COAST,CC)
 % function [WAVE]=introduce_wave(WAVE,TIME,COAST,CC)
-%
-% Interpolate wave conditions along the coast. 
-%
-% INPUT:
-%   S          Structure with input data of the ShorelineS model
-%   WAVE       Structure with wave data of the ShorelineS model, of which is used
-%              option 1:
-%              .Hs            Offshore wave height (input = single number)
-%              .Tp            Offshore wave period (input = single number)
-%              .PHIw          Offshore wave direction (input = single number)
-%              option 2:
-%              .WVCfile       filename of wave climate data file (if 'WVC' variable is used)
-%              .WVC           Offshore wave parameters from time-series or wave climate with probabilities
-%              option 3:
-%              .c1            Offshore wave height (input = single number)
-%              .c2            Offshore wave period (input = single number)
-%              .PHIequi       Offshore wave direction (input = single number)
-%              .QSoffset      Tide transport offset
-%              .PHIf          Orientation of the lower shoreface
-%   TIME       current moment in time 'tnow' is used (in datnum format [days since 0000-00-01 00:00])
-%   COAST      Structure with x,y locations of coastline points
-%   CC         Correction values on Hs, PHI accounting for climate change
-%
+% 
+% Interpolate wave conditions of multiple offshore/nearshore
+% wave data sources along the coastline at every timestep.
+% If only one wave source is available, or when only static 
+% conditions are prescribed then no interpolation is needed.
+% 
+% INPUT: 
+%   WAVE                   : Structure with wave data of the ShorelineS model, of which is used
+%        <option 1>
+%        .Hs               : Offshore wave height (input = single number)
+%        .Tp               : Offshore wave period (input = single number)
+%        .PHIw             : Offshore wave direction (input = single number)
+%        <option 2>
+%        .wvcfile          : filename of wave climate data file (if 'WVC' variable is used)
+%        .WVC              : Offshore wave parameters from time-series or wave climate with probabilities
+%                            for a wave timeseries with fields .timenum, .Hs, .Tp and .Dir (each with [Nx1] column vector with data)
+%                            for a wave climate with fields .Hs, .Tp, .Dir and .Prob (each with [Nx1] column vector with data)
+%        .iwc              : index of the wave climate condition that was selected for this timestep 
+%                            (it is re-used for interpolation of other elements at the same time instance)
+%        <option 3>
+%        .c1               : Transport coefficient of the S-Phi curve [m3/yr/°]
+%        .c2               : Coefficient for curvature of the S-Phi curve [1/°]
+%        .PHIequi          : Equilibrium angle of coastline [°N]
+%        .QSoffset         : Tide transport offset value [m3/yr]
+%        .PHIf             : Orientation of the lower shoreface [°N]
+%   TIME                   : current moment in time 'tnow' and 'tprev' is used (in datnum format [days since 0000-00-01 00:00])
+%        .tc               : ratio of adaptive time step that is used (0 means a fixed timestep)
+%        .tnow             : current time [in days in datenum format]
+%   COAST                  : Structure with x,y locations of coastline points
+%   CC                     : Correction values on Hs, PHI accounting for climate change
+% 
 % OUTPUT:
 %   WAVE
-%              .HSo           Significant wave height at considered time instance (m)
-%              .PHIo          Wave direction at considered time instance (radians cartesian)
-%              .TP            Wave period at considered time instance (s)
-%              .PHIf0         Orientation of the lower shoreface (only in case option 2 or 4)
-%              .c1            (if RAY-files are used) Offshore wave height (input = single number)
-%              .c2            (if RAY-files are used) Offshore wave period (input = single number)
-%              .PHIeq         (if RAY-files are used) Offshore wave direction (input = single number)
-%              .QSoffset      (if RAY-files are used) Tide transport offset
-%              .h0            (if RAY-files are used) Active height of the profile from the RAY-files [m] 
-%
-%% Copyright notice
-%   --------------------------------------------------------------------
+%        .HSo              : Significant wave height at considered time instance (m)
+%        .PHIo             : Wave direction at considered time instance (radians cartesian)
+%        .TP               : Wave period at considered time instance (s)
+%        .PHIf0            : Orientation of the lower shoreface (only in case option 2 or 4)
+%        .iwc              : index of the wave climate condition that was selected for this timestep 
+%                            (which is re-used for interpolation of other elements at the same time instance)
+%        .i_mc             : index of currently evaluated coastline element
+%        .WVCid0           : grid index of each of the offshore wave stations
+%        .spacevaryingwave : index showing whether space varying waves are used (0/1)
+%        .c1               : (if RAY-files are used) Offshore wave height (input = single number)
+%        .c2               : (if RAY-files are used) Offshore wave period (input = single number)
+%        .PHIeq            : (if RAY-files are used) Offshore wave direction (input = single number)
+%        .QSoffset         : (if RAY-files are used) Tide transport offset
+%        .h0               : (if RAY-files are used) Active height of the profile from the RAY-files [m] 
+% 			       
+%% Copyright notice	       
+%   -------------------------------------------------------------------
 %   Copyright (C) 2020 IHE Delft & Deltares
 %
 %       Dano Roelvink
@@ -56,11 +69,11 @@ function [WAVE]=introduce_wave(WAVE,TIME,COAST,CC)
 %
 %   This library is distributed in the hope that it will be useful,
 %   but WITHOUT ANY WARRANTY; without even the implied warranty of
-%   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
+%   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU
 %   Lesser General Public License for more details.
 %
 %   You should have received a copy of the GNU Lesser General Public
-%   License along with this library. If not, see <http://www.gnu.org/licenses
+%   License along with this library. If not, see <http://www.gnu.org/licenses>
 %   --------------------------------------------------------------------
 
     %% EXTRACT WAVE CLIMATE DATA
@@ -89,7 +102,7 @@ function [WAVE]=introduce_wave(WAVE,TIME,COAST,CC)
     % get wave data structure WVC
     WVC=WAVE.WVC;
     
-    if ~isempty(WAVE.WVCfile) 
+    if ~isempty(WAVE.wvcfile) 
         
         % get wave conditions for particular moment in time (for each of the locations)
         xw=[]; 
@@ -191,9 +204,9 @@ function [WAVE]=introduce_wave(WAVE,TIME,COAST,CC)
         PHIw=WAVE.phiw0+(WAVE.rnd-.5)*WAVE.spread;
         Tp=WAVE.tper;
 
-        WAVE.Hso=WAVE.Hso;                                                                   % wave height [m]
-        WAVE.phiw0=WAVE.phiw0;                                                               % deep water wave angle in degrees [?N]
-        WAVE.spread=WAVE.spread;                                                             % wave spreading [?] (wave_dir from range:  S.phiw0 +/- 0.5*S.spread)
+        WAVE.Hso=WAVE.Hso;        % wave height [m]
+        WAVE.phiw0=WAVE.phiw0;    % deep water wave angle in degrees [?N]
+        WAVE.spread=WAVE.spread;  % wave spreading [?] (wave_dir from range:  S.phiw0 +/- 0.5*S.spread)
 
     end
     

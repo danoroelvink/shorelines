@@ -1,24 +1,24 @@
 function [MUD]=get_riverdischarges(TIME,COAST,TRANSP,MUD)
 % function [MUD]=get_riverdischarges(TIME,COAST,TRANSP,MUD)
 %
-% INPUT:
+% INPUT: 
 %    TIME
-%       .tnow                current date in the model (in timenum format)
+%       .tnow          : current date in the model (in timenum format)
 %    COAST
-%       .x                   x-coordinates of the coastline [m]
-%       .y                   y-coordinates of the coastline [m]
-%       .n                   Number of coastline points (length of x and y)
+%       .x             : x-coordinates of the coastline [m]
+%       .y             : y-coordinates of the coastline [m]
+%       .n             : Number of coastline points (length of x and y)
 %    MUD
-%       .tstart              Start of riverdischarges
-%       .tend                End of riverdischarge 
-%       .x                   x-coordinates of riverdischarges
-%       .y                   y-coordinates of riverdischarges
-%       .n                   Number of riverdischarges
-%       .rate_m3_per_yr      riverdischarge rate for each individual measure in [m3/yr]
+%       .tstart        : Start of riverdischarges
+%       .tend          : End of riverdischarge 
+%       .x             : x-coordinates of riverdischarges
+%       .y             : y-coordinates of riverdischarges
+%       .n             : Number of riverdischarges
+%       .rate          : riverdischarge rate for each individual measure in [m3/yr]
 %
 % OUTPUT:
-%     MUD                    
-%       .rate_m3_per_m_yr    actual nourishment rate in [m3/m/year]
+%     MUD              :     
+%       .rate_density  : actual nourishment rate in [m3/m/year]
 %
 %% Copyright notice
 %   --------------------------------------------------------------------
@@ -41,14 +41,14 @@ function [MUD]=get_riverdischarges(TIME,COAST,TRANSP,MUD)
 %
 %   This library is distributed in the hope that it will be useful,
 %   but WITHOUT ANY WARRANTY; without even the implied warranty of
-%   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
+%   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU
 %   Lesser General Public License for more details.
 %
 %   You should have received a copy of the GNU Lesser General Public
-%   License along with this library. If not, see <http://www.gnu.org/licenses
+%   License along with this library. If not, see <http://www.gnu.org/licenses>
 %   --------------------------------------------------------------------
 
-    MUD.rate_m3_per_m_yr=zeros(1,COAST.n);
+    MUD.rate_density=zeros(1,COAST.n);
     if MUD.used
         for i_n=1:MUD.nriv
             if TIME.tnow>=MUD.tstart(i_n) && TIME.tnow<=MUD.tend(i_n)
@@ -84,7 +84,7 @@ function [MUD]=get_riverdischarges(TIME,COAST,TRANSP,MUD)
                 % make sure to use only the fraction that is nourished at the considered coastal segment i_mc
                 fraction = dxmud./sum(dxmud);
                 if ~isempty(idx{COAST.i_mc}) 
-                    MUD.rate_m3_per_m_yr(idx{COAST.i_mc})=MUD.rate_m3_per_m_yr(idx{COAST.i_mc})+MUD.rate_m3_per_yr(i_n)./dxmud(COAST.i_mc).*fraction(COAST.i_mc);
+                    MUD.rate_density(idx{COAST.i_mc})=MUD.rate_density(idx{COAST.i_mc})+MUD.rate(i_n)./dxmud(COAST.i_mc).*fraction(COAST.i_mc);
                 end
             end
         end

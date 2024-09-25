@@ -1,19 +1,19 @@
 function [COAST]=get_foreshore_orientation(COAST)
 % function [COAST]=get_foreshore_orientation(COAST)
 % 
-% INPUT:
-%   COAST          Structure with data of the ShorelineS model, of which is used
-%    .phif0     user input for the shoreline orientation [°]
-%    .x          x-coordinate of coastal segment [m]
-%    .y          y-coordinate of coastal segment [m]
-%    .n          number of grid cells of coastal segment
-%    .PHIc       Coastline orientation at each grid cell [°]
+% INPUT: 
+%   COAST        : Structure with data of the ShorelineS model, of which is used
+%     .phif0     : user input for the shoreline orientation [°]
+%     .x         : x-coordinate of coastal segment [m]
+%     .y         : y-coordinate of coastal segment [m]
+%     .n         : number of grid cells of coastal segment
+%     .PHIc      : Coastline orientation at each grid cell [°]
 %
 % OUTPUT:
 %   COAST
-%      .PHIf       Lower shoreface orientation at each grid cell for the current coastal segment [°]
-%      .PHIf_x     x-coordinate at each grid cell for all of the coastal segments [m]
-%      .PHIf_y     y-coordinate at each grid cell for all of the coastal segments [m]
+%     .PHIf      : Lower shoreface orientation at each grid cell for the current coastal segment [°]
+%     .PHIf_x    : x-coordinate at each grid cell for all of the coastal segments [m]
+%     .PHIf_y    : y-coordinate at each grid cell for all of the coastal segments [m]
 %
 %% Copyright notice
 %   --------------------------------------------------------------------
@@ -36,22 +36,22 @@ function [COAST]=get_foreshore_orientation(COAST)
 %
 %   This library is distributed in the hope that it will be useful,
 %   but WITHOUT ANY WARRANTY; without even the implied warranty of
-%   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
+%   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU
 %   Lesser General Public License for more details.
 %
 %   You should have received a copy of the GNU Lesser General Public
-%   License along with this library. If not, see <http://www.gnu.org/licenses
+%   License along with this library. If not, see <http://www.gnu.org/licenses>
 %   --------------------------------------------------------------------
             
     % shoreface orientation (PHIf)    
-    if ischar(COAST.PHIf0)   % input from file
+    if ischar(COAST.PHIf0)   % INPUT: from file
         % read table with predefined shoreface orientation (with 3 columns, PHIx, PHIy and PHIf orientation)
-        % INPUT EXAMPLE :   S.phi='foreshoreorientation.txt', 3 column text
+        % INPUT: EXAMPLE :   S.phi='foreshoreorientation.txt', 3 column text
         % file
         COAST.PHIf0=load(COAST.PHIf0);
     end
     
-    if isempty(COAST.PHIf0) || size(COAST.PHIf0,2)==4 % input at t=0
+    if isempty(COAST.PHIf0) || size(COAST.PHIf0,2)==4 % INPUT: at t=0
         % lower shoreface at original orientation of coastline at t=0
         % NO INPUT      : use coastline orientation (e.g. in case of CERC)
         % this is only done at t=0. Afterwards the assessed PHIf at t=0 is reinterpolated on the grid every time step (i.e. when field 'PHIf' is available). 
@@ -84,9 +84,9 @@ function [COAST]=get_foreshore_orientation(COAST)
         end
     end
     
-    if iscell(COAST.PHIf0) && length(COAST.PHIf0)>=2 % input at t=0
+    if iscell(COAST.PHIf0) && length(COAST.PHIf0)>=2 % INPUT: at t=0
         % lower shoreface angles based on smoothed coastline (only present section in COAST.PHIc)
-        % INPUT EXAMPLE :   COAST.PHIf0={'gaussian',7};
+        % INPUT: EXAMPLE :   COAST.PHIf0={'gaussian',7};
         smoothmethod=COAST.PHIf0{1};
         smoothrange=COAST.PHIf0{2};
         if COAST.cyclic
@@ -116,12 +116,12 @@ function [COAST]=get_foreshore_orientation(COAST)
     
     if isscalar(COAST.PHIf0)
         % lower shoreface at fixed orientation for the whole grid
-        % INPUT EXAMPLE :   COAST.PHIf0=312;
+        % INPUT: EXAMPLE :   COAST.PHIf0=312;
         COAST.PHIf=repmat(COAST.PHIf0,[1,length(COAST.xq)]);
     end
     
     % lower shoreface at predefined orientation in table
-    % INPUT EXAMPLE :   PHIf0=[x1,y1,phif1; ... ; xn,yn,phifn]       
+    % INPUT: EXAMPLE :   PHIf0=[x1,y1,phif1; ... ; xn,yn,phifn]       
     if ~isscalar(COAST.PHIf0) && ~iscell(COAST.PHIf0)
         PHIf_x=COAST.PHIf0(:,1)';
         PHIf_y=COAST.PHIf0(:,2)';

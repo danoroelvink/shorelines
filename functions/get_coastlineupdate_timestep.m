@@ -1,7 +1,7 @@
 function [TIME, WAVE] = get_coastlineupdate_timestep(TIME, BATHY, WAVE, FORMAT)
 % function [TIME, WAVE] = get_coastlineupdate_timestep(TIME, BATHY, WAVE, FORMAT)
 % 
-% INPUT:
+% INPUT: 
 %   TIME, BATHY, WAVE, FORMAT
 %
 % OUTPUT:
@@ -28,11 +28,11 @@ function [TIME, WAVE] = get_coastlineupdate_timestep(TIME, BATHY, WAVE, FORMAT)
 %
 %   This library is distributed in the hope that it will be useful,
 %   but WITHOUT ANY WARRANTY; without even the implied warranty of
-%   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
+%   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU
 %   Lesser General Public License for more details.
 %
 %   You should have received a copy of the GNU Lesser General Public
-%   License along with this library. If not, see <http://www.gnu.org/licenses
+%   License along with this library. If not, see <http://www.gnu.org/licenses>
 %   --------------------------------------------------------------------
 
     try
@@ -41,7 +41,7 @@ function [TIME, WAVE] = get_coastlineupdate_timestep(TIME, BATHY, WAVE, FORMAT)
         indxw=1;
     end
     
-    if (~isempty(WAVE.WVCfile) || isfield(WAVE,'Wavematfile')) && ~isempty(WAVE.WVC(1).timenum)
+    if (~isempty(WAVE.wvcfile) || isfield(WAVE,'Wavematfile')) && ~isempty(WAVE.WVC(1).timenum)
        WVCtimenum=WAVE.WVC(1).timenum;
     else 
        WVCtimenum=[];   
@@ -58,10 +58,10 @@ function [TIME, WAVE] = get_coastlineupdate_timestep(TIME, BATHY, WAVE, FORMAT)
         end
         
         %% Cut timestep to output time point
-        if ((~isempty(FORMAT.SLplot) && FORMAT.tplot~=0) ...
-         || (~isempty(BATHY.bathy_update) && BATHY.tupdate~=0)) 
+        if ((~isempty(FORMAT.slplot) && FORMAT.tplot~=0) ...
+         || (~isempty(BATHY.bathyupdate) && BATHY.tupdate~=0)) 
             
-            if (~isempty(WAVE.WVCfile) || isfield(WAVE,'Wavematfile')) && ~isempty(WVCtimenum)
+            if (~isempty(WAVE.wvcfile) || isfield(WAVE,'Wavematfile')) && ~isempty(WVCtimenum)
                 TIME.dt=min([TIME.tc*TIME.adt,...
                             (WVCtimenum(indxw)-TIME.tnow)/365,...
                             (tend-TIME.tnow)/365,...
@@ -79,7 +79,7 @@ function [TIME, WAVE] = get_coastlineupdate_timestep(TIME, BATHY, WAVE, FORMAT)
             end
         else
             %% Cut timestep to wave condition update time point
-            if (~isempty(WAVE.WVCfile) || isfield(WAVE,'Wavematfile')) && ~isempty(WVCtimenum)
+            if (~isempty(WAVE.wvcfile) || isfield(WAVE,'Wavematfile')) && ~isempty(WVCtimenum)
                 TIME.dt=min([TIME.tc*TIME.adt,...
                             (WVCtimenum(indxw)-TIME.tnow)/365,...
                             (tend-TIME.tnow)/365]);

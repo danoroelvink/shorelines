@@ -1,14 +1,14 @@
 function rot=get_clockpoly(x,y)
-%CLOCKPOLY Determine drawing direction of a simple polygon
+% function rot=get_clockpoly(x,y)
 %
-%    Determines whether the point x,y of the polygon
-%    have been specified in clockwise or counter-
-%    clockwise direction.
-%    Returns 1 for clockwise, -1 for counter-clockwise
-%    and 0 for indeterminate.
-%    If the direction is not defined (e.g. in case of a
-%    polygon describing the shape 8) the routine gives a
-%    random answer
+% Clockpoly determines the drawing direction of a simple polygon
+% Determines whether the point x,y of the polygon has
+% been specified in clockwise or counter-clockwise direction.
+% Returns 1 for clockwise, -1 for counter-clockwise
+% and 0 for indeterminate.
+% If the direction is not defined (e.g. in case of a
+% polygon describing the shape 8) the routine gives a
+% random answer. 
 %
 %   Syntax:
 %   rot = get_clockpoly(x,y)
@@ -36,11 +36,11 @@ function rot=get_clockpoly(x,y)
 %
 %   This library is distributed in the hope that it will be useful,
 %   but WITHOUT ANY WARRANTY; without even the implied warranty of
-%   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
+%   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU
 %   Lesser General Public License for more details.
 %
 %   You should have received a copy of the GNU Lesser General Public
-%   License along with this library. If not, see <http://www.gnu.org/licenses
+%   License along with this library. If not, see <http://www.gnu.org/licenses>
 %   --------------------------------------------------------------------
 
     x=x(:);

@@ -1,10 +1,7 @@
 function [BATHY]=initialize_bathyupdate(S)
 % function [BATHY]=initialize_bathyupdate(S)
 %
-% INPUT:
-%
-% OUTPUT:
-%
+% This routine is intended for updating a 2DH bathymetry.
 %
 %% Copyright notice
 %   --------------------------------------------------------------------
@@ -27,19 +24,19 @@ function [BATHY]=initialize_bathyupdate(S)
 %
 %   This library is distributed in the hope that it will be useful,
 %   but WITHOUT ANY WARRANTY; without even the implied warranty of
-%   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
+%   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU
 %   Lesser General Public License for more details.
 %
 %   You should have received a copy of the GNU Lesser General Public
-%   License along with this library. If not, see <http://www.gnu.org/licenses
+%   License along with this library. If not, see <http://www.gnu.org/licenses>
 %   --------------------------------------------------------------------
 
     fprintf('  Initialize bathy  \n');
     
-    BATHY.bathy_update=S.bathy_update;
-    BATHY.tide_interaction=S.tide_interaction;
-    if ~isempty(S.bathy_update)  % For bathymetry update
-        BATHY.update_time(:)=datenum(S.bathy_update(:,1),'yyyy-mm-dd');
+    BATHY.bathyupdate=S.bathyupdate;
+    BATHY.tideinteraction=S.tideinteraction;
+    if ~isempty(S.bathyupdate)  % For bathymetry update
+        BATHY.update_time(:)=datenum(S.bathyupdate(:,1),'yyyy-mm-dd');
         BATHY.tbu=1;
         BATHY.tupdate=BATHY.update_time(BATHY.tbu);
         BATHY.update_time(end+1)=0;

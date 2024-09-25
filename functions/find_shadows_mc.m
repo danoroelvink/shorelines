@@ -1,9 +1,10 @@
 function [ shadowS,elementnr ] = find_shadows_mc(xq,yq,x_mc,y_mc,PHI,PHItdp,PHIbr,distw)
+% function [ shadowS,elementnr ] = find_shadows_mc(xq,yq,x_mc,y_mc,PHI,PHItdp,PHIbr,distw)
+% 
+% Computes the indices of locations in the shadow zone based on 
+% coastline shape, location of structures and wave incidence angle.
 %
-% Computes the indices of locations in the shadow zone 
-% based on coastline shape, location of structures and wave incidence angle.
-%
-% INPUT:
+% INPUT: 
 %         x         : x-coordinate of coastline (only current section)
 %         y         : y-coordinate of coastline (only current section)
 %         x_mc      : x-coordinate of coastline (all sections)
@@ -39,11 +40,11 @@ function [ shadowS,elementnr ] = find_shadows_mc(xq,yq,x_mc,y_mc,PHI,PHItdp,PHIb
 %
 %   This library is distributed in the hope that it will be useful,
 %   but WITHOUT ANY WARRANTY; without even the implied warranty of
-%   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
+%   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU
 %   Lesser General Public License for more details.
 %
 %   You should have received a copy of the GNU Lesser General Public
-%   License along with this library. If not, see <http://www.gnu.org/licenses
+%   License along with this library. If not, see <http://www.gnu.org/licenses>
 %   --------------------------------------------------------------------
 
     % set QS-grid length and offshore wave angle
@@ -105,16 +106,11 @@ function [ shadowS,elementnr ] = find_shadows_mc(xq,yq,x_mc,y_mc,PHI,PHItdp,PHIb
             
             if 0
                 figure(10);clf
-                % plot(xq,yq,x_mc,y_mc,xw,yw,'.-',xx1,yy1,'ro','linewidth',2);
                 plot(xq,yq,'b+');hold on;
                 plot(x_mc,y_mc,'r.-');
                 plot(xw,yw,'g.-');
-                %plot(P1(1,:),P1(2,:),'ro','linewidth',1);
-                %xlim([min(xq),max(xq)]);
-                %ylim([min(yq),max(yq)]);
                 axis equal
                 drawnow
-                %%pause
             end
         end
     end

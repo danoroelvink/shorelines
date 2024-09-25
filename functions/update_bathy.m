@@ -1,5 +1,7 @@
 function [S,BATHY]=update_bathy(S,BATHY,TIME,COAST)
-% function [S,BATHY]=update_bathy(S,BATHY,TIME.it,COAST.x_mc,COAST.y_mc)
+% function [S,BATHY]=update_bathy(S,BATHY,TIME,COAST)
+%
+% Updates the bathymetry in case of a 1D-2D coupled model.
 %
 %% Copyright notice
 %   --------------------------------------------------------------------
@@ -22,14 +24,15 @@ function [S,BATHY]=update_bathy(S,BATHY,TIME,COAST)
 %
 %   This library is distributed in the hope that it will be useful,
 %   but WITHOUT ANY WARRANTY; without even the implied warranty of
-%   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
+%   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU
 %   Lesser General Public License for more details.
 %
 %   You should have received a copy of the GNU Lesser General Public
-%   License along with this library. If not, see <http://www.gnu.org/licenses
+%   License along with this library. If not, see <http://www.gnu.org/licenses>
 %   --------------------------------------------------------------------
 
-    if ~isempty(S.bathy_update)&& S.dt==(BATHY.tupdate-tnow)/365
+    if ~isempty(S.bathyupdate)&& S.dt==(BATHY.tupdate-tnow)/365
+    
         %% UPDATE BATHYMETRY
         S.bathyname=strcat('modified_it',num2str(TIME.it),'.dep');
         grid=wlgrid('read',S.gridfile);
@@ -44,7 +47,6 @@ function [S,BATHY]=update_bathy(S,BATHY,TIME,COAST)
         S.zg=zb;
         A=0.1;  %Dean profile factor 
         Dc=S.d; %closure depth
-
         %     figure;
         %     pcolor(S.xg,S.yg,S.zg);
         %     shading flat;
@@ -66,7 +68,7 @@ function [S,BATHY]=update_bathy(S,BATHY,TIME,COAST)
             for j=1:size(xg,1);
                 [dist(j,i),ip]=get_disttopolyline(COAST.x_mc,COAST.y_mc,xg(j,i),yg(j,i),100000);
                zgu(j,i)=-A*(dist(j,i)).^(2/3);
-                if dist(j,i) <= S.surf_width
+                if dist(j,i) <= S.surfwidth
                    zg(j,i)=zgu(j,i);
                 else
                     zg(j,i)=min(Dc,zg0(j,i));
@@ -90,7 +92,6 @@ function [S,BATHY]=update_bathy(S,BATHY,TIME,COAST)
         % S.updatebathy=1;
         %save('x.dep','xg','-ascii')
         S.zg=zg;
-
 
         %% MAKE PLOT OF WAVES
         S.wavefile=strcat('Wave_table',num2str(TIME.it));

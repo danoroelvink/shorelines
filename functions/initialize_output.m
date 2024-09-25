@@ -1,10 +1,12 @@
 function [O,P,V]=initialize_output(S)
 % function [O,P,V]=initialize_output(S)
 %
-% OUTPUT
-%    O       Output data structure
-%    P       Output data structure projected on a grid
-%    V       3D Matrix with stacked 2D frames for video
+% Initialization function of the output data structures. 
+%
+% OUTPUT:
+%    O      : Output data structure
+%    P      : Output data structure projected on a grid
+%    V      : 3D Matrix with stacked 2D frames for video
 %
 %% Copyright notice
 %   --------------------------------------------------------------------
@@ -27,11 +29,11 @@ function [O,P,V]=initialize_output(S)
 %
 %   This library is distributed in the hope that it will be useful,
 %   but WITHOUT ANY WARRANTY; without even the implied warranty of
-%   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
+%   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU
 %   Lesser General Public License for more details.
 %
 %   You should have received a copy of the GNU Lesser General Public
-%   License along with this library. If not, see <http://www.gnu.org/licenses
+%   License along with this library. If not, see <http://www.gnu.org/licenses>
 %   --------------------------------------------------------------------
     
     fprintf('  Initialize output data-structures \n'); 
@@ -42,13 +44,13 @@ function [O,P,V]=initialize_output(S)
     % prepare output on direct output
     fieldnmO = {'it','dt','tc','nt','timenum',...
                 'n','x','y','distx','distQS','dSds',...
-                'Wberm','xdune','ydune','qs','ql','qw','R','SWL','PHIcxy','Bf','Bm','Bfm',...
+                'wberm','xdune','ydune','qs','ql','qw','R','SWL','PHIcxy','Bf','Bm','Bfm',...
                 'n1','x1','y1','distx1','distQS1','PHIc','QS',...
                 'HSo','PHIo','TP','PHIf',...
                 'HS','PHI','dPHI',...
                 'HSbr','PHIbr','dPHIbr','hbr',...
-                'x_hard','y_hard','n_hard',...
-                'x_nour','y_nour','n_nour',...
+                'xhard','yhard','nhard',...
+                'xnour','ynour','nnour',...
                 'x_fnour','y_fnour','n_fnour','V_fnour_t','q_fnour_t',... 
                 'x_groyne','y_groyne'};
     for ff=1:length(fieldnmO)

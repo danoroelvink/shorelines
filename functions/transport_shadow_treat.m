@@ -4,29 +4,48 @@ function [TRANSP,WAVE]=transport_shadow_treat(COAST,STRUC,WAVE,TRANSP)
 % Computes the indices of grid cells with a shadowing of the waves 
 % due to the coastline itself or hard structures.
 %
-% INPUT : 
+% INPUT :  
 %   COAST
-%         .x         : x-coordinate of coastline (only current section)
-%         .y         : y-coordinate of coastline (only current section)
-%         .x_mc      : x-coordinate of coastline (all sections)
-%         .y_mc      : y-coordinate of coastline (all sections)
+%         .x           : x-coordinate of coastline [m] (only current section)
+%         .y           : y-coordinate of coastline [m] (only current section)
+%         .xq          : x-coordinate at transport points [m] (only current section)
+%         .yq          : y-coordinate at transport points [m] (only current section)
+%         .x_mc        : x-coordinate of coastline [m] (all sections)
+%         .y_mc        : y-coordinate of coastline [m] (all sections)
+%         .wberm       : berm/beach width along the coast [m]
+%         .PHIcxy      : angle of the shorenormal of the coastline [°]
 %   STRUC
-%         .x_hard    : x-coordinate of hard structures
-%         .y_hard    : y-coordinate of hard structures
+%         .diffraction : swicth for using diffraction (0/1)
+%         .xhard       : x-coordinate of hard structures [m]
+%         .yhard       : y-coordinate of hard structures [m]
+%         .xrevet      : x-coordinates of revetments [m]
+%         .yrevet      : y-coordinates of revetments [m]
 %   WAVE
-%         .PHI       : Wave incidence angle ([1] or [1xN] in Radians and degrees North)
-%         .dPHI      : Relative angle of offshore waves with respect to the coastline 
-%         .diffraction
-%
-% OUTPUT:
+%         .PHItdp      : wave incidence angle at depth-of-closure [°N]
+%         .dPHIo       : relative angle of offshore waves with respect to the coastline [°]
+%         .dPHItdp     : relative angle at depth-of-closure with respect to the coastline [°]
+%         .dPHIbr      : relative angle at point of breaking with respect to the coastline [°]
+%         .dPHIcrit    : critical wave angle for stability at depth-of-closure [°]
+%         .dist        : closests distance of each of the wave input stations to the coastline [m]
+%         .diffraction : switch for using diffraction (0/1)
+%         .diff        : index with transport points affected by diffraction [-]
 %   TRANSP
-%         .xS        : x-coordinate of QS-points
-%         .yS        : y-coordinate of QS-points
-%         .shadowS   : Index of cells which are in the TRANSP.shadow zone of other sections of the coast (QS-points)
-%         .shadowS_h : Index of cells which are in the TRANSP.shadow zone of hard structures (QS-points)
-%         .shadow    : Index of cells which are in the TRANSP.shadow zone of other sections of the coast (xy-point)
-%         .shadowc   : Index of cells which are in the TRANSP.shadow zone of hard structures (xy-point)
-%    dPHIcor   : Relative angle of offshore waves with respect to the coastline corrected to 0 in TRANSP.shadow zones
+%         .QS          : transport rates [m3/yr]
+%         .trform      : transport formulation used (e.g. 'CERC')
+%         .xsedlim     : x-coordinates of regions with limited sediment availability / hard layers [m]
+%         .ysedlim     : y-coordinates of regions with limited sediment availability / hard layers [m]
+%
+% OUTPUT :
+%   TRANSP
+%         .xS          : x-coordinate of QS-points [m]
+%         .yS          : y-coordinate of QS-points [m]
+%         .shadowS     : index of cells which are in the TRANSP.shadow zone of other sections of the coast (QS-points)
+%         .shadowS_h   : index of cells which are in the TRANSP.shadow zone of hard structures (QS-points)
+%         .shadow      : index of cells which are in the TRANSP.shadow zone of other sections of the coast (xy-point)
+%         .shadowc     : index of cells which are in the TRANSP.shadow zone of hard structures (xy-point)
+%   WAVE
+%         .PHIbr       : angle of waves at point of breaking [°N] (only for CERC set to same value as .PHItdp)
+%         .dPHItdp_sh  : relative incoming wave angle at depth-of-closure [°]
 %
 %% Copyright notice
 %   --------------------------------------------------------------------
@@ -49,11 +68,11 @@ function [TRANSP,WAVE]=transport_shadow_treat(COAST,STRUC,WAVE,TRANSP)
 %
 %   This library is distributed in the hope that it will be useful,
 %   but WITHOUT ANY WARRANTY; without even the implied warranty of
-%   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
+%   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU
 %   Lesser General Public License for more details.
 %
 %   You should have received a copy of the GNU Lesser General Public
-%   License along with this library. If not, see <http://www.gnu.org/licenses
+%   License along with this library. If not, see <http://www.gnu.org/licenses>
 %   --------------------------------------------------------------------
 
     QS0=TRANSP.QS;
@@ -62,17 +81,17 @@ function [TRANSP,WAVE]=transport_shadow_treat(COAST,STRUC,WAVE,TRANSP)
     
     struc.x=[];
     struc.y=[];
-    if ~isempty(STRUC.x_hard) 
-        struc.x=[struc.x,nan,STRUC.x_hard];
-        struc.y=[struc.y,nan,STRUC.y_hard];
+    if ~isempty(STRUC.xhard) 
+        struc.x=[struc.x,nan,STRUC.xhard];
+        struc.y=[struc.y,nan,STRUC.yhard];
     end
-    if ~isempty(STRUC.x_revet) 
-        struc.x=[struc.x,nan,STRUC.x_revet];
-        struc.y=[struc.y,nan,STRUC.y_revet];
+    if ~isempty(STRUC.xrevet) 
+        struc.x=[struc.x,nan,STRUC.xrevet];
+        struc.y=[struc.y,nan,STRUC.yrevet];
     end
-    if ~isempty(TRANSP.x_sedlim) 
-        struc.x=[struc.x,nan,TRANSP.x_sedlim];
-        struc.y=[struc.y,nan,TRANSP.y_sedlim];
+    if ~isempty(TRANSP.xsedlim) 
+        struc.x=[struc.x,nan,TRANSP.xsedlim];
+        struc.y=[struc.y,nan,TRANSP.ysedlim];
     end
     if ~isempty(struc.x)
         struc.x=struc.x(2:end);
@@ -103,14 +122,14 @@ function [TRANSP,WAVE]=transport_shadow_treat(COAST,STRUC,WAVE,TRANSP)
     end
 
     %% shadow zone for dune flux 
-    if ~isempty(STRUC.x_revet) && ~isempty(COAST.x) && ~isempty(COAST.Wberm)
-        xdune = COAST.x - COAST.Wberm.*sind(COAST.PHIcxy); 
-        ydune = COAST.y - COAST.Wberm.*cosd(COAST.PHIcxy); 
+    if ~isempty(STRUC.xrevet) && ~isempty(COAST.x) && ~isempty(COAST.wberm)
+        xdune = COAST.x - COAST.wberm.*sind(COAST.PHIcxy); 
+        ydune = COAST.y - COAST.wberm.*cosd(COAST.PHIcxy); 
         PHIoAvg = get_smoothdata(WAVE.PHIo,'anglemean');
         PHItdpAvg = get_smoothdata(WAVE.PHItdp,'anglemean');
         PHIbrAvg = get_smoothdata(WAVE.PHIbr,'anglemean');
         distAvg = (WAVE.dist(1:end-1)+WAVE.dist(2:end))/2;
-        [ TRANSP.shadowS_hD ] = find_shadows_mc(xdune,ydune,STRUC.x_revet,STRUC.y_revet,PHIoAvg,PHItdpAvg,PHIbrAvg,distAvg);
+        [ TRANSP.shadowS_hD ] = find_shadows_mc(xdune,ydune,STRUC.xrevet,STRUC.yrevet,PHIoAvg,PHItdpAvg,PHIbrAvg,distAvg);
     else
         TRANSP.shadowS_hD=false(1,length(COAST.x));
     end

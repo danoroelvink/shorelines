@@ -1,8 +1,9 @@
 function [FORMAT] = plot_fill_sections(COAST,FORMAT,TIME)
-% function [xmax,ymax,xmin,ymin,nmax ] = plot_fill_sections(x_mc,y_mc,ld,it,xmax,ymax,xmin,ymin,nmax,ds0,usefill)
+% function [FORMAT] = plot_fill_sections(COAST,FORMAT,TIME)
 %
-% UNTITLED Summary of this function goes here
-% Detailed explanation goes here
+% This function plots the land-polygon for coastal elements. 
+% For open-elements a series of landward points is defined using the
+% function plot_insert_landfill.m
 %
 %% Copyright notice
 %   --------------------------------------------------------------------
@@ -25,11 +26,11 @@ function [FORMAT] = plot_fill_sections(COAST,FORMAT,TIME)
 %
 %   This library is distributed in the hope that it will be useful,
 %   but WITHOUT ANY WARRANTY; without even the implied warranty of
-%   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
+%   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU
 %   Lesser General Public License for more details.
 %
 %   You should have received a copy of the GNU Lesser General Public
-%   License along with this library. If not, see <http://www.gnu.org/licenses
+%   License along with this library. If not, see <http://www.gnu.org/licenses>
 %   --------------------------------------------------------------------
     
     x_mc=COAST.x_mc;
@@ -129,18 +130,18 @@ function [FORMAT] = plot_fill_sections(COAST,FORMAT,TIME)
         if usefill==1
             xfill=x;
             yfill=y;
-            if ~isempty(xb) && notclosed
+            if length(xb)>=i_mc && notclosed
                 % re-use land polygon
-                xfill=[x,xb,x(1)];
-                yfill=[y,yb,y(1)];
+                xfill=[x,xb{i_mc},x(1)];
+                yfill=[y,yb{i_mc},y(1)];
             else
                 % For straight line add land fill behind shoreline
                 if notclosed && ~isempty(ld)
-                    [xfill,yfill,xb,yb,xmax,ymax,xmin,ymin,nmax] = plot_insert_land_fill(x,y,ld,it,xmax,ymax,xmin,ymin,i_mc,n_mc,nmax,usefillpoints);
+                    [xfill,yfill,xb{i_mc},yb{i_mc},xmax,ymax,xmin,ymin,nmax] = plot_insert_land_fill(x,y,ld,it,xmax,ymax,xmin,ymin,i_mc,n_mc,nmax,usefillpoints);
                     %[x,y,nmax] = plot_insert_land_fill(x,y,ld,it,i_mc,n_mc,nmax);
                     if usefillpoints~=0
-                        xb=xb(2:end-1);
-                        yb=yb(2:end-1);
+                        xb{i_mc}=xb{i_mc}(2:end-1);
+                        yb{i_mc}=yb{i_mc}(2:end-1);
                     end
                 end
             end

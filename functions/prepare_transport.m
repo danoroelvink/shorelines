@@ -1,6 +1,74 @@
 function [TRANSP]=prepare_transport(S)
 % function [TRANSP]=prepare_transport(S)
 %
+% The sediment transport is initialized in this function. 
+% A data-structure TRANSP is created, which is used throughout the computation. 
+% 
+% INPUT:
+%   S
+%     .trform                   : switch for transport formulation (e.g. S.trform='CERC', 'KAMP', 'MILH' or 'VR14')
+%     .b                        : CERC : coeff in simple cerc formula
+%     .qscal                    : Calibration factor of the transport (works for all transport formulas)
+%     .d50                      : median grain diameter [m]
+%     .d90                      : d90 grain diameter [m]
+%     .porosity                 : TRANSP.porosity (typically 0.4) [-]
+%     .tanbeta                  : mean bed slope [ratio 1/slope]
+%     .ks                       : roughness parameter
+%     .rhos                     : density of sand [kg/m3]
+%     .rhow                     : density of water [kg/m3]
+%     .g                        : gravitational acceleration [m2/s]
+%     .cf                       : roughness factor
+%     .alpha                    : calibration factor for point of breaking (TRANSP.alpha = 1.8 for Egmond data)
+%     .gamma                    : breaking coefficient (Hs/h) with 5% breaking waves
+%     .pswell                   : VR14 : Percentage swell (between 0 - 100) [-]
+%     .aw                       : factor for determining depth of closure at bypassing groyne (1.27 if time series is used) This value is used by default.
+%     .bypasscontrfac           : the maximum transport when the coastline is at the end of the structure (always >=1). Setting the bypass fraction larger than 1 means that the accretion does not go to the tip of the structure. 
+%     .relaxationlength         : length over which transport decelerates in meters, which adds inertia to the longshore current. It scales linearly with the wave height below 1m waves.
+%     .aw                       : factor for determining depth of closure at bypassing groyne ir a representative Hs is used instead of a climate or timeseries. This value is used instead of 'aw' if S.wvcfile is empty. 
+%     .twopoints                : approach for dealing with high-angle instabilities
+%     .critwidth                : critical width of barriers for overwash
+%     .suppresshighangle        : switch 0/1 to disable the high-angle instabilities by limiting the transport angle to the critical high-angle orientation (when it is set at 1)
+%     .boundaryconditionstart   : left boundary condition of the model (e.g. 'Fixed')
+%     .boundaryconditionend     : right boundary condition of the model (e.g. {'Angleconstant',217} )
+%     .sedlim                   : switch for sediment limitation 
+%     .ldbsedlim   (option 1)   : filename for region with limited sediment availability
+%     .xsedlim     (option 2)   : x-coordinates of locations with limited sediment [m]
+%     .ysedlim     (option 2)   : y-coordinates of locations with limited sediment [m]
+%     .widthsedlim              : cross-shore distance with 100% transport of sediment w.r.t. position of sediment limiter line [m]
+%     .xyoffset                 : x and y offset used for plotting [1x2] in [m]
+% 
+% OUTPUT:
+%   TRANSP
+%     .trform                   : switch for transport formulation (e.g. S.trform='CERC', 'KAMP', 'MILH' or 'VR14')
+%     .b                        : CERC : coeff in simple cerc formula
+%     .qscal                    : Calibration factor of the transport (works for all transport formulas)
+%     .d50                      : median grain diameter [m]
+%     .d90                      : d90 grain diameter [m]
+%     .porosity                 : TRANSP.porosity (typically 0.4) [-]
+%     .tanbeta                  : mean bed slope [ratio 1/slope]
+%     .ks                       : roughness parameter
+%     .rhos                     : density of sand [kg/m3]
+%     .rhow                     : density of water [kg/m3]
+%     .g                        : gravitational acceleration [m2/s]
+%     .cf                       : roughness factor
+%     .alpha                    : calibration factor for point of breaking (TRANSP.alpha = 1.8 for Egmond data)
+%     .gamma                    : breaking coefficient (Hs/h) with 5% breaking waves
+%     .pswell                   : VR14 : Percentage swell (between 0 - 100) [-]
+%     .aw                       : factor for determining depth of closure at bypassing groyne (1.27 if time series is used) This value is used by default.
+%     .bypasscontrfac           : the maximum transport when the coastline is at the end of the structure (always >=1). Setting the bypass fraction larger than 1 means that the accretion does not go to the tip of the structure. 
+%     .relaxationlength         : length over which transport decelerates in meters, which adds inertia to the longshore current. It scales linearly with the wave height below 1m waves.
+%     .aw                       : factor for determining depth of closure at bypassing groyne ir a representative Hs is used instead of a climate or timeseries. This value is used instead of 'aw' if S.wvcfile is empty. 
+%     .twopoints                : approach for dealing with high-angle instabilities
+%     .critwidth                : critical width of barriers for overwash
+%     .suppresshighangle        : switch 0/1 to disable the high-angle instabilities by limiting the transport angle to the critical high-angle orientation (when it is set at 1)
+%     .boundaryconditionstart   : left boundary condition of the model (e.g. 'Fixed')
+%     .boundaryconditionend     : right boundary condition of the model (e.g. {'Angleconstant',217} )
+%     .sedlim                   : switch for sediment limitation 
+%     .xsedlim                  : x-coordinates of locations with limited sediment [m]
+%     .ysedlim                  : y-coordinates of locations with limited sediment [m]
+%     .nsedlim                  : number of elements with limited sediment
+%     .widthsedlim              : cross-shore distance with 100% transport of sediment w.r.t. position of sediment limiter line [m]
+% 
 %% Copyright notice
 %   --------------------------------------------------------------------
 %   Copyright (C) 2020 IHE Delft & Deltares
@@ -22,11 +90,11 @@ function [TRANSP]=prepare_transport(S)
 %
 %   This library is distributed in the hope that it will be useful,
 %   but WITHOUT ANY WARRANTY; without even the implied warranty of
-%   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
+%   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU
 %   Lesser General Public License for more details.
 %
 %   You should have received a copy of the GNU Lesser General Public
-%   License along with this library. If not, see <http://www.gnu.org/licenses
+%   License along with this library. If not, see <http://www.gnu.org/licenses>
 %   --------------------------------------------------------------------
 
     fprintf('  Prepare transport \n');
@@ -34,114 +102,117 @@ function [TRANSP]=prepare_transport(S)
     TRANSP.trform=S.trform;                                                            % switch for transport formulation (e.g. S.trform='CERC', 'KAMP', 'MILH' or 'VR14')
     TRANSP.b=S.b;                                                                      % CERC : coeff in simple cerc formula
     TRANSP.qscal=S.qscal;                                                              % Calibration factor of the transport (works for all transport formulas)
-    TRANSP.d50=S.d50;                                                                  % KAMP & MILH & VR14 : median grain diameter [m]
-    TRANSP.d90=S.d90;                                                                  % KAMP & MILH & VR14 : d90 grain diameter [m]
-    TRANSP.porosity=S.porosity;                                                        % KAMP & MILH & VR14 : TRANSP.porosity (typically 0.4) [-]
-    TRANSP.tanbeta=S.tanbeta;                                                          % KAMP & MILH & VR14 : mean bed slope [ratio 1/slope]
+    TRANSP.d50=S.d50;                                                                  % median grain diameter [m]
+    TRANSP.d90=S.d90;                                                                  % d90 grain diameter [m]
+    TRANSP.porosity=S.porosity;                                                        % TRANSP.porosity (typically 0.4) [-]
+    TRANSP.tanbeta=S.tanbeta;                                                          % mean bed slope [ratio 1/slope]
     TRANSP.ks=S.ks;
-    TRANSP.rhos=S.rhos;                                                                % KAMP & MILH & VR14 : density of sand [kg/m3]
-    TRANSP.rhow=S.rhow;                                                                % KAMP & MILH & VR14 : density of water [kg/m3]
-    TRANSP.g=S.g;                                                                      % KAMP & MILH & VR14 : gravitational acceleration [m2/s]
-    TRANSP.Cf=S.Cf;
-    TRANSP.alpha=S.alpha;                                                              % KAMP & MILH & VR14 : calibration factor for point of breaking (TRANSP.alpha = 1.8 for Egmond data)
-    TRANSP.gamma=S.gamma;                                                              % KAMP & MILH & VR14 : breaking coefficient (Hs/h) with 5% breaking waves
-    TRANSP.Pswell=S.Pswell;                                                            % VR14 : Percentage swell (between 0 - 100) [-]
-    TRANSP.crit=S.crit;                                                                % stability criterion (not active)
-    TRANSP.Aw=S.Aw;                                                                    % factor for determining depth of closure at bypassing groyne (1.27 if time series is used) This value is used by default.
-    TRANSP.bypasscontractionfactor=S.bypasscontractionfactor;                          % the maximum transport when the coastline is at the end of the structure (always >=1). Setting the bypass fraction larger than 1 means that the accretion does not go to the tip of the structure. 
+    TRANSP.rhos=S.rhos;                                                                % density of sand [kg/m3]
+    TRANSP.rhow=S.rhow;                                                                % density of water [kg/m3]
+    TRANSP.g=S.g;                                                                      % gravitational acceleration [m2/s]
+    TRANSP.cf=S.cf;                                                                    % roughness factor [m]
+    TRANSP.n=S.n;                                                                      % manning coefficient for wave induced currents in the tide module [s/m^(1/3)]
+    TRANSP.alpha=S.alpha;                                                              % calibration factor for point of breaking (TRANSP.alpha = 1.8 for Egmond data)
+    TRANSP.gamma=S.gamma;                                                              % breaking coefficient (Hs/h) with 5% breaking waves
+    TRANSP.pswell=S.pswell;                                                            % VR14 : Percentage swell (between 0 - 100) [-]
+    TRANSP.aw=S.aw;                                                                    % factor for determining depth of closure at bypassing groyne (1.27 if time series is used) This value is used by default.
+    TRANSP.bypasscontrfac=S.bypasscontrfac;                                            % the maximum transport when the coastline is at the end of the structure (always >=1). Setting the bypass fraction larger than 1 means that the accretion does not go to the tip of the structure. 
     TRANSP.relaxationlength=S.relaxationlength;                                        % length over which transport decelerates in meters, which adds inertia to the longshore current. It scales linearly with the wave height below 1m waves.
-    if isempty(S.WVCfile)
-        TRANSP.Aw=S.Awfixedhs;                                                         % factor for determining depth of closure at bypassing groyne ir a representative Hs is used instead of a climate or timeseries. This value is used instead of 'Aw' if S.WVCfile is empty. 
+    if isempty(S.wvcfile)
+        TRANSP.aw=S.awfixedhs;                                                         % factor for determining depth of closure at bypassing groyne ir a representative Hs is used instead of a climate or timeseries. This value is used instead of 'aw' if S.wvcfile is empty. 
     end
     TRANSP.twopoints=S.twopoints;
-    TRANSP.crit_width=S.crit_width;
-    TRANSP.suppress_highangle=S.suppress_highangle;                                    % switch 0/1 to disable the high-angle instabilities by limiting the transport angle to the critical high-angle orientation (when it is set at 1)
+    TRANSP.critwidth=S.critwidth;
+    TRANSP.suppresshighangle=S.suppresshighangle;                                      % switch 0/1 to disable the high-angle instabilities by limiting the transport angle to the critical high-angle orientation (when it is set at 1)
+    TRANSP.Acal=S.Acal;                                                                % calibration factor for the Sulsby Van Rijn formulation in the tide module
+    TRANSP.submerged=S.submerged;
+    
     % boundary conditions
     % {'Closed',e.g. 0 or 9000 m3/yr}, {'Neumann',dummy},{'Fixed',dummy},{'Angleconstant',empty to use at t0 or specified value e.g. 321�N}; 
-    if ischar(S.boundary_condition_start)
-        TRANSP.boundary_condition_start={S.boundary_condition_start,nan};                     % boundary condition 'Closed', 'Neumann','Fixed','Angleconstant'
+    if ischar(S.boundaryconditionstart)
+        TRANSP.boundaryconditionstart={S.boundaryconditionstart,nan};                     % boundary condition 'Closed', 'Neumann','Fixed','Angleconstant'
     else
-        TRANSP.boundary_condition_start=S.boundary_condition_start;
+        TRANSP.boundaryconditionstart=S.boundaryconditionstart;
     end
-    if ischar(S.boundary_condition_end) 
-        TRANSP.boundary_condition_end={S.boundary_condition_end,nan};                       % boundary condition 'Closed', 'Neumann','Fixed','Angleconstant'
+    if ischar(S.boundaryconditionend) 
+        TRANSP.boundaryconditionend={S.boundaryconditionend,nan};                       % boundary condition 'Closed', 'Neumann','Fixed','Angleconstant'
     else
-        TRANSP.boundary_condition_end=S.boundary_condition_end;
+        TRANSP.boundaryconditionend=S.boundaryconditionend;
     end 
     
-    
     %% Sediment limitation ('virtual revetment')
-    TRANSP.x_sedlim=[];     % x-coordinates for designated sediment limitation areas along the coast
-    TRANSP.y_sedlim=[];     % y-coordinates for designated sediment limitation areas along the coast
+    TRANSP.xsedlim=[];     % x-coordinates for designated sediment limitation areas along the coast
+    TRANSP.ysedlim=[];     % y-coordinates for designated sediment limitation areas along the coast
     %TRANSP.xc_sedlim=[];    % cross-shore distance of sediment limiter line w.r.t. initial coastline
-    TRANSP.width_sedlim=[];    % cross-shore distance with 100% transport of sediment w.r.t. position of sediment limiter line
+    TRANSP.widthsedlim=[];    % cross-shore distance with 100% transport of sediment w.r.t. position of sediment limiter line
     TRANSP.sedlim=S.sedlim;
     if TRANSP.sedlim
         %  add sediment limitations interactively with the graphical user interface
-        if strcmpi(S.LDBsedlim,'manual') || strcmpi(S.LDBsedlim,'interactive') 
+        if strcmpi(S.ldbsedlim,'manual') || strcmpi(S.ldbsedlim,'interactive') 
             figure(11);
             axis equal;
             xl=xlim;yl=ylim;
             htxt2=text(xl(1)+0.02*diff(xl),yl(2)-0.01*diff(yl),'Add sediment limitation element (LMB); Next sediment limitation element (RMB); Exit (q)');set(htxt2,'HorizontalAlignment','Left','VerticalAlignment','Top','FontWeight','Bold','FontAngle','Italic','Color',[0.1 0.6 0.1]);
-            [x_sedlim,y_sedlim]=select_multi_polygon('k');
+            [xsedlim,ysedlim]=select_multi_polygon('k');
             set(htxt2,'Visible','off');
-            TRANSP.x_sedlim=x_sedlim;
-            TRANSP.y_sedlim=y_sedlim;
-            TRANSP.width_sedlim=repmat(TRANSP.width_sedlim,size(TRANSP.x_sedlim));
+            TRANSP.xsedlim=xsedlim;
+            TRANSP.ysedlim=ysedlim;
+            TRANSP.widthsedlim=repmat(TRANSP.widthsedlim,size(TRANSP.xsedlim));
             
         %  try to load a file with sediment limitation 
-        elseif ~isempty(S.LDBsedlim)
-            xy_sedlim=load(S.LDBsedlim);
-            TRANSP.x_sedlim=xy_sedlim(:,1)'-S.XYoffset(1);
-            TRANSP.y_sedlim=xy_sedlim(:,2)'-S.XYoffset(2);
-            TRANSP.width_sedlim=xy_sedlim(:,3)';
+        elseif ~isempty(S.ldbsedlim)
+            xysedlim=load(S.ldbsedlim);
+            TRANSP.xsedlim=xysedlim(:,1)'-S.xyoffset(1);
+            TRANSP.ysedlim=xysedlim(:,2)'-S.xyoffset(2);
+            TRANSP.widthsedlim=xysedlim(:,3)';
             
-        % add a sediment limitation by directly specifying the x_sedlim and y_sedlim
-        elseif ~isempty(S.x_sedlim) && ~isempty(S.y_sedlim)
-            TRANSP.x_sedlim=S.x_sedlim(:)'-S.XYoffset(1);
-            TRANSP.y_sedlim=S.y_sedlim(:)'-S.XYoffset(2);
-            TRANSP.width_sedlim=S.width_sedlim(:)';
-            if length(TRANSP.width_sedlim)<length(TRANSP.x_sedlim)
-                width_sedlim=TRANSP.width_sedlim(~isnan(TRANSP.width_sedlim));
-                % in case TRANSP.width_sedlim is defined as [value_for_section_1, value_for_section_2, ...]
-                idnan=find(isnan(TRANSP.x_sedlim));
-                if length(width_sedlim)==length(idnan)+1
-                    ids=[0,idnan(:)',length(TRANSP.x_sedlim)+1];
-                    TRANSP.width_sedlim=nan(size(TRANSP.x_sedlim));
+        % add a sediment limitation by directly specifying the xsedlim and ysedlim
+        elseif ~isempty(S.xsedlim) && ~isempty(S.ysedlim)
+            TRANSP.xsedlim=S.xsedlim(:)'-S.xyoffset(1);
+            TRANSP.ysedlim=S.ysedlim(:)'-S.xyoffset(2);
+            TRANSP.widthsedlim=S.widthsedlim(:)';
+            if length(TRANSP.widthsedlim)<length(TRANSP.xsedlim)
+                widthsedlim=TRANSP.widthsedlim(~isnan(TRANSP.widthsedlim));
+                % in case TRANSP.widthsedlim is defined as [value_for_section_1, value_for_section_2, ...]
+                idnan=find(isnan(TRANSP.xsedlim));
+                if length(widthsedlim)==length(idnan)+1
+                    ids=[0,idnan(:)',length(TRANSP.xsedlim)+1];
+                    TRANSP.widthsedlim=nan(size(TRANSP.xsedlim));
                     jj=1;
-                    for ii=1:length(TRANSP.width_sedlim)
-                        if ~isnan(TRANSP.x_sedlim(ii))
-                            TRANSP.width_sedlim(ii)=width_sedlim(jj);
+                    for ii=1:length(TRANSP.widthsedlim)
+                        if ~isnan(TRANSP.xsedlim(ii))
+                            TRANSP.widthsedlim(ii)=widthsedlim(jj);
                         else
                             jj=jj+1;
                         end
                     end
                 else
-                    % in case TRANSP.width_sedlim is defined as a single value for all sections
-                    TRANSP.width_sedlim=repmat(TRANSP.width_sedlim(1),size(TRANSP.x_sedlim));
+                    % in case TRANSP.widthsedlim is defined as a single value for all sections
+                    TRANSP.widthsedlim=repmat(TRANSP.widthsedlim(1),size(TRANSP.xsedlim));
                 end
             end
             
         % no sediment limitations
         else
             TRANSP.sedlim=0;
-            TRANSP.x_sedlim=[];
-            TRANSP.y_sedlim=[];
-            TRANSP.width_sedlim=[];
+            TRANSP.xsedlim=[];
+            TRANSP.ysedlim=[];
+            TRANSP.widthsedlim=[];
         end
+        TRANSP.nsedlim=min(sum(isnan(TRANSP.xsedlim))+1,length(TRANSP.xsedlim));
     end
     
     % tidy up the sediment limitation without nans at the start and end
-    idnotnan=find(~isnan(TRANSP.x_sedlim));
-    if ~isempty(TRANSP.x_sedlim)
-        TRANSP.x_sedlim=TRANSP.x_sedlim(idnotnan(1):idnotnan(end));
-        TRANSP.y_sedlim=TRANSP.y_sedlim(idnotnan(1):idnotnan(end));
-        TRANSP.width_sedlim=TRANSP.width_sedlim(idnotnan(1):idnotnan(end));
-        idnan=find(isnan(TRANSP.x_sedlim));
-        iduse=setdiff([1:length(TRANSP.x_sedlim)],idnan(diff(idnan)==1));
-        TRANSP.x_sedlim=TRANSP.x_sedlim(iduse);
-        TRANSP.y_sedlim=TRANSP.y_sedlim(iduse);
-        TRANSP.width_sedlim=TRANSP.width_sedlim(iduse);
+    idnotnan=find(~isnan(TRANSP.xsedlim));
+    if ~isempty(TRANSP.xsedlim)
+        TRANSP.xsedlim=TRANSP.xsedlim(idnotnan(1):idnotnan(end));
+        TRANSP.ysedlim=TRANSP.ysedlim(idnotnan(1):idnotnan(end));
+        TRANSP.widthsedlim=TRANSP.widthsedlim(idnotnan(1):idnotnan(end));
+        idnan=find(isnan(TRANSP.xsedlim));
+        iduse=setdiff([1:length(TRANSP.xsedlim)],idnan(diff(idnan)==1));
+        TRANSP.xsedlim=TRANSP.xsedlim(iduse);
+        TRANSP.ysedlim=TRANSP.ysedlim(iduse);
+        TRANSP.widthsedlim=TRANSP.widthsedlim(iduse);
     end
     
     %% write logfile

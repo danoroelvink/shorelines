@@ -1,7 +1,18 @@
-function [ COAST] = merge_coastlines_mc(COAST,varargin)
-% function [ COAST.x_mc,COAST.y_mc ] = merge_coastlines_mc(COAST.x_mc,COAST.y_mc,varargin)
+function [COAST] = merge_coastlines_mc(COAST,varargin)
+% function [COAST] = merge_coastlines_mc(COAST,varargin)
 %
-% merges multiple segments of coastline (islands)
+% Merges multiple segments of coastline (islands).
+%
+% INPUT:
+%    COAST
+%         .x_mc   : x-coordinates of the coastline elements 
+%         .y_mc   : y-coordinates of the coastline elements 
+%         .ds0    : grid cell size [m]
+% 
+% OUTPUT:
+%    COAST
+%         .x_mc   : x-coordinates of the coastline elements (after splitting/merging)
+%         .y_mc   : y-coordinates of the coastline elements (after splitting/merging)
 %
 %% Copyright notice
 %   --------------------------------------------------------------------
@@ -24,13 +35,12 @@ function [ COAST] = merge_coastlines_mc(COAST,varargin)
 %
 %   This library is distributed in the hope that it will be useful,
 %   but WITHOUT ANY WARRANTY; without even the implied warranty of
-%   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
+%   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU
 %   Lesser General Public License for more details.
 %
 %   You should have received a copy of the GNU Lesser General Public
-%   License along with this library. If not, see <http://www.gnu.org/licenses
+%   License along with this library. If not, see <http://www.gnu.org/licenses>
 %   --------------------------------------------------------------------
-
 
     % debug info
     x_mc_orig=COAST.x_mc;
@@ -61,7 +71,7 @@ function [ COAST] = merge_coastlines_mc(COAST,varargin)
                 if length(xi)>2&&length(xj)>2 && ...
                    (abs(sum(xi)-sum(xj))~=0 && abs(sum(yi)-sum(yj))~=0)  % check also if they are not the same!
                     
-                     % determine whether the polygon is closed or open
+                    % determine whether the polygon is closed or open
                     cyclici=hypot(xi(end)-xi(1),yi(end)-yi(1))<eps;
                     cyclicj=hypot(xj(end)-xj(1),yj(end)-yj(1))<eps;
                     if cyclici&&~cyclicj
@@ -402,7 +412,6 @@ function [ COAST] = merge_coastlines_mc(COAST,varargin)
                                 %    and where lake is enclosed by an island (e.g. island blocking of the entrance of a lagoon -> rare event)
                                 % -> but not taking the lake into account for situations where a lake was already present initially, since it was opened then (i.e. when cwi or cwj was -1).
                                 if length(IDopen)==1 && ~isempty(IDccw) && cwi~=-1 && cwj~=-1 && (cyclici==0 || cyclicj==0) && (cyclici==1 || cyclicj==1) 
-                                
                                     IDS=[IDopen,setdiff(IDccw,IDopen)];
                                 elseif length(IDopen)==1 && ~isempty(IDccw) && cwi~=-1 && cyclici==0 && (cwj==-1 && cyclicj==1)
                                     IDS=[IDopen,setdiff(IDcw,IDopen)];
@@ -478,7 +487,7 @@ function [ COAST] = merge_coastlines_mc(COAST,varargin)
                                 else
                                     %if cwi==-1 || cwj==-1
                                     IDouter = IDcw;
-                            end
+                                end
     
                                 % INNERCONTOUR turning in CCW : LAKES (inner contours) 
                                 if cwi>=0 && cwj>=0

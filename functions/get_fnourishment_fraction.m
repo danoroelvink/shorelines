@@ -3,20 +3,20 @@ function [fraction,i_mc_rel,idx,dxnour] = get_fnourishment_fraction(xn,yn,x_mc,y
 %
 % Computes the fraction of the total nourishment volume per coastal segment
 %
-% INPUT: 
-%   xn
-%   yn
-%   x_mc
-%   y_mc
-%   n_mc
-%   ds_mc
-%   shadow_mc
+% INPUT:  
+%   xn         : x-coordinates of nourishments [Nx1]
+%   yn         : y-coordinates of nourishments [Nx1]
+%   x_mc       : x-coordinates of coastline points [Nx1]
+%   y_mc       : y-coordinates of coastline points [Nx1]
+%   n_mc       : number of coastline points
+%   ds_mc      : grid cell size of coastline points
+%   shadow_mc  : indices of shadowed cells
 %
 % OUTPUT: 
-%   fraction : fraction of total nourishment volume per coastal segment [-]
-%   i_mc_rel : relevant segments for nourishment
-%   idx      : indices of coastline affected by nourishment
-%   dxnour   : nourishment length per segment [m]
+%   fraction   : fraction of total nourishment volume per coastal segment [-]
+%   i_mc_rel   : relevant segments for nourishment
+%   idx        : indices of coastline affected by nourishment
+%   dxnour     : nourishment length per segment [m]
 %
 %% Copyright notice
 %   --------------------------------------------------------------------
@@ -39,11 +39,11 @@ function [fraction,i_mc_rel,idx,dxnour] = get_fnourishment_fraction(xn,yn,x_mc,y
 %
 %   This library is distributed in the hope that it will be useful,
 %   but WITHOUT ANY WARRANTY; without even the implied warranty of
-%   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
+%   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU
 %   Lesser General Public License for more details.
 %
 %   You should have received a copy of the GNU Lesser General Public
-%   License along with this library. If not, see <http://www.gnu.org/licenses
+%   License along with this library. If not, see <http://www.gnu.org/licenses>
 %   --------------------------------------------------------------------
 
     dxnour   = [];
@@ -52,7 +52,6 @@ function [fraction,i_mc_rel,idx,dxnour] = get_fnourishment_fraction(xn,yn,x_mc,y
     fraction = [];
                 
     for i_mc = 1 : n_mc % loop over nourishments in main function 
-
         xc             = get_one_polygon(x_mc,i_mc);
         yc             = get_one_polygon(y_mc,i_mc);
         dsc            = get_one_polygon(ds_mc,i_mc);
@@ -85,7 +84,6 @@ function [fraction,i_mc_rel,idx,dxnour] = get_fnourishment_fraction(xn,yn,x_mc,y
         if isnan(dxnour(i_mc))
            dxnour(i_mc) = 0;
         end
-    
     end 
     
     % Find relevant segments

@@ -1,14 +1,34 @@
 function plot_debug(use_debug,COAST,WAVE,TRANSP,im3,ip3)
-% function plot_debug(use_debug,COAST.x,COAST.y,WAVE.dPHItdp,TRANSP.debug.QS2,TRANSP.debug.QS0,TRANSP.debug.QS1,im3,ip3)
+% function plot_debug(use_debug,COAST,WAVE,TRANSP,im3,ip3)
 %
-% INPUT :
-%    use_debug  : switch for making the debug plot
-%    COAST.x            : x-coordinates of coastline section [Nx1]
-%    COAST.y            : y-coordinates of coastline section [Nx1]
-%    WAVE.dPHItdp       : relative angle of incidence of the waves [Nx1]
-%    TRANSP.debug.QS2   : transport rates : transport computation, upwind correction and shadows [Nx1]
-%    TRANSP.debug.QS0   : transport rates : transport computation [Nx1]
-%    TRANSP.debug.QS1   : transport rates : transport computation and upwind correction [Nx1]
+% This is a function that is used to make dubug plots. 
+% 
+% INPUT: 
+%    use_debug        : switch for making the debug plot (0-5)
+%    COAST
+%         .x          : x-coordinates of coastal points (m) [1xN]
+%         .y          : y-coordinates of coastal points (m) [1xN]
+%         .xq         : x-coordinates of qs-points (m) [1xN]
+%         .yq         : y-coordinates of qs-points (m) [1xN]
+%         .x_mc       : x-coordinates of coastal points for all coastal elements (m) [1xN]
+%         .y_mc       : y-coordinates of coastal points for all coastal elements (m) [1xN]
+%         .xq_mc      : x-coordinates of qs-points for all coastal elements (m) [1xN]
+%         .yq_mc      : y-coordinates of qs-points for all coastal elements (m) [1xN]
+%    WAVE
+%         .HStdp      : wave height at the depth-of-closure (m)
+%         .HSbr       : wave height at the point of breaking (m)
+%         .PHItdp     : wave orientation at the depth-of-closure (°N)
+%         .PHIbr      : wave orientation at the point of breaking (°N)
+%         .dPHItdp    : wave orientation w.r.t. the coastline at the depth-of-closure (°)
+%         .PHItdp_mc  : wave orientation at the depth-of-closure for all coastal elements (°N)
+%         .PHIbr_mc   : wave orientation at the point of breaking for all coastal elements (°N)
+%    TRANSP
+%         .QS         : alongshore transport (m3/yr) [1xN]
+%         .QS_mc      : alongshore transport for all coastal elements (m3/yr) [1xN]
+%         .shadowS_mc : index with shadows for qs-points [1xN]
+%         .debug.QS2  : transport rates : transport computation, upwind correction and shadows [1xN]
+%         .debug.QS0  : transport rates : transport computation [1xN]
+%         .debug.QS1  : transport rates : transport computation and upwind correction [1xN]
 %
 %% Copyright notice
 %   --------------------------------------------------------------------
@@ -31,11 +51,11 @@ function plot_debug(use_debug,COAST,WAVE,TRANSP,im3,ip3)
 %
 %   This library is distributed in the hope that it will be useful,
 %   but WITHOUT ANY WARRANTY; without even the implied warranty of
-%   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
+%   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU
 %   Lesser General Public License for more details.
 %
 %   You should have received a copy of the GNU Lesser General Public
-%   License along with this library. If not, see <http://www.gnu.org/licenses
+%   License along with this library. If not, see <http://www.gnu.org/licenses>
 %   --------------------------------------------------------------------
 
     if use_debug==1

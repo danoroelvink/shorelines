@@ -1,21 +1,29 @@
 function [TIDE]=prepare_tide(S)
 % function [TIDE]=prepare_tide(S)
-%
-% INPUT :
-%      S               : Structure with input information of the ShorelineS model, with relevant fields:
+% 
+% The tide input is initialized, and stored in the TIDE data-structure. 
+% 
+% INPUT: 
+%    S                 : Structure with input information of the ShorelineS model, with relevant fields:
 %         .tidefile    : File with alongshore distribution of tidal
 % 
-% OUTPUT :
-%      TIDE
-%         .x_stat      : x coordinates of tide support points (m)
-%         .y_stat      : y coordinates of tide support points (m)
-%         .eta_stat    : M2 and M4 water level amplitudes (m)
-%         .detads_stat : longshore gradients of M2 and M4 tidal amplitudes
-%         .phi_stat    : phase (deg) of M2 and M4 water level components
-%         .k_stat      : longshore wave number M2 and M4 (rad/m)
-%         .ss_stat     : longshore mean surface slope driving residual
-%                        current
-%
+% OUTPUT:
+%    TIDE
+%        .x_stat       : x coordinates of tide support points (m)
+%        .y_stat       : y coordinates of tide support points (m)
+%        .eta_stat     : M2 and M4 water level amplitudes (m)
+%        .detads_stat  : longshore gradients of M2 and M4 tidal amplitudes
+%        .phi_stat     : phase (deg) of M2 and M4 water level components
+%        .k_stat       : longshore wave number M2 and M4 (rad/m)
+%        .ss_stat      : longshore mean surface slope driving residual current
+%        .cf           : roughness factor [-]
+%        .hmin         : minimum depth [m]
+%        .hclosure     : depth-of-closure [m]
+%        .x            : x-coordinates of cross-shore profiles [m]
+%        .zb           : z-coordinates of cross-shore profiles [m]
+%        .Ttide        : duration of a spring-neap cycle (745*60)
+%        .nT           : number of points in a single tide (24)
+% 
 %% Copyright notice
 %   --------------------------------------------------------------------
 %   Copyright (C) 2020 IHE Delft & Deltares
@@ -37,11 +45,11 @@ function [TIDE]=prepare_tide(S)
 %
 %   This library is distributed in the hope that it will be useful,
 %   but WITHOUT ANY WARRANTY; without even the implied warranty of
-%   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
+%   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU
 %   Lesser General Public License for more details.
 %
 %   You should have received a copy of the GNU Lesser General Public
-%   License along with this library. If not, see <http://www.gnu.org/licenses
+%   License along with this library. If not, see <http://www.gnu.org/licenses>
 %   --------------------------------------------------------------------
 
     fprintf('  Prepare tide \n');
@@ -54,7 +62,7 @@ function [TIDE]=prepare_tide(S)
         TIDE.phi_stat(:,1:2)    = td(:,7:8);
         TIDE.k_stat(:,1:2)      = td(:,9:10);
         TIDE.ss_stat            = td(:,11);
-        TIDE.Cf                 = S.Cf;
+        TIDE.cf                 = S.cf;
         TIDE.hmin               = S.hmin;
         TIDE.hclosure           = S.hclosure;
         xz=load(S.profile);

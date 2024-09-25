@@ -3,6 +3,13 @@ function [xi,yi]=select_multi_polygon(col)
 % 
 % Select polygon to include in bathy
 %
+% INPUT:
+%     col         : colour used for the plot (e.g. 'r')
+%
+% OUTPUT:
+%     xi          : x-coordinates of selected polygon [m]
+%     yi          : y-coordinates of selected polygon [m]
+%
 %% Copyright notice
 %   --------------------------------------------------------------------
 %   Copyright (C) 2020 IHE Delft & Deltares
@@ -24,11 +31,11 @@ function [xi,yi]=select_multi_polygon(col)
 %
 %   This library is distributed in the hope that it will be useful,
 %   but WITHOUT ANY WARRANTY; without even the implied warranty of
-%   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
+%   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU
 %   Lesser General Public License for more details.
 %
 %   You should have received a copy of the GNU Lesser General Public
-%   License along with this library. If not, see <http://www.gnu.org/licenses
+%   License along with this library. If not, see <http://www.gnu.org/licenses>
 %   --------------------------------------------------------------------
 
     hold on;

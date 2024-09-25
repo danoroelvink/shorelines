@@ -1,17 +1,46 @@
 function [DUNE]=prepare_dunes(S)
 % function [DUNE]=prepare_dunes(S)
+%
+% Initializes the parameters used for the dunes, wind and water-levels. 
+% It also prepares the DUNE data-structure.
 % 
-% INPUT
-%    S
-%
-% OUTPUT
+% OUTPUT:
 %    DUNE
-%       .xdune            x-coordinates 
-%       .ydune            y-coordinates 
-%       .Wberm            Berm width (distance MSL to dune foot) (m)
-%       .Dfelev           Dune foot elevation (m)
-%       .Dcelev           Dune crest elevation (m)
-%
+%        .ds0
+%        .ldbdune        : dune input file (overrules the xdune, ydune, wberm, dfelev, dcelev and cs parameters)
+%        .xdune          : x coordinates where wberm and dfelev are given
+%        .ydune          : y coordinates where wberm and dfelev are given
+%        .wberm          : Berm width (distance MSL to dune foot) (m)
+%        .dfelev         : Dune foot elevation (m)
+%        .dcelev         : Dune crest elevation (m)
+%        .cs             : Erosion coefficient of the dunes during storms, which scales the rate of erosion
+%        .A              : Overwash parameter A
+%        .duneaw         : Coefficient (Bagnold, 1937)
+%        .rhos           : Density of the sediment (kg/m3)
+%        .rhoa           : Density of air (kg/m3)
+%        .g              : Gravitational acceleration (m/s2)
+%        .d50            : Median grain diameter (m)
+%        .d50r           : Median reference grain size (m)
+%        .k              : Von Karman's coefficient
+%        .kw             : Empirical coefficient (Sherman et al. 2013)
+%        .porosity       : porosity
+%        .segmaw         : Empirical factor used for scaling impact of the fetch length
+%        .maxslope       : The maximum slope angle of the dunes (1:slope). The dunefoot height is lowered if the beach gets too steep (preserving the max slope).
+%        .dtdune         : Timestep of the dune evolution
+%      <cohesive/till>
+%        .cstill         : Erosion coefficient of the dunes during storms for dunes with consolidated till layers, which scales the rate of erosion
+%        .xtill          : Width of sandy dune in front of cohesive dune
+%        .perctill       : Percentage of till (0 to 100) of the cohesive dune, with the sand percentage being 100-perctill
+%      <wind>
+%        .wndfile        : wind input file (overrules the uz, z, phiwnd0)
+%        .uz             : wind velocity [m/s]
+%        .z              : wind measurement vertical height [m]
+%        .phiwnd0        : wind direction [°N]
+%      <water-levels>
+%        .watfile        : surge water-level file (overrules swl0)
+%        .swl0           : static surge water-level [m w.r.t. MSL]
+%        .runupform      : runup formulation applied
+%        .runupfactor    : tuning factor for runup, considering inaccuracies in runup formulations
 %
 %% Copyright notice
 %   --------------------------------------------------------------------
@@ -34,48 +63,45 @@ function [DUNE]=prepare_dunes(S)
 %
 %   This library is distributed in the hope that it will be useful,
 %   but WITHOUT ANY WARRANTY; without even the implied warranty of
-%   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
+%   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU
 %   Lesser General Public License for more details.
 %
 %   You should have received a copy of the GNU Lesser General Public
-%   License along with this library. If not, see <http://www.gnu.org/licenses
+%   License along with this library. If not, see <http://www.gnu.org/licenses>
 %   --------------------------------------------------------------------
 
     fprintf('  Prepare dunes \n');
     DUNE=struct;
     DUNE.used = S.dune;
-    DUNE.LDBdune = S.LDBdune;
-    DUNE.WNDfile = S.WNDfile;
+    DUNE.ldbdune = S.ldbdune;
+    DUNE.wndfile = S.wndfile;
     DUNE.uz = S.uz;
     DUNE.z = S.z;
     DUNE.phiwnd0 = S.phiwnd0;
-    DUNE.WATfile = S.WATfile;
-    DUNE.SWL0 = S.SWL0;
-    DUNE.Cs = S.Cs;
-    DUNE.Cstill = S.Cstill;
+    DUNE.watfile = S.watfile;
+    DUNE.swl0 = S.swl0;
+    DUNE.cs = S.cs;
+    DUNE.cstill = S.cstill;
     DUNE.xtill = S.xtill;
-    if isempty(DUNE.xtill)
-        DUNE.xtill=inf;
-    end
     DUNE.perctill = S.perctill;
-    DUNE.A = S.A_overwash;
+    DUNE.A = S.aoverwash;
     DUNE.ds0 = S.ds0;
-    DUNE.duneAw = S.duneAw;
+    DUNE.duneaw = S.duneaw;
     DUNE.rhos = S.rhos;
     DUNE.rhoa = S.rhoa;
     DUNE.g = S.g;
     DUNE.d50 = S.d50;
     DUNE.d50r = S.d50r;
     DUNE.k = S.k;
-    DUNE.Kw = S.Kw;
+    DUNE.kw = S.kw;
     DUNE.porosity = S.porosity;
     DUNE.segmaw = S.segmaw;
-    DUNE.xdune=[];                    % x coords where Wberm and Dfelev are given
-    DUNE.ydune=[];                    % x coords where Wberm and Dfelev are given
-    DUNE.Wberm=[];                    % Berm width (m)
-    DUNE.Wberm_mc0=[];                % Berm width at start simulation (m)
-    DUNE.Dfelev=[];                   % Dune foot elevation (m)
-    DUNE.Dcelev=[];                   % Dune crest elevation (m)
+    DUNE.xdune=S.xdune;               % x coords where wberm and dfelev are given
+    DUNE.ydune=S.ydune;               % x coords where wberm and dfelev are given
+    DUNE.wberm=S.wberm;               % Berm width (m)
+    DUNE.wberm_mc0=[];                % Berm width at start simulation (m)
+    DUNE.dfelev=S.dfelev;             % Dune foot elevation (m)
+    DUNE.dcelev=S.dcelev;             % Dune crest elevation (m)
     DUNE.runupform=S.runupform;       % runup formulation applied
     DUNE.runupfactor=S.runupfactor;   % tuning factor for runup, considering inaccuracies in runup formulations
     DUNE.maxslope=S.maxslope;         % The maximum slope angle (1:slope). The dunefoot height is lowered if the beach gets too steep (preserving the max slope).
@@ -83,29 +109,29 @@ function [DUNE]=prepare_dunes(S)
     
     %% Read dune properties at a number of longshore locations
     if DUNE.used
-       if ~isempty(findstr(lower(S.LDBdune),'.dun'))
+       if ~isempty(findstr(lower(S.ldbdune),'.dun'))
           % LBDdune contains [x,y,  Bf0,  Bm0]
-          dune=load(S.LDBdune);
+          dune=load(S.ldbdune);
           DUNE.xdune  = dune(:,1);
           DUNE.ydune  = dune(:,2);
-          DUNE.Wberm  = dune(:,3); % Berm width (distance MSL to dune foot) (m)
-          DUNE.Dfelev = dune(:,4); % Dune foot elevation (m)
-          DUNE.Dcelev = dune(:,5); % Dune crest elevation (m)
+          DUNE.wberm  = dune(:,3); % Berm width (distance MSL to dune foot) (m)
+          DUNE.dfelev = dune(:,4); % Dune foot elevation (m)
+          DUNE.dcelev = dune(:,5); % Dune crest elevation (m)
           if size(dune,2)>5
-              DUNE.Cs = dune(:,6);
+              DUNE.cs = dune(:,6);
           else
-              DUNE.Cs = repmat(DUNE.Cs,size(DUNE.xdune));
+              DUNE.cs = repmat(DUNE.cs,size(DUNE.xdune));
           end
           if size(dune,2)>6
-              DUNE.Cstill = dune(:,7);
+              DUNE.cstill = dune(:,7);
               DUNE.xtill = dune(:,8);
               DUNE.perctill = dune(:,9);
           else
-              DUNE.Cstill = repmat(DUNE.Cstill,size(DUNE.xdune));
+              DUNE.cstill = repmat(DUNE.cstill,size(DUNE.xdune));
               DUNE.xtill = repmat(DUNE.xtill,size(DUNE.xdune));
               DUNE.perctill = repmat(DUNE.perctill,size(DUNE.xdune));
           end
-          DUNE.Wberm_mc0 = DUNE.Wberm;
+          DUNE.wberm_mc0 = DUNE.wberm;
           DUNE.xdune0 = DUNE.xdune;
           DUNE.ydune0 = DUNE.ydune;
        end 

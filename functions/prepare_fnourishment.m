@@ -1,38 +1,36 @@
 function [FNOUR] = prepare_fnourishment(S);
 % function [FNOUR] = prepare_fnourishment(S)
 %
-% Prepares all required input for the computation of the shoreface
-% nourishment source term 
+% Prepares all required input for the computation of the shoreface nourishment source term.
 %
-% INPUT: 
+% INPUT:  
 %   S
-%       .fnourish 
-%       .mb
-%       .labda0
-%       .rhos
-%       .sal
-%       .temp
-%       .fnorfile 
-%
-% OUTPUT: 
-%   FNOUR 
-%       .x
-%       .y
-%       .L
-%       .d
-%       .d50
-%       .tstart
-%       .V
-%       .n
-%       .fnourish
-%       .mb
-%       .labda0
-%       .rhos
-%       .sal
-%       .temp
-%       .V
-%       .K
-%       .w
+%       .fnourish : switch for using shoreface nourishments (0/1)
+%       .mb       : coefficient 1 for shoreface nourishments supply over time
+%       .labda0   : coefficient 2 for shoreface nourishments supply over time
+%       .rhos     : density of the sediment [kg/m3]
+%       .sal      : salinity of the water [ppm salt]
+%       .temp     : temperature of the water [degrees celsius]
+%       .fnorfile : shoreface nourishment input file 
+% 
+% OUTPUT:
+%   FNOUR
+%       .fnourish : switch for using shoreface nourishments (0/1)
+%       .x        : x-coordinates of the start-end points of the shoreface nourishments [m]
+%       .y        : y-coordinates of the start-end points of the shoreface nourishments [m]
+%       .L        : length of the shoreface nourishments [m]
+%       .d        : depth of the shoreface nourishments [m]
+%       .d50      : median grain size of the shoreface nourishments [m]
+%       .tstart   : moment of implementation of the shoreface nourishments [days in datenum format]
+%       .V        : volume of the shoreface nourishments
+%       .n        : number of shoreface nourishments
+%       .mb       : coefficient 1 for shoreface nourishments supply over time
+%       .labda0	  : coefficient 2 for shoreface nourishments supply over time
+%       .rhos     : density of the sediment [kg/m3]
+%       .sal      : salinity of the water [ppm salt]
+%       .temp     : temperature of the water [degrees celsius]
+%       .K        : diffusion coefficients for the shoreface nourishments, on the basis of alongshore volumetric density of the nourishments
+%       .w        : fall velocities for each of the shoreface nourishments [m/s]
 %
 %% Copyright notice
 %   --------------------------------------------------------------------
@@ -55,11 +53,11 @@ function [FNOUR] = prepare_fnourishment(S);
 %
 %   This library is distributed in the hope that it will be useful,
 %   but WITHOUT ANY WARRANTY; without even the implied warranty of
-%   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
+%   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU
 %   Lesser General Public License for more details.
 %
 %   You should have received a copy of the GNU Lesser General Public
-%   License along with this library. If not, see <http://www.gnu.org/licenses
+%   License along with this library. If not, see <http://www.gnu.org/licenses>
 %   --------------------------------------------------------------------
 
 fprintf('  Prepare shoreface nourishments \n');
@@ -103,10 +101,10 @@ if ~isempty(FNOUR.fnourish) && FNOUR.fnourish ~= 0 % if shoreface nourishments a
         for i = 1:FNOUR.n
 
             % Compute K 
-            if isempty(S.K)
+            if isempty(S.k)
                 FNOUR.K(i) = get_fnourishment_diffusion( FNOUR.V(i) / FNOUR.L(i) ); % K-formulation derived for density  
             else 
-                FNOUR.K(i) = S.K(i);
+                FNOUR.K(i) = S.k(i);
             end 
             
             % Compute fall velocity 

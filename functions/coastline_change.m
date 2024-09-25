@@ -1,8 +1,98 @@
 function [COAST,GROYNE,STRUC]=coastline_change(COAST,WAVE,TRANSP,DUNE,MUD,STRUC,GROYNE,TIME,NOUR,FNOUR,CC)
 % function [COAST,GROYNE,STRUC]=coastline_change(COAST,WAVE,TRANSP,DUNE,MUD,STRUC,GROYNE,TIME,NOUR,FNOUR,CC)
 %
-% updates the coastline at each time step based on transport gradients and nourishment volumes
-% modifications to describe coastline behaviour next to groynes
+% Updates the coastline and dune position (berm width) at each time step 
+% based on transport gradients and nourishment volumes. Both the sand
+% and mud transport are accounted for, as well as cross-shore interaction
+% with the dunes. Furthermore, the bypassing of sediment at groynes is 
+% computed and its subsequent changes in coastline position.
+% 
+% INPUT:
+%   COAST
+%       .i_mc           : number of active coastal element 
+%       .x              : x-coordinates of cells for considered coastal element
+%       .y              : y-coordinates of cells for considered coastal element
+%       .n              : number of coastline points of considered coastal element
+%       .nq             : number of qs-points of considered coastal element
+%       .h0             : active profile height of considered element
+%       .ds0            : grid cell size [m]
+%       .cyclic         : index whether considered coastal element is cyclical
+%       .tanbeta        : slope of the coast [1:n]
+%       .PHIc0bnd       : orientation of the shorenormal of the coastline at the boundary points at t0 [°N]
+%   <dunes>
+%       .qs             : dune erosion volume change that increases the beach width [m3/m/yr]
+%       .qss            : dune erosion volume change that increases the beach width, part that is sandy [m3/m/yr]
+%       .ql             : dune erosion volume change that does not increase the beach width [m3/m/yr]
+%       .qw             : wind transport from the beach to the dune [m3/m/yr]
+%       .wberm          : width of the berm/beach [m]
+%       .dfelev         : Dune foot elevation [m]
+%       .dcelev         : Dune crest elevation [m]
+%   <mud>
+%       .dndt_mud       : change in mud flat position in [m3/yr/m]
+%       .Bf             : mud flat width [m]
+%       .Bm             : mangrove width [m]
+%       .Bfm            : colonizing mangrove width [m]
+%       .dBfdt          : change in mudflat width [m/yr]
+%       .dBmdt          : change in mangove width [m/yr]
+%       .dBfmdt         : change in colonizing mangrove width [m/yr] 
+%   WAVE
+%       .diff           : indices of the points with diffracted waves, used for bypassing sediment to.
+%   TRANSP
+%       .QS             : alongshore transport rates [m3/yr]
+%   DUNE
+%       .used           : switch for using dunes (0/1)
+%   MUD
+%       .used           : switch for using mud transport (0/1)
+%       .Bmmin          : minimum for the width of the muddy transport zone [m]
+%       .Bmmax          : maximum for the width of the muddy transport zone [m]
+%   STRUC
+%       .shard          : distance along structures [m], with NaNs separating the structures 
+%       .xhard          : x-coordinates of the structures [m] (updated)
+%       .yhard          : y-coordinates of the structures [m] (updated)
+%   GROYNE
+%       .n              : number of active groynes
+%       .x              : x-coordinates of coastline position at both sides of each structure [Mstruc x 2] [m]
+%       .y              : y-coordinates of coastline position at both sides of each structure [Mstruc x 2] [m]
+%       .s              : distance along the groyne perimeter for the crossing with the coastline ath both sides of the structure [Mstruc x 2] [m]
+%       .QS             : initialization of sediment transport bypass at both sides of the groyne for all groynes [Mx2] at zero [m3/yr]
+%       .tipindx        : initialization of the tipindex at both sides of the groyne for all groynes [Mx2]
+%       .PHIdn          : difference in angle between groyne and coast at both sides of the groyne for all groynes [Mx2] [°]
+%       .strucnum       : index of each groyne inside xhard-yhard, which also contains other structures [M]
+%       .idcoast        : index of elements at both sides of the groyne, used for recombining elements after the coastline change [Mx2]
+%       .bypassdistpwr  : factor for the redistribution of bypassed sediment over the shadow zone of a groyne (default = 1)
+%   TIME
+%       .dt             : time step [year]
+%   NOUR
+%       .growth	        : factor for scaling the nourishment efficiency (from 0 to 1, default is 1)
+%       .rate_density   : actual nourishment rate in [m3/m/yr]
+%   FNOUR
+%       .q_tot          : rate of sediment supply of the shoreface nourishment to the coastline [m3/m/yr]
+%   CC
+%       .SLRo           : rate of sea level rise [m/yr]
+%
+% OUTPUT:
+%   COAST with updated 'mc' (including MUD and DUNE properties)
+%       .dSds_mc        : rate of volume change of the coastline [m3/m/yr]
+%       .x_mc           : x-coordinates of coastline points for all coastal elements [m]
+%       .y_mc           : y-coordinates of coastline points for all coastal elements [m]
+%       .xq_mc          : x-coordinates of qs-points for all coastal elements [m]
+%       .yq_mc          : y-coordinates of qs-points for all coastal elements [m]
+%       <dunes>
+%       .wberm_mc       : width of the berm/beach for all coastal elements [m]
+%       .dfelev_mc      : Dune foot elevation for all coastal elements [m]
+%       .dcelev_mc      : Dune crest elevation for all coastal elements [m]
+%       <mud>
+%       .Bf_mc          : mud flat width for all coastal elements [m]
+%       .Bm_mc          : mangrove width for all coastal elements [m]
+%       .Bfm_mc         : colonizing mangrove width for all coastal elements [m]
+%  GROYNE
+%       .x              : x-coordinates of coastline position at both sides of each structure [Mstruc x 2] [m]
+%       .y              : y-coordinates of coastline position at both sides of each structure [Mstruc x 2] [m]
+%       .s              : distance along the groyne perimeter for the crossing with the coastline ath both sides of the structure [Mstruc x 2] [m]
+%   STRUC
+%       .shard_mc       : distance along structures [m], with NaNs separating the structures 
+%       .xhard_mc       : x-coordinates of the structures [m] (updated)
+%       .yhard_mc       : y-coordinates of the structures [m] (updated)
 %
 %% Copyright notice
 %   --------------------------------------------------------------------
@@ -25,11 +115,11 @@ function [COAST,GROYNE,STRUC]=coastline_change(COAST,WAVE,TRANSP,DUNE,MUD,STRUC,
 %
 %   This library is distributed in the hope that it will be useful,
 %   but WITHOUT ANY WARRANTY; without even the implied warranty of
-%   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
+%   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU
 %   Lesser General Public License for more details.
 %
 %   You should have received a copy of the GNU Lesser General Public
-%   License along with this library. If not, see <http://www.gnu.org/licenses
+%   License along with this library. If not, see <http://www.gnu.org/licenses>
 %   --------------------------------------------------------------------
 
     eps=1e-3;
@@ -47,18 +137,16 @@ function [COAST,GROYNE,STRUC]=coastline_change(COAST,WAVE,TRANSP,DUNE,MUD,STRUC,
     COAST.dndt=zeros(1,n);
     COAST.dx=zeros(1,n);
     COAST.dy=zeros(1,n);
-    %COAST.dsref=COAST.ds;
-    %COAST.ds=zeros(1,n);
     
     %% COMPUTE RATE OF COASTLINE CHANGE, NOT INCLUDIN GROYNE EFFECTS
     % dSds : rate of volumetric change in [m3/yr per meter coastline length]
     % dndt : rate of coastline change in [m/yr]
     for i=1:n
        if COAST.cyclic
-          im1=mod2(i-1,n);
-          ip1=mod2(i+1,n);
-          im1q=mod2(i,nq);
-          ip1q=mod2(i+1,nq);
+          im1=get_mod(i-1,n);
+          ip1=get_mod(i+1,n);
+          im1q=get_mod(i,nq);
+          ip1q=get_mod(i+1,nq);
        else
           im1=max(i-1,1);
           ip1=min(i+1,n);
@@ -103,7 +191,7 @@ function [COAST,GROYNE,STRUC]=coastline_change(COAST,WAVE,TRANSP,DUNE,MUD,STRUC,
        % enforce it to use at least the first cell if no shadow zone is present
        % distribute the bypass of the groyne over the shadow zone using a triangular distribution
        % a power can be used to scale the distribution (with more deposition close to the breakwater for pwr>1)
-       pwr=GROYNE.bypassdistribution_power;
+       pwr=GROYNE.bypassdistpwr;
        if ~isempty(idgroyne)
           idbypass=WAVE.diff;
           if ~(sum(idbypass)>=1)
@@ -142,10 +230,10 @@ function [COAST,GROYNE,STRUC]=coastline_change(COAST,WAVE,TRANSP,DUNE,MUD,STRUC,
        
        %% Determine the location where the coastline attaches to the perimeter of a groyne
        if ~isempty(idgroyne)
-          % determine the which groyne is used (index 'ist'), the groyne polygon (x_hard, y_hard) and path along groyne perimeter (s_hard)
+          % determine the which groyne is used (index 'ist'), the groyne polygon (xhard, yhard) and path along groyne perimeter (shard)
           ist=GROYNE.strucnum(idgroyne);
-          [~    ,xhard,~   ,~ , ~ ] = get_one_polygon( STRUC.s_hard,STRUC.x_hard,ist );
-          [shard,yhard,~   ,~ , ~ ] = get_one_polygon( STRUC.s_hard,STRUC.y_hard,ist );
+          [~    ,xhard,~   ,~ , ~ ] = get_one_polygon( STRUC.shard,STRUC.xhard,ist );
+          [shard,yhard,~   ,~ , ~ ] = get_one_polygon( STRUC.shard,STRUC.yhard,ist );
           try
              COAST.ds(p1)=hypot(COAST.x(p2)-COAST.x(p1),COAST.y(p2)-COAST.y(p1));
           catch
@@ -154,7 +242,7 @@ function [COAST,GROYNE,STRUC]=coastline_change(COAST,WAVE,TRANSP,DUNE,MUD,STRUC,
                 ds0=min(ds0(:,3));
              end
              COAST.ds(min(max(p1,1),length(COAST.x)))=ds0;
-             %figure;plot(COAST.x_mc,COAST.y_mc,'k.-');hold on;plot(STRUC.x_hard,STRUC.y_hard,'r-');
+             %figure;plot(COAST.x_mc,COAST.y_mc,'k.-');hold on;plot(STRUC.xhard,STRUC.yhard,'r-');
              fprintf('Please make sure that the groynes are not located exactly at the edge of the model or too close to each other!!! (with just 1 cell elements left inbetween). Model uses reference ds0.\n');
           end
           
@@ -169,7 +257,7 @@ function [COAST,GROYNE,STRUC]=coastline_change(COAST,WAVE,TRANSP,DUNE,MUD,STRUC,
           if MUD.used
              COAST.dndt(p1)=COAST.dndt(p1)+COAST.dndt_mud(p1);
           end
-          dn=dnratio*(COAST.dndt(p1)+NOUR.growth*NOUR.rate_m3_per_m_yr(p1)/COAST.h0(p1)-CC.SLRo/COAST.tanbeta+FNOUR.q_tot(p1)/COAST.h0(p1))*TIME.dt;      % dndt in [m/yr] + nourishment in [m3/m/yr] divided by the active height [m] 
+          dn=dnratio*(COAST.dndt(p1)+NOUR.growth*NOUR.rate_density(p1)/COAST.h0(p1)-CC.SLRo/COAST.tanbeta+FNOUR.q_tot(p1)/COAST.h0(p1))*TIME.dt;      % dndt in [m/yr] + nourishment in [m3/m/yr] divided by the active height [m] 
           
           % Make sure that the intersection of the coastline with the groyne is not beyond the tip of the groyne
           % GROYNE.s is the distance along the groyne polygon where the crossing is found
@@ -186,10 +274,10 @@ function [COAST,GROYNE,STRUC]=coastline_change(COAST,WAVE,TRANSP,DUNE,MUD,STRUC,
                 shard(end)=shard(end)+sxt;
                 xhard(end)=xhard(end)+dxt;
                 yhard(end)=yhard(end)+dyt;
-                [STRUC.x_hard,STRUC.y_hard]=insert_section(xhard,yhard,STRUC.x_hard,STRUC.y_hard,ist);
+                [STRUC.xhard,STRUC.yhard]=insert_section(xhard,yhard,STRUC.xhard,STRUC.yhard,ist);
+                [STRUC.shard]=insert_section(shard,STRUC.shard,ist);
              end
              GROYNE.s(idgroyne,segmentside)=min(max(GROYNE.s(idgroyne,segmentside)-dn,shard_tip),max(shard)-eps);
-             %GROYNE.s(idgroyne,segmentside)=min(max(GROYNE.s(idgroyne,segmentside)-dn),max(shard));
           end
           if segmentside==1
              if min(GROYNE.s(idgroyne,segmentside)+dn,shard_tip)<min(shard)
@@ -202,10 +290,10 @@ function [COAST,GROYNE,STRUC]=coastline_change(COAST,WAVE,TRANSP,DUNE,MUD,STRUC,
                 shard(1)=shard(1)+sxt;
                 xhard(1)=xhard(1)+dxt;
                 yhard(1)=yhard(1)+dyt;
-                [STRUC.x_hard,STRUC.y_hard]=insert_section(xhard,yhard,STRUC.x_hard,STRUC.y_hard,ist);
+                [STRUC.xhard,STRUC.yhard]=insert_section(xhard,yhard,STRUC.xhard,STRUC.yhard,ist);
+                [STRUC.shard]=insert_section(shard,STRUC.shard,ist);
              end
              GROYNE.s(idgroyne,segmentside)=max(min(GROYNE.s(idgroyne,segmentside)+dn,shard_tip),min(shard)+eps);
-             %GROYNE.s(idgroyne,segmentside)=max(min(GROYNE.s(idgroyne,segmentside)+dn),min(shard));
           end
           
           % find the location where the coastline attaches to the perimeter of the groyne polygon
@@ -222,14 +310,14 @@ function [COAST,GROYNE,STRUC]=coastline_change(COAST,WAVE,TRANSP,DUNE,MUD,STRUC,
        %% Add coastline change due to dune exchange
        % COAST.qss is the sand part of the erosion of the dune
        COAST.dndt=COAST.dndt+(COAST.qss-COAST.qw)./COAST.h0;
-       %% Update Wberm
+       %% Update wberm
        id1=logical(~TRANSP.shadowS_hD);
        id2=logical(TRANSP.shadowS_hD);
-       COAST.Wberm(id1)=max(COAST.Wberm(id1)+(COAST.dndt(id1)+(COAST.qs(id1)+COAST.ql(id1)-COAST.qw(id1))./(COAST.Dcelev(id1)-COAST.Dfelev(id1)))*TIME.dt,20);
-       COAST.Wberm(id2)=max(COAST.Wberm(id2)+(COAST.dndt(id2)+(COAST.qs(id2)+COAST.ql(id2)-COAST.qw(id2))./(COAST.Dcelev(id2)-COAST.Dfelev(id2)))*TIME.dt,1);
+       COAST.wberm(id1)=max(COAST.wberm(id1)+(COAST.dndt(id1)+(COAST.qs(id1)+COAST.ql(id1)-COAST.qw(id1))./(COAST.dcelev(id1)-COAST.dfelev(id1)))*TIME.dt,1);
+       COAST.wberm(id2)=max(COAST.wberm(id2)+(COAST.dndt(id2)+(COAST.qs(id2)+COAST.ql(id2)-COAST.qw(id2))./(COAST.dcelev(id2)-COAST.dfelev(id2)))*TIME.dt,1);
        
-       if find(isnan(COAST.Wberm))
-          disp('nans in Wberm')
+       if find(isnan(COAST.wberm))
+          disp('nans in wberm')
        end      
     end
     if MUD.used
@@ -245,25 +333,26 @@ function [COAST,GROYNE,STRUC]=coastline_change(COAST,WAVE,TRANSP,DUNE,MUD,STRUC,
        COAST.Bm=max(COAST.Bm,MUD.Bmmin);
     end
     if DUNE.used 
-       [COAST.Wberm_mc,~,~]=insert_props(COAST.Wberm,COAST.Wberm_mc,COAST.i_mc);
-       [COAST.Dfelev_mc,~,~]=insert_props(COAST.Dfelev,COAST.Dfelev_mc,COAST.i_mc);
-       [COAST.Dcelev_mc,~,~]=insert_props(COAST.Dcelev,COAST.Dcelev_mc,COAST.i_mc);
+       [COAST.wberm_mc,~,~]=insert_props(COAST.wberm,COAST.wberm_mc,COAST.i_mc);
+       [COAST.dfelev_mc,~,~]=insert_props(COAST.dfelev,COAST.dfelev_mc,COAST.i_mc);
+       [COAST.dcelev_mc,~,~]=insert_props(COAST.dcelev,COAST.dcelev_mc,COAST.i_mc);
     end
     if MUD.used
-       [COAST.Bf_mc,~,~]=insert_props(COAST.Bm,COAST.Bm_mc,COAST.i_mc);
-       [COAST.Bm_mc,~,~]=insert_props(COAST.Bf,COAST.Bf_mc,COAST.i_mc);
+       [COAST.Bf_mc,~,~]=insert_props(COAST.Bf,COAST.Bf_mc,COAST.i_mc);
+       [COAST.Bm_mc,~,~]=insert_props(COAST.Bm,COAST.Bm_mc,COAST.i_mc);
        [COAST.Bfm_mc,~,~]=insert_props(COAST.Bfm,COAST.Bfm_mc,COAST.i_mc);
     end
+    
     %% Compute dn
     for i=1:n
        if COAST.cyclic
-          im1=mod2(i-1,n);
-          ip1=mod2(i+1,n);
+          im1=get_mod(i-1,n);
+          ip1=get_mod(i+1,n);
        else
           im1=max(i-1,1);
           ip1=min(i+1,n);
        end
-       dn=(COAST.dndt(i)+(NOUR.rate_m3_per_m_yr(i)/COAST.h0(i))-CC.SLRo/COAST.tanbeta+(FNOUR.q_tot(i)/COAST.h0(i)))*TIME.dt;
+       dn=(COAST.dndt(i)+(NOUR.rate_density(i)/COAST.h0(i))-CC.SLRo/COAST.tanbeta+(FNOUR.q_tot(i)/COAST.h0(i)))*TIME.dt;
        
        if COAST.cyclic || (i>1 && i<n)
           COAST.dx(i)=-dn*(COAST.y(ip1)-COAST.y(im1))/(2*COAST.ds(i));
@@ -309,7 +398,11 @@ function [COAST,GROYNE,STRUC]=coastline_change(COAST,WAVE,TRANSP,DUNE,MUD,STRUC,
     end
     
     % Insert dSds in dSds_mc
-    [COAST.dSds_mc]=[COAST.dSds_mc,nan,COAST.dSds];
+    if  COAST.i_mc==1
+        [COAST.dSds_mc]=COAST.dSds;
+    else
+        [COAST.dSds_mc]=[COAST.dSds_mc,nan,COAST.dSds];
+    end
     
     %% insert new section into x_mc and y_mc
     [COAST.x_mc,COAST.y_mc]=insert_section(COAST.x,COAST.y,COAST.x_mc,COAST.y_mc,COAST.i_mc);

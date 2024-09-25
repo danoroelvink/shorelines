@@ -1,11 +1,30 @@
 function [TIME]=initialize_time(S)
 % function [TIME]=initialize_time(S)
 % 
-% INPUT:
-%   S
+% Initialization of the time parameters
 %
+% INPUT: 
+%   S
+%       .dt              : timestep [years]
+%       .tc              : switch for using adaptive time step
+%       .reftime         : reference time (i.e. 'yyyy-mm-dd')
+%       .endofsimulation : end time (i.e. 'yyyy-mm-dd')
+%       .tend            : end time [days in datenum format]
+% 
 % OUTPUT:
-%   TIME
+%    TIME
+%       .dt              : timestep [years]
+%       .tc              : switch for using adaptive time step
+%       .reftime         : reference time (i.e. 'yyyy-mm-dd') <- leave empty to use t=0
+%       .endofsimulation : end time (i.e. 'yyyy-mm-dd') <- leave empty to use t=0
+%       .timenum0        : start time [days in datenum format]
+%       .tprev           : previous timestep [days in datenum format]
+%       .tnow            : current time [days in datenum format]
+%       .tend            : end time [days in datenum format]
+%       .tnext           : next time for jpg output in 'make_Plot' [days in datenum format]
+%       .it              : timestep index (starts at it=0 at model start)
+%       .itout           : timestep index of next output moment 
+%       .automatic       : indicator showing whether an automatic timestep is used (0/1)
 %
 %% Copyright notice
 %   --------------------------------------------------------------------
@@ -28,11 +47,11 @@ function [TIME]=initialize_time(S)
 %
 %   This library is distributed in the hope that it will be useful,
 %   but WITHOUT ANY WARRANTY; without even the implied warranty of
-%   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
+%   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU
 %   Lesser General Public License for more details.
 %
 %   You should have received a copy of the GNU Lesser General Public
-%   License along with this library. If not, see <http://www.gnu.org/licenses
+%   License along with this library. If not, see <http://www.gnu.org/licenses>
 %   --------------------------------------------------------------------
     fprintf('  Initialize time \n');
 
@@ -53,7 +72,7 @@ function [TIME]=initialize_time(S)
     else
         timenum0=S.timenum0;
     end
-    S.times(1)=timenum0;
+    
     TIME.timenum0=timenum0;
     
     %% Time parameters

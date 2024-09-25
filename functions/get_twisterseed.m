@@ -1,12 +1,12 @@
 function [ret]=get_twisterseed(SEED)
 % function [ret]=get_twisterseed(SEED)
 % 
-% INPUT:
-%   SEED           seeding number used as basis for randomly generating the 'ret' 
+% INPUT: 
+%   SEED         : seeding number used as basis for randomly generating the 'ret' 
 %                  by using seem 'SEED' you nay reproduce the same sequence of random numbers
 %
 % OUTPUT:
-%   ret            randomly generated number
+%   ret          : randomly generated number
 %
 %% Copyright notice
 %   --------------------------------------------------------------------
@@ -34,11 +34,11 @@ function [ret]=get_twisterseed(SEED)
 %
 %   This library is distributed in the hope that it will be useful,
 %   but WITHOUT ANY WARRANTY; without even the implied warranty of
-%   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
+%   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU
 %   Lesser General Public License for more details.
 %
 %   You should have received a copy of the GNU Lesser General Public
-%   License along with this library. If not, see <http://www.gnu.org/licenses
+%   License along with this library. If not, see <http://www.gnu.org/licenses>
 %   --------------------------------------------------------------------
 
    ret = uint32(zeros(625,1));

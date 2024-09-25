@@ -1,14 +1,19 @@
 function [dmin,xcr,ycr,dmax,xcm,ycm] = get_polydistance(Xr,Yr,Xc,Yc,Lcrit)
-%function [dmin,xcr,ycr] = get_polydistance(Xr,Yr,Xc,Yc,Lcrit)
+%function [dmin,xcr,ycr,dmax,xcm,ycm] = get_polydistance(Xr,Yr,Xc,Yc,Lcrit)
 %
-% INPUT:
-%    Xr              X-coordinate of reference line [m]
-%    Yr              Y-coordinate of reference line [m]
-%    Xc              X-coordinate of coastline [m]
-%    Yc              Y-coordinate of coastline [m]
+% INPUT: 
+%    Xr          : x-coordinate of reference line [m]
+%    Yr          : y-coordinate of reference line [m]
+%    Xc          : x-coordinate of coastline [m]
+%    Yc          : y-coordinate of coastline [m]
 %
 % OUTPUT:
-%    dmin            distance from reference line point to the specified coastline (negative is at right-side of the line)
+%    dmin        : distance from reference line point to the specified coastline [m] (negative is at right-side of the line)
+%    xcr         : x-coordinate of coastline point as projected on the grid [m] (closest value to the grid)
+%    ycr         : y-coordinate of coastline point as projected on the grid [m] (closest value to the grid)
+%    dmin        : distance from reference line point to the specified coastline [m] (negative is at right-side of the line)(farthest crossing from the grid)
+%    xcr         : x-coordinate of coastline point as projected on the grid [m] (farthest crossing from the grid)
+%    ycr         : y-coordinate of coastline point as projected on the grid [m] (farthest crossing from the grid)
 %
 % EXAMPLE:
 %    Xr=[20.5:185.5]';
@@ -34,11 +39,11 @@ function [dmin,xcr,ycr,dmax,xcm,ycm] = get_polydistance(Xr,Yr,Xc,Yc,Lcrit)
 %
 %   This library is distributed in the hope that it will be useful,
 %   but WITHOUT ANY WARRANTY; without even the implied warranty of
-%   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
+%   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU
 %   Lesser General Public License for more details.
 %
 %   You should have received a copy of the GNU Lesser General Public
-%   License along with this library. If not, see <http://www.gnu.org/licenses
+%   License along with this library. If not, see <http://www.gnu.org/licenses>
 %   --------------------------------------------------------------------
 
     % dx,dy values

@@ -1,20 +1,24 @@
 function [TIME]=get_timestep(TIME,COAST,TRANSP)
-% function [adt]=get_timestep(adt,dt,automatic,s,d,QS,QSmax)
+% function [TIME]=get_timestep(TIME,COAST,TRANSP)
+%  
+% This routine computes the automatic time step based on 
+% the actual transport rate and the grid properties. 
 % 
-% INPUT:
+% INPUT: 
 %   TIME
-%      .adt
-%      .dt
+%      .adt     : automatic time step, used in model [year]
+%      .dt      : fixed time step [year]
+%      .tc      : fraction used of the computed automatic time step
 %   COAST
-%      .s
-%      .d
-%      .h0
+%      .s       : distance along grid [m]
+%      .h0      : active height of the profiles [m]
+%      .i_mc    : index of active coastal element
 %   TRANSP
-%      .QS
-%      .QSmax 
+%      .QS      : transport rate [m3/yr]
+%      .QSmax   : maximum transport at high-angle incidence [m3/yr]
 %
 % OUTPUT:
-%   adt
+%   adt         : automatic time step, updated [year]
 %
 %% Copyright notice
 %   --------------------------------------------------------------------
@@ -37,11 +41,11 @@ function [TIME]=get_timestep(TIME,COAST,TRANSP)
 %
 %   This library is distributed in the hope that it will be useful,
 %   but WITHOUT ANY WARRANTY; without even the implied warranty of
-%   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
+%   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU
 %   Lesser General Public License for more details.
 %
 %   You should have received a copy of the GNU Lesser General Public
-%   License along with this library. If not, see <http://www.gnu.org/licenses
+%   License along with this library. If not, see <http://www.gnu.org/licenses>
 %   --------------------------------------------------------------------
 
     if ~TIME.tc
@@ -49,8 +53,10 @@ function [TIME]=get_timestep(TIME,COAST,TRANSP)
     else
         dsmin=min(diff(COAST.s));            
         h0min=min(COAST.h0);
-        adt=dsmin^2*h0min / (4*max(abs(TRANSP.QSmax)));
-        if max(abs(TRANSP.QS))*4<max(abs(TRANSP.QSmax))
+        if ~isnan(max(abs(TRANSP.QSmax)))
+            adt=dsmin^2*h0min / (4*max(abs(TRANSP.QSmax)));
+        end
+        if max(abs(TRANSP.QS))*4<max(abs(TRANSP.QSmax)) || isnan(max(abs(TRANSP.QSmax)))
             adt=0.25*dsmin^2*h0min / (4*max(abs(TRANSP.QS)));
         end
         adt=max(adt,1/365/24/60);    % use at least a 1 minute time step     

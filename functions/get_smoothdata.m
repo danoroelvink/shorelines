@@ -1,14 +1,14 @@
 function [VAR2]=get_smoothdata(VAR,smoothtype,smoothsteps,movwindow)
 % function [VAR]=get_smoothdata(VAR,smoothtype,smoothsteps,movwindow)
 % 
-% INPUT:
-%     VAR           column with the variable [1xN] 
-%     smoothtype    e.g. 'angle'/'vector' or 'scalar' 
-%     smoothsteps   number of times the smaoothing is applied (with 'angle' also a fraction between 0 and 1 can be used to apply an alfa) 
-%     movwindow     (optional) using a moving average instead of 'central averaging' 
+% INPUT: 
+%     VAR         : column with the variable [1xN] 
+%     smoothtype  : e.g. 'angle'/'vector' or 'scalar' 
+%     smoothsteps : number of times the smaoothing is applied (with 'angle' also a fraction between 0 and 1 can be used to apply an alfa) 
+%     movwindow   : (optional) using a moving average instead of 'central averaging' 
 % 
 % OUTPUT:
-%     VAR           smoothed variable [1xN] 
+%     VAR         : smoothed variable [1xN] 
 % 
 %% Copyright notice
 %   --------------------------------------------------------------------
@@ -31,11 +31,11 @@ function [VAR2]=get_smoothdata(VAR,smoothtype,smoothsteps,movwindow)
 %
 %   This library is distributed in the hope that it will be useful,
 %   but WITHOUT ANY WARRANTY; without even the implied warranty of
-%   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
+%   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU
 %   Lesser General Public License for more details.
 %
 %   You should have received a copy of the GNU Lesser General Public
-%   License along with this library. If not, see <http://www.gnu.org/licenses
+%   License along with this library. If not, see <http://www.gnu.org/licenses>
 %   --------------------------------------------------------------------
     
     if nargin<3

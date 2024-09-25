@@ -1,8 +1,19 @@
-function [ COAST,merged ] = merge_coastlines( COAST, i_mc)
-% function [ COAST,merged ] = merge_coastlines( COAST, i_mc)
+function [COAST,merged] = merge_coastlines(COAST,i_mc)
+% function [COAST,merged] = merge_coastlines(COAST,i_mc)
 % 
-% UNTITLED Summary of this function goes here
-% Detailed explanation goes here
+% Merges and splits individual coastal elements that cross themselves.
+% For example, a spit tip reaching the beach. 
+%
+% INPUT:
+%    COAST
+%         .x_mc  : x-coordinates of the coastline elements 
+%         .y_mc  : y-coordinates of the coastline elements 
+%         .ds0   : grid cell size [m]
+% 
+% OUTPUT:
+%    COAST
+%         .x_mc  : x-coordinates of the coastline elements (after splitting/merging)
+%         .y_mc  : y-coordinates of the coastline elements (after splitting/merging)
 %
 %% Copyright notice
 %   --------------------------------------------------------------------
@@ -25,11 +36,11 @@ function [ COAST,merged ] = merge_coastlines( COAST, i_mc)
 %
 %   This library is distributed in the hope that it will be useful,
 %   but WITHOUT ANY WARRANTY; without even the implied warranty of
-%   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
+%   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU
 %   Lesser General Public License for more details.
 %
 %   You should have received a copy of the GNU Lesser General Public
-%   License along with this library. If not, see <http://www.gnu.org/licenses
+%   License along with this library. If not, see <http://www.gnu.org/licenses>
 %   --------------------------------------------------------------------
 
     %eps=.1;
@@ -50,57 +61,18 @@ function [ COAST,merged ] = merge_coastlines( COAST, i_mc)
        COAST.y(end)=y1;
        [COAST.x_mc,COAST.y_mc]=insert_section(COAST.x,COAST.y,COAST.x_mc,COAST.y_mc,i_mc);
     end
-    [xx,yy]=get_intersections(COAST.x,COAST.y);
-    if yesplot
-        figure(3);
-        plot(COAST.x,COAST.y,'.-b',xx,yy,'ok');
-        hold on
-        num=[1:length(COAST.x)];
-        for i=1:length(COAST.x)
-            text(COAST.x(i),COAST.y(i),num2str(num(i)));
-        end
-    end
-    iX=0;
-    ind=[];
-    inp=[];
-    for i=1:length(s)-1
-        if ~isnan(s(i))&&~isnan(s(i+1))
-            for ip=1:length(xx)
-                err=abs(s(i+1)-s(i)-hypot(xx(ip)-COAST.x(i)  ,yy(ip)-COAST.y(i)) ...
-                    -hypot(xx(ip)-COAST.x(i+1),yy(ip)-COAST.y(i+1)));
-                if err<eps
-                    iX=iX+1;
-                    ind(iX)=i;
-                    inp(iX)=ip;
-                end
-            end
-        end
-    end
+    [xx,yy,indi,indj]=get_intersections(COAST.x,COAST.y);
+    xx0=unique(xx);
     
-    if isempty(ind) || length(ind)<2
-        xnew=COAST.x;
-        ynew=COAST.y;
-        merged=0;
-    elseif length(ind)<4
-        %xnew=[COAST.x(1:ind(1)),COAST.x(ind(2)+1:end),nan,COAST.x(ind(1)+1:ind(2)),COAST.x(ind(1)+1)];
-        %ynew=[COAST.y(1:ind(1)),COAST.y(ind(2)+1:end),nan,COAST.y(ind(1)+1:ind(2)),COAST.y(ind(1)+1)];
-        xnew=[COAST.x(1:ind(1)),xx(inp(1)),COAST.x(ind(2)+1:end),nan,COAST.x(ind(1)+1:ind(2)),xx(inp(1)),COAST.x(ind(1)+1)];
-        ynew=[COAST.y(1:ind(1)),yy(inp(1)),COAST.y(ind(2)+1:end),nan,COAST.y(ind(1)+1:ind(2)),yy(inp(1)),COAST.y(ind(1)+1)];
-        merged=0;
-    else
-        xnew=[COAST.x(1:ind(1)),COAST.x(ind(4)+1:end),nan,COAST.x(ind(2)+1:ind(3)),COAST.x(ind(2)+1)];
-        ynew=[COAST.y(1:ind(1)),COAST.y(ind(4)+1:end),nan,COAST.y(ind(2)+1:ind(3)),COAST.y(ind(2)+1)];
-        % xnew=[COAST.x(1:ind(1)),xx(inp(1)),COAST.x(ind(4)+1:end),nan,COAST.x(ind(2)+1:ind(3)),xx(inp(2)),COAST.x(ind(2)+1)];
-        % ynew=[COAST.y(1:ind(1)),yy(inp(1)),COAST.y(ind(4)+1:end),nan,COAST.y(ind(2)+1:ind(3)),yy(inp(2)),COAST.y(ind(2)+1)];
+    merged=0;
+    if length(xx0)==2
+        indi=sort([indi(1:2),indj(1:2)]);
+        xnew=[[COAST.x(1:floor(indi(1))),xx(1),COAST.x(ceil(indi(4)):length(COAST.x))],nan,[xx(2),COAST.x(ceil(indi(2)):floor(indi(3))),xx(2)]];
+        ynew=[[COAST.y(1:floor(indi(1))),yy(1),COAST.y(ceil(indi(4)):length(COAST.y))],nan,[yy(2),COAST.y(ceil(indi(2)):floor(indi(3))),yy(2)]];
         merged=1;
+        % insert new section in x_mc and y_mc
+        [COAST.x_mc,COAST.y_mc]=insert_section(xnew,ynew,COAST.x_mc,COAST.y_mc,i_mc);
     end
-    if yesplot
-        plot(xnew,ynew,'k','linewidth',2)
-        hold off
-    end
-
-    % insert new section in x_mc and y_mc
-    [COAST.x_mc,COAST.y_mc]=insert_section(xnew,ynew,COAST.x_mc,COAST.y_mc,i_mc);
     
     %% make transport points xq_mc and yq_mc
     [COAST]=get_transportpoints(COAST,i_mc);

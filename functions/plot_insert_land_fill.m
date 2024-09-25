@@ -1,8 +1,10 @@
 function [x,y,xb,yb,xmax,ymax,xmin,ymin,nmax] = plot_insert_land_fill(x,y,ld,it,xmax,ymax,xmin,ymin,i_mc,n_mc,nmax,usefillpoints)
-% function [x,y,xmax,ymax,xmin,ymin,nmax] = plot_insert_land_fill(x,y,ld,it,xmax,ymax,xmin,ymin,i_mc,n_mc,nmax)
-% insert land area behind shoreline , the area width ld (m)
-% surrounding with black line
-% work with fill_sections function
+% function [x,y,xb,yb,xmax,ymax,xmin,ymin,nmax] = plot_insert_land_fill(x,y,ld,it,xmax,ymax,xmin,ymin,i_mc,n_mc,nmax,usefillpoints)
+% 
+% This routine defines the land-polygon behind the opne shoreline elements, 
+% which are used for the plots. An approach can be used with 2 points at
+% the landward side of the polygon (usefillpoints==0) or with a specified
+% number of points landward of the coastline element (usefillpoints>=1). 
 %
 %% Copyright notice
 %   --------------------------------------------------------------------
@@ -25,11 +27,11 @@ function [x,y,xb,yb,xmax,ymax,xmin,ymin,nmax] = plot_insert_land_fill(x,y,ld,it,
 %
 %   This library is distributed in the hope that it will be useful,
 %   but WITHOUT ANY WARRANTY; without even the implied warranty of
-%   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
+%   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU
 %   Lesser General Public License for more details.
 %
 %   You should have received a copy of the GNU Lesser General Public
-%   License along with this library. If not, see <http://www.gnu.org/licenses
+%   License along with this library. If not, see <http://www.gnu.org/licenses>
 %   --------------------------------------------------------------------
   
     dist=((y(end)-y(1)).^2+(x(end)-x(1)).^2).^0.5;

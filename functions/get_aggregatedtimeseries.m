@@ -1,6 +1,9 @@
 function [D]=get_aggregatedtimeseries(D,TIME)
 % function [D]=get_aggregatedtimeseries(D,TIME)
 %
+% Timeseries of wave conditions are aggregated in this routine. 
+% In order to make sure that conditions are not skipped. 
+% 
 %% Copyright notice
 %   --------------------------------------------------------------------
 %   Copyright (C) 2020 IHE Delft & Deltares
@@ -22,11 +25,11 @@ function [D]=get_aggregatedtimeseries(D,TIME)
 %
 %   This library is distributed in the hope that it will be useful,
 %   but WITHOUT ANY WARRANTY; without even the implied warranty of
-%   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
+%   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU
 %   Lesser General Public License for more details.
 %
 %   You should have received a copy of the GNU Lesser General Public
-%   License along with this library. If not, see <http://www.gnu.org/licenses
+%   License along with this library. If not, see <http://www.gnu.org/licenses>
 %   --------------------------------------------------------------------
     
     

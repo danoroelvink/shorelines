@@ -3,16 +3,18 @@ function [SCALARS,VECTORS,idgrid]=get_gridprojection(COAST,WAVE,TRANSP,xp,yp,xw,
 %
 % The routine converts a variable from a coastline to another interpolated grid.
 % 
-% INPUT:
-%      COAST         structure with coast info, and field 
-%      WAVE
-%      TRANSP
-%      scalarfields
-%      vectorfields
+% INPUT: 
+%      COAST          : structure with coast info, and fields
+%      WAVE           : structure with wave info, and fields
+%      TRANSP         : structure with transport information, and fields
+%      scalarfields   : parameters to be projected, of fields, e.g. {'HStdp'}
+%      vectorfields   : parameters to be projected, of fields, e.g. {'PHItdp'}
+%      method         : interpolation method 'weighted_distance' or 'alongshore_mapping'
 % 
 % OUTPUT:
-%      scalars
-%      vectors
+%      scalars        : interpolated scalars
+%      vectors        : interpolated vectors
+%      idgrid         : interpolation grid indices
 %
 %% Copyright notice
 %   --------------------------------------------------------------------
@@ -35,11 +37,11 @@ function [SCALARS,VECTORS,idgrid]=get_gridprojection(COAST,WAVE,TRANSP,xp,yp,xw,
 %
 %   This library is distributed in the hope that it will be useful,
 %   but WITHOUT ANY WARRANTY; without even the implied warranty of
-%   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
+%   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU
 %   Lesser General Public License for more details.
 %
 %   You should have received a copy of the GNU Lesser General Public
-%   License along with this library. If not, see <http://www.gnu.org/licenses
+%   License along with this library. If not, see <http://www.gnu.org/licenses>
 %   --------------------------------------------------------------------
 
     % get scalar fields

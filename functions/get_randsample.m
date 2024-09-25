@@ -1,15 +1,15 @@
-function [y]= get_randsample(n, k, wght)
-% function [y]= get_randsample(n, k, wght)
+function [y]= get_randsample(n,k,wght)
+% function [y]= get_randsample(n,k,wght)
 %
 % get_randsample Random wave condition using the probability of occurrence 
 %
-% INPUT:
-%   n          number of values
-%   k          should be 1
-%   wght       probabilities per wave condition (in [%] or [days])
+% INPUT: 
+%   n        : number of values
+%   k        : should be 1
+%   wght     : probabilities per wave condition (in [%] or [days])
 %
 % OUTPUT:
-%   y          randomly drawn sample using probability
+%   y        : randomly drawn sample using probability
 %
 %% Copyright notice
 %   --------------------------------------------------------------------
@@ -32,11 +32,11 @@ function [y]= get_randsample(n, k, wght)
 %
 %   This library is distributed in the hope that it will be useful,
 %   but WITHOUT ANY WARRANTY; without even the implied warranty of
-%   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
+%   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU
 %   Lesser General Public License for more details.
 %
 %   You should have received a copy of the GNU Lesser General Public
-%   License along with this library. If not, see <http://www.gnu.org/licenses
+%   License along with this library. If not, see <http://www.gnu.org/licenses>
 %   --------------------------------------------------------------------
 
     wght=wght(:)';

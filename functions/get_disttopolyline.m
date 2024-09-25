@@ -1,6 +1,9 @@
-function [distance, i]=get_disttopolyline(x,y,x0,y0,range)
-%% Find shortest distance from point x0,y0 to polyline x,y
-%    Syntax:
+function [distance,i]=get_disttopolyline(x,y,x0,y0,range)
+% function [distance,i]=get_disttopolyline(x,y,x0,y0,range)
+% 
+% Find shortest distance from point x0,y0 to polyline x,y
+% 
+% Syntax:
 %    [distance,i]=locate_in_curvi_grid(x,y,x0,y0,range)
 %
 %% Copyright notice
@@ -24,11 +27,11 @@ function [distance, i]=get_disttopolyline(x,y,x0,y0,range)
 %
 %   This library is distributed in the hope that it will be useful,
 %   but WITHOUT ANY WARRANTY; without even the implied warranty of
-%   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
+%   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU
 %   Lesser General Public License for more details.
 %
 %   You should have received a copy of the GNU Lesser General Public
-%   License along with this library. If not, see <http://www.gnu.org/licenses
+%   License along with this library. If not, see <http://www.gnu.org/licenses>
 %   --------------------------------------------------------------------
 
 % This tool is part of <a href="http://OpenEarth.nl">OpenEarthTools</a>.

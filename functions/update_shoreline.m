@@ -1,5 +1,7 @@
 function [FORMAT,COAST]=update_shoreline(S,COAST,FORMAT)
-% function [FORMAT.ifig]=update_shoreline(S)
+% function [FORMAT,COAST]=update_shoreline(S,COAST,FORMAT)
+%
+% Updates the shoreline based on gridded bathymetric data (S.xg, S.yg, S.zg).
 %
 %% Copyright notice
 %   --------------------------------------------------------------------
@@ -22,11 +24,11 @@ function [FORMAT,COAST]=update_shoreline(S,COAST,FORMAT)
 %
 %   This library is distributed in the hope that it will be useful,
 %   but WITHOUT ANY WARRANTY; without even the implied warranty of
-%   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
+%   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU
 %   Lesser General Public License for more details.
 %
 %   You should have received a copy of the GNU Lesser General Public
-%   License along with this library. If not, see <http://www.gnu.org/licenses
+%   License along with this library. If not, see <http://www.gnu.org/licenses>
 %   --------------------------------------------------------------------
 
     ds0=COAST.ds0;
@@ -34,7 +36,7 @@ function [FORMAT,COAST]=update_shoreline(S,COAST,FORMAT)
         ds0=min(ds0(:,3));
     end
     
-    if S.tide_interaction
+    if S.tideinteraction
         distmax=abs(S.seamin/S.seaslope);
         dntide_mc=COAST.x_mc*0;
         sedero=S.zg-S.zg0;
@@ -70,8 +72,8 @@ function [FORMAT,COAST]=update_shoreline(S,COAST,FORMAT)
             cyclic = hypot(x(end)-x(1),y(end)-y(1))<ds0;
             for i=1:n
                 if cyclic
-                    im1=mod2(i-1,n);
-                    ip1=mod2(i+1,n);
+                    im1=get_mod(i-1,n);
+                    ip1=get_mod(i+1,n);
                 else
                     im1=max(i-1,1);
                     ip1=min(i+1,n+1);

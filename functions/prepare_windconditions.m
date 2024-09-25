@@ -1,6 +1,37 @@
 function [WIND]=prepare_windconditions(S,TIME)
 % function [WIND]=prepare_windconditions(S,TIME)
 %
+% This function reads and prepares the wind data.  
+% A data-structure WIND is created, which is used throughout the computation. 
+% 
+% INPUT:
+%   S   Structure with input data
+%        .dune         : switch for computing dune evolution (0/1)
+%        .mud          : switch for computing mud coast evolution (0/1)
+%        .dt           : timestep of the dune computations [yr]
+%        .rhoa         : density of air [kg/m3]
+%        .Cd           : wind coefficient
+%        .uz           : static value for the wind velocity (if not replaced by WND)
+%        .phiwnd       : static value for the wind direction (if not replaced by WND)
+%        .wndfile      : file of the wind input timeseries or climate, with extension .WND
+%        .Windclimfile : alternative, filename (backup option)
+%   TIME
+%        .it           : number of timesteps since model start (it=0 at t0)
+%
+% OUTPUT: 
+%   WIND   Structure with wind data
+%        .dune         : switch for computing dune evolution (0/1)
+%        .mud          : switch for computing mud coast evolution (0/1)
+%        .dt           : timestep of the dune computations [yr]
+%        .rhoa         : density of air [kg/m3]
+%        .Cd           : wind coefficient
+%        .uz           : static value for the wind velocity (if not replaced by WND)
+%        .phiwnd       : static value for the wind direction (if not replaced by WND)
+%        .wndfile      : file of the wind input timeseries or climate, with extension .WND
+%        .WND
+%           .uz        : timeseries of wind velocity [m/s] from wvcfile
+%           .Dir       : timeseries of wind direction [°N] from wvcfile
+%
 %% Copyright notice
 %   --------------------------------------------------------------------
 %   Copyright (C) 2020 IHE Delft & Deltares
@@ -22,11 +53,11 @@ function [WIND]=prepare_windconditions(S,TIME)
 %
 %   This library is distributed in the hope that it will be useful,
 %   but WITHOUT ANY WARRANTY; without even the implied warranty of
-%   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
+%   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU
 %   Lesser General Public License for more details.
 %
 %   You should have received a copy of the GNU Lesser General Public
-%   License along with this library. If not, see <http://www.gnu.org/licenses
+%   License along with this library. If not, see <http://www.gnu.org/licenses>
 %   --------------------------------------------------------------------
 
     WIND         = struct;
@@ -40,21 +71,21 @@ function [WIND]=prepare_windconditions(S,TIME)
         WIND.Cd      = S.Cd;
         WIND.uz      = S.uz;
         WIND.phiwnd  = S.phiwnd0;
-        WIND.WNDfile = S.WNDfile;
-        if isfield(S,'Windclimfile') && isempty(WIND.WNDfile)
-            WIND.WNDfile = S.Windclimfile;
+        WIND.wndfile = S.wndfile;
+        if isfield(S,'Windclimfile') && isempty(WIND.wndfile)
+            WIND.wndfile = S.Windclimfile;
         end
         
-        if ~isempty(WIND.WNDfile)
-            if ischar(WIND.WNDfile)
-                WIND.WNDfile={WIND.WNDfile};
-            elseif size(WIND.WNDfile,2)>3 && (size(WIND.WNDfile,1)==1 || size(WIND.WNDfile,1)==3)
-                WIND.WNDfile=WIND.WNDfile';
+        if ~isempty(WIND.wndfile)
+            if ischar(WIND.wndfile)
+                WIND.wndfile={WIND.wndfile};
+            elseif size(WIND.wndfile,2)>3 && (size(WIND.wndfile,1)==1 || size(WIND.wndfile,1)==3)
+                WIND.wndfile=WIND.wndfile';
             end
             
             % read wind data files
             fprintf('  Read wind conditions for runup at dunes\n');
-            [WND]=get_inputfiledata(WIND.WNDfile,TIME);
+            [WND]=get_inputfiledata(WIND.wndfile,TIME);
         end
         %% write logfile
         % struct2log(WIND,'WIND','a');

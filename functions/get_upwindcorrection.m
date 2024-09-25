@@ -6,7 +6,7 @@ function [TRANSP]=get_upwindcorrection(COAST,WAVE,TRANSP,SPIT)
 % at locations where the coastline orientation is larger than the critical high angle instability angle,
 % with the requirement that the previous cell was still below the critical angle (with 'ref' suffix).
 % 
-% INPUT: 
+% INPUT:  
 %    COAST
 %          .n           : Number of COAST.x points
 %          .nq          : Number of TRANSP.QS points
@@ -24,7 +24,7 @@ function [TRANSP]=get_upwindcorrection(COAST,WAVE,TRANSP,SPIT)
 %          .QS          : Transport rates in grid cells [1xN] (in [m3/yr] including pores)
 %          .QSmax       : Maximum transport for considered cells [1xN] (in [m3/yr] including pores)
 %    SPIT
-%          .spit_headwidth     (not used yet)
+%          .spitheadwidth     (not used yet)
 %
 % OUTPUT:
 %    TRANSP
@@ -53,11 +53,11 @@ function [TRANSP]=get_upwindcorrection(COAST,WAVE,TRANSP,SPIT)
 %
 %   This library is distributed in the hope that it will be useful,
 %   but WITHOUT ANY WARRANTY; without even the implied warranty of
-%   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
+%   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU
 %   Lesser General Public License for more details.
 %
 %   You should have received a copy of the GNU Lesser General Public
-%   License along with this library. If not, see <http://www.gnu.org/licenses
+%   License along with this library. If not, see <http://www.gnu.org/licenses>
 %   --------------------------------------------------------------------
 
     debuginfo=0; % use 1 or 2 for various output during debugging
@@ -109,10 +109,10 @@ function [TRANSP]=get_upwindcorrection(COAST,WAVE,TRANSP,SPIT)
             
             for i=iirange
                 if COAST.cyclic
-                    im1=mod2(i-1*cw,nq); % note that cw flips the indices for negative transport (cw=-1)
-                    im2=mod2(i-2*cw,nq); % note that cw flips the indices for negative transport (cw=-1)
-                    ip1=mod2(i+1*cw,nq);
-                    ip2=mod2(i+2*cw,nq);
+                    im1=get_mod(i-1*cw,nq); % note that cw flips the indices for negative transport (cw=-1)
+                    im2=get_mod(i-2*cw,nq); % note that cw flips the indices for negative transport (cw=-1)
+                    ip1=get_mod(i+1*cw,nq);
+                    ip2=get_mod(i+2*cw,nq);
                 else     
                     if cw==1 % swap im1 and ip1 etc if direction of transport is negative (cw=-1)
                         im1=max(i-1,1);

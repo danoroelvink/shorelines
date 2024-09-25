@@ -1,6 +1,18 @@
-function []=make_video(S,vi)
-% function []=make_video(S,vi)
+function make_video(S,vi)
+% function make_video(S,vi)
 %
+% This function writes video frames
+%
+% INPUT:
+%    vi   input fgure frame used for the video
+%    S
+%         .video        : switch for making videos (0/1)
+%         .outputdir    : name of the output directory (as string)
+%         .diffraction  : switch for using diffraction (alternatively used for naming the output directory)
+%         .xhard        : x-coordinates of the coastal structures (alternatively used for naming the output directory)
+%         .yhard        : y-coordinates of the coastal structures (alternatively used for naming the output directory)
+%         .phiw0        : offshore wave direction, static parameter (alternatively used for naming the output directory)
+% 
 %% Copyright notice
 %   --------------------------------------------------------------------
 %   Copyright (C) 2020 IHE Delft & Deltares
@@ -22,18 +34,18 @@ function []=make_video(S,vi)
 %
 %   This library is distributed in the hope that it will be useful,
 %   but WITHOUT ANY WARRANTY; without even the implied warranty of
-%   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
+%   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU
 %   Lesser General Public License for more details.
 %
 %   You should have received a copy of the GNU Lesser General Public
-%   License along with this library. If not, see <http://www.gnu.org/licenses
+%   License along with this library. If not, see <http://www.gnu.org/licenses>
 %   --------------------------------------------------------------------
 
     if S.video
-        % label=strcat(S.trform,'_',S.boundary_condition_start,'_ds0_',num2str(S.ds0),'_tc_',num2str(S.spread),'_phiw_',num2str(S.phiw0));
+        % label=strcat(S.trform,'_',S.boundaryconditionstart,'_ds0_',num2str(S.ds0),'_tc_',num2str(S.spread),'_phiw_',num2str(S.phiw0));
         if  S.diffraction==1
-            label=strcat('xhrd_',num2str(S.x_hard),'_yhrd_',num2str(S.y_hard),'_phi0_',num2str(S.phiw0));
-            % label=strcat('spit_',num2str(S.spit_width),'ds0_',num2str(S.ds0),'_phi0_',num2str(S.phiw0));
+            label=strcat('xhrd_',num2str(S.xhard),'_yhrd_',num2str(S.yhard),'_phi0_',num2str(S.phiw0));
+            % label=strcat('spit_',num2str(S.spitwidth),'ds0_',num2str(S.ds0),'_phi0_',num2str(S.phiw0));
         else
             label=[S.outputdir,'\animation'];
         end
@@ -49,6 +61,6 @@ function []=make_video(S,vi)
         try
             writeVideo(video,vi)
         end
-        close (video)
+        close(video)
     end
 end    

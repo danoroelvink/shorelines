@@ -1,7 +1,9 @@
 function [TIDE]=interpolate_tide(TIDE,COAST)
 % function [TIDE]=interpolate_tide(TIDE,COAST)
-%
-% INPUT :
+% 
+% Interpolate the tide parameters along the coastline. 
+% 
+% INPUT: 
 %      TIDE
 %         .x_stat      : x coordinates of tide support points (m)
 %         .y_stat      : y coordinates of tide support points (m)
@@ -9,20 +11,19 @@ function [TIDE]=interpolate_tide(TIDE,COAST)
 %         .detads_stat : longshore gradients of M2 and M4 tidal amplitudes
 %         .phi_stat    : phase (deg) of M2 and M4 water level components
 %         .k_stat      : longshore wave number M2 and M4 (rad/m)
-%         .ss_stat     : longshore mean surface slope driving residual
-%                        current
-%      COAST            
+%         .ss_stat     : longshore mean surface slope driving residual current
+%      COAST           : 
 %         .xq          : x-coordinate of transport points (m)
 %         .yq          : y-coordinate of transport points (m)
 % 
-% OUTPUT :
+% OUTPUT:
 %      TIDE
 %         .eta         : M2 and M4 water level amplitudes (m)
 %         .detads      : longshore gradients of M2 and M4 tidal amplitudes
 %         .phi         : phase (deg) of M2 and M4 water level components
 %         .k           : longshore wave number M2 and M4 (rad/m)
-%         .ss          : longshore mean surface slope driving residual
-%                        current
+%         .ss          : longshore mean surface slope driving residual current
+%
 %% Copyright notice
 %   --------------------------------------------------------------------
 %   Copyright (C) 2020 IHE Delft & Deltares
@@ -44,11 +45,11 @@ function [TIDE]=interpolate_tide(TIDE,COAST)
 %
 %   This library is distributed in the hope that it will be useful,
 %   but WITHOUT ANY WARRANTY; without even the implied warranty of
-%   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
+%   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU
 %   Lesser General Public License for more details.
 %
 %   You should have received a copy of the GNU Lesser General Public
-%   License along with this library. If not, see <http://www.gnu.org/licenses
+%   License along with this library. If not, see <http://www.gnu.org/licenses>
 %   --------------------------------------------------------------------
 
     if ~isempty(TIDE)

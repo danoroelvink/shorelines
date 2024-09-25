@@ -1,26 +1,28 @@
-function [GROYNE] = transport_bypass(TRANSP,WAVE,COAST,STRUC,GROYNE)
-%% compute bypass rate at groynes if transport is towards groyne
-%
-% INPUT:
-%    TRANSP
-%       .QS          : longshore transport rate
-%    WAVE
-%       .HStdp       : Hs at toe of dynamic profile
-%    COAST
-%       .x           : x coordinates of coast section
-%       .y           : y coordinates of coast section
-%    STRUC
-%       .x_hard      : x coordinates of all hard structures
-%       .y_hard      : y coordinates of all hard structures
-%    GROYNE
-%       .x           : x coordinates of groynes
-%       .y           : y coordinates of groynes
-%       .QS          : bypass transport rates for each groyne, found earlier
-%       .phigroyne   : orientation of groyne in °N
+function [GROYNE] = transport_bypass(TRANSP,WAVE,COAST,STRUC,GROYNE,TIDE)
+% function [GROYNE] = transport_bypass(TRANSP,WAVE,COAST,STRUC,GROYNE,TIDE)
 % 
-% OUTPUT:
-%    GROYNE
-%       .QS          : updated array of bypass transport at groynes
+% Computes the bypass rate at groynes if transport is towards the groyne.
+%
+% INPUT: 
+%     TRANSP
+%        .QS        : longshore transport rate [m3/yr]
+%     WAVE
+%        .HStdp     : Hs at toe of dynamic profile [m]
+%     COAST
+%        .x         : x coordinates of the active coastal section [m]
+%        .y         : y coordinates of the active coastal section [m]
+%     STRUC
+%        .xhard     : x coordinates of all hard structures [m]
+%        .yhard     : y coordinates of all hard structures [m]
+%     GROYNE
+%        .x         : x coordinates of groynes [m]
+%        .y         : y coordinates of groynes [m]
+%        .phigroyne : orientation of groyne [°N]
+% 
+% OUTPUT: 
+%     GROYNE
+%        .QS        : bypass transport at groynes [Mx2] array [m3/yr]
+%        .tipindx   : index of most seaward point on each side of the structure [Mx2]
 %
 %% Copyright notice
 %   --------------------------------------------------------------------
@@ -43,11 +45,11 @@ function [GROYNE] = transport_bypass(TRANSP,WAVE,COAST,STRUC,GROYNE)
 %
 %   This library is distributed in the hope that it will be useful,
 %   but WITHOUT ANY WARRANTY; without even the implied warranty of
-%   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
+%   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU
 %   Lesser General Public License for more details.
 %
 %   You should have received a copy of the GNU Lesser General Public
-%   License along with this library. If not, see <http://www.gnu.org/licenses
+%   License along with this library. If not, see <http://www.gnu.org/licenses>
 %   --------------------------------------------------------------------
 
     if ~isempty(GROYNE.QS)
@@ -56,24 +58,35 @@ function [GROYNE] = transport_bypass(TRANSP,WAVE,COAST,STRUC,GROYNE)
         for side=1:2
             idgroyne=find(GROYNE.idcoast(:,side)==COAST.i_mc); 
             GROYNE.QS(idgroyne,side)=0; % initialize at 0 
+            
             if side==1
                 % end point (left side of groyne & right side of coastal segment)       
                 xbnd=COAST.x(end); 
                 ybnd=COAST.y(end); 
                 HSbnd=WAVE.HStdp(end); 
-                QSbnd=TRANSP.QS(end); 
+                if TRANSP.submerged==1
+                    loca=size(TRANSP.QSt,1); % at end of coastal cell
+                    QSbnd=TRANSP.QSt(loca,:);
+                else
+                    QSbnd=TRANSP.QS(end); 
+                end
                 iwave=COAST.nq;
             else
                 % start point (right side of groyne & left side of coastal segment)
                 xbnd=COAST.x(1); 
                 ybnd=COAST.y(1); 
                 HSbnd=WAVE.HStdp(1); 
-                QSbnd=TRANSP.QS(1); 
+                if TRANSP.submerged==1
+                    loca=1; % at start of coastal cell 
+                    QSbnd=TRANSP.QSt(loca,:);
+                else
+                    QSbnd=TRANSP.QS(1); 
+                end
                 iwave=1;
             end
             if (~isempty(idgroyne))
                 ist=GROYNE.strucnum(idgroyne); 
-                [x_str,y_str,n_str]=get_one_polygon(STRUC.x_hard,STRUC.y_hard,ist); 
+                [x_str,y_str,n_str]=get_one_polygon(STRUC.xhard,STRUC.yhard,ist); 
                 
                 % furthest extent of idgroyne relative to shore normal 
                 th=GROYNE.phigroyne(idgroyne);                          % orientation of groyne in °N
@@ -87,8 +100,19 @@ function [GROYNE] = transport_bypass(TRANSP,WAVE,COAST,STRUC,GROYNE)
                 if (QSbnd>0 && side==1) || (QSbnd<0 && side==2)  
                     
                     Ap=(1.04+0.086*log(TRANSP.d50))^2;                    % sediment scale parameter
-                    Ds=Ap*ystr^(2/3);                                     % depth at tip of structure according to dean profile
-                    Dlt=TRANSP.Aw.*WAVE.HStdp(iwave)/WAVE.gamma;          % most seaward extent of the longshore current
+                    Ds=Ap*ystr^(2/3);Dsa=Ds;                              % depth at tip of structure according to dean profile
+                    Dlt=TRANSP.aw.*WAVE.HStdp(iwave)/WAVE.gamma;          % most seaward extent of the longshore current
+                    if TRANSP.submerged==1
+                        % this is temporary unvalidated code for submerged groynes 
+                        xx=interp1(zp,xp,0); % note that this only works if the profile is continiously going up in landward direction (i.e. without any humps / bars)
+                        zz=interp1(xp,zp,xx-ystr);
+                        if isnan(zz)
+                            zz=min(zp);
+                        end
+                        Ds=-zz+TRANSP.zs(loca,:);
+                        Dsa=TRANSP.zs(loca,:)-STRUC.groinelev(ist);
+                        Dlt=TRANSP.Dltr(loca,:)+TRANSP.zs(loca,:);
+                    end
                     
                     % option to use other proxies for the depth-of-closure
                     hin=2.28*WAVE.HStdp(iwave) - 68.5*(WAVE.HStdp(iwave).^2 ./(9.81.*WAVE.TP(iwave).^2)); % Inner closure-depth (Hallermeier, 1981)
@@ -98,7 +122,7 @@ function [GROYNE] = transport_bypass(TRANSP,WAVE,COAST,STRUC,GROYNE)
                     % Bypass is restricted in case the coastline is further seaward at the downdrift side,
                     % The ratio of the effective wave angle over the structure is then used to scale the bypass.
                     % So, less than the maxbypass is used when other side is too much seaward (e.g. due to accretion against the leeward side)
-                    maxbypass=max(TRANSP.bypasscontractionfactor,1);
+                    maxbypass=max(TRANSP.bypasscontrfac,1);
                     if maxbypass>1
                         PHIcoast_groyne=mod(GROYNE.phicoast(idgroyne)-GROYNE.phigroyne(idgroyne)+180,360)-180;   % relative angle of the groyne orientation w.r.t. coast orientation (positive means transport towards the right)
                         PHI_wave_tdp=mod(WAVE.PHItdp(iwave)-GROYNE.phicoast(idgroyne)+180,360)-180;    % relative angle of the nearshore wave climate w.r.t. coast orientation (positive means transport towards the right)
@@ -115,13 +139,20 @@ function [GROYNE] = transport_bypass(TRANSP,WAVE,COAST,STRUC,GROYNE)
                     
                     % Determine the fraction of bypassing transport 'BPF' 
                     % using the ratio of the depth of the dean profile at the tip 'ds' and the depth-of-closure proxy 'dlt' of the longshore current.
-                    BPF=maxbypass-Ds/Dlt;                               % fraction of bypassing sediment
-                    if isnan(BPF)                                       % if Aw is zero, switch off bypassing
+                    BPF=maxbypass-Ds./Dlt;                               % fraction of bypassing sediment
+                    
+                    if TRANSP.submerged==1
+                        DsaDs=min(max(Dsa./Ds,0),1);
+                        redu=min(max(-0.9728.*min(DsaDs,0.8)+0.1296.*(Ds./Dlt)+1.0227),1);
+                        id=find(DsaDs>0.8);
+                        redu(id)=redu(id).*(1-DsaDs(id))/0.2;
+                        BPF=maxbypass-Ds./Dlt.*redu;
+                    end
+                    if isnan(BPF)                                       % if aw is zero, switch off bypassing
                        BPF=0; 
                     end 
                     BPF=min(max(BPF,0),maxbypass); 
-                    GROYNE.QS(idgroyne,side)=BPF*QSbnd; 
-                    
+                    GROYNE.QS(idgroyne,side)=mean(BPF.*QSbnd);
                     % debug info
                     if 0
                         fprintf('%8.0f %8.0f %8.0f %8.3f %8.0f \n',idgroyne,ist,side,BPF,BPF*QSbnd)

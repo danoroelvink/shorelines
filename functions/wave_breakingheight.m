@@ -3,25 +3,27 @@ function [WAVE]=wave_breakingheight(WAVE,TRANSP)
 % 
 % This routine computes the refraction and shoaling from the nearshore point (TDP) to the point of breaking (BR).
 % 
-% INPUT:
-%      WAVE
-%           .dnearshore
-%           .HStdp
-%           .dPHI
-%           .TP
-%           .gamma
-%      TRANSP
-%           .suppress_highangle
-%           .trform
+% INPUT: 
+%    WAVE
+%         .dnearshore        : depth at toe of dynamic profile [m]
+%         .HStdp             : wave height at nearshore location (or diffracted wave height) [Nx1]
+%         .TP                : wave period [s]
+%         .dPHItdp           : relative angle of waves with respect to the coastline at nearshore location [°] 
+%         .dPHIcrit          : Critical orientation of the coastline with respect to waves at the depth-of-closure (Nx2) [°]
+%         .gamma             : depth-induced breaking coefficient [-]
+%    TRANSP
+%         .suppresshighangle : option to suppress high-angle instabilities by maximizing transport at angles beyond dphicrit (0/1)
+%         .trform            : transport formulation (either 'CERC', 'KAMP', 'MILH', 'CERC3', 'VR14')
 % 
 % OUTPUT:
-%      WAVE
-%           .HSbr
-%           .dPHIbr
-%           .hbr
-%           .cbr
-%           .nbr
-%
+%    WAVE
+%         .HSbr              : breaking wave height (or diffracted wave height) [Nx1]
+%         .dPHIbr            : relative angle of waves with respect to the coastline at the point of breaking [°]
+%         .dPHItdp           : relative angle of waves with respect to the coastline at nearshore location [°] (updated)
+%         .hbr               : depth at point of breaking [m]
+%         .cbr               : wave celerity at point of breaking [m/s]
+%         .nbr               : deep/shallow water wave number [-]
+% 
 %% Copyright notice
 %   --------------------------------------------------------------------
 %   Copyright (C) 2020 IHE Delft & Deltares
@@ -43,11 +45,11 @@ function [WAVE]=wave_breakingheight(WAVE,TRANSP)
 %
 %   This library is distributed in the hope that it will be useful,
 %   but WITHOUT ANY WARRANTY; without even the implied warranty of
-%   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
+%   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU
 %   Lesser General Public License for more details.
 %
 %   You should have received a copy of the GNU Lesser General Public
-%   License along with this library. If not, see <http://www.gnu.org/licenses
+%   License along with this library. If not, see <http://www.gnu.org/licenses>
 %   --------------------------------------------------------------------
 
     eps=1d-5;
@@ -60,7 +62,7 @@ function [WAVE]=wave_breakingheight(WAVE,TRANSP)
     WAVE.nbr=zeros(size(WAVE.dPHItdp));
     
     %% Limit high-angle instabilities by forcing maximum transport when the angle is larger than dPHIcrit
-    if TRANSP.suppress_highangle==1 
+    if TRANSP.suppresshighangle==1 
         if isfield(WAVE,'dPHIcrit_mc0')
             dPHIcrit = get_one_polygon( WAVE.dPHIcrit_mc0,WAVE.i_mc);
             if length(dPHIcrit(~isnan(dPHIcrit)))==length(WAVE.dPHItdp)
@@ -77,8 +79,8 @@ function [WAVE]=wave_breakingheight(WAVE,TRANSP)
     
     if ~strcmpi(TRANSP.trform,'RAY') && ~strcmpi(TRANSP.trform,'CERC') && ~strcmpi(TRANSP.trform,'CERC2')
         for i=1:length(WAVE.dPHItdp)   
-            [khtdp,ctdp]=wave_GUO2002(WAVE.TP(i),WAVE.dnearshore);
-            ntdp = 0.5.*(1.+(2.*khtdp)./sinh(2.*khtdp));
+        
+            [~,ctdp,~,ntdp]=get_disper(WAVE.dnearshore,WAVE.TP(i));
             cosPHI=max(cosd(WAVE.dPHItdp(i)),eps);
             sinPHI=sind(WAVE.dPHItdp(i));
             iter=1; % First estimate: Hbr=WAVE.HStdp
@@ -119,9 +121,9 @@ function [WAVE]=wave_breakingheight(WAVE,TRANSP)
         WAVE.HSbr=WAVE.HStdp;
         WAVE.dPHIbr=WAVE.dPHItdp;
         WAVE.hbr=max(WAVE.HStdp./WAVE.gamma,0.1*hbrmin);
-        [khb,cbr]=wave_GUO2002(WAVE.TP,WAVE.hbr);
+        [~,cbr,~,nbr]=get_disper(WAVE.hbr,WAVE.TP);
         WAVE.cbr=cbr;
-        WAVE.nbr = 0.5.*(1.+(2.*khb)./sinh(2.*khb));
+        WAVE.nbr=nbr;
     end
     
 end

@@ -1,8 +1,20 @@
 function [COAST,i_diff]=cleanup_nans(COAST)
-% function [COAST.x_mc,COAST.y_mc]=cleanup_nans(COAST.x_mc,COAST.y_mc)
+% function [COAST,i_diff]=cleanup_nans(COAST)
 %
 % cleans up the nans in the x,y coastline variables
 %
+% INPUT:
+%    COAST
+%      .x_mc        : x-coordinates for all coastal segments
+%      .y_mc        : y-coordinates for all coastal segments
+%
+% OUTPUT:
+%    COAST
+%      .x_mc        : x-coordinates for all coastal segments (updated)
+%      .y_mc        : y-coordinates for all coastal segments (updated)
+%      .n_mc        : number of coastal segments (updated)
+%    i_diff         : change in the number of points of x_mc/y_mc (-2 means two nan points were removed)
+% 
 %% Copyright notice
 %   --------------------------------------------------------------------
 %   Copyright (C) 2020 IHE Delft & Deltares
@@ -24,11 +36,11 @@ function [COAST,i_diff]=cleanup_nans(COAST)
 %
 %   This library is distributed in the hope that it will be useful,
 %   but WITHOUT ANY WARRANTY; without even the implied warranty of
-%   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
+%   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU
 %   Lesser General Public License for more details.
 %
 %   You should have received a copy of the GNU Lesser General Public
-%   License along with this library. If not, see <http://www.gnu.org/licenses
+%   License along with this library. If not, see <http://www.gnu.org/licenses>
 %   --------------------------------------------------------------------
 
     i=1;

@@ -1,37 +1,38 @@
 function [SPIT]=prepare_spit(S)
-% [SPIT]=prepare_spit(S)
+% function [SPIT]=prepare_spit(S)
 %
-% INPUT:
+% Initializes the information needed to compute spit development, and creates SPIT data-structure.
+% 
+% INPUT: 
 %    S
-%      .spit_method                                         % overwash formulation
-%      .spit_width                                          % width of tip of spit (used for overwash)
-%      .spit_headwidth                                      % width of tip of spit (used for upwind correction)
-%      .OWscale                                             % scales the rate of the overwash per timestep (i.e. what part of the deficit is moved to the backbarrier)
-%      .Dsf                                                 % underwater part of active height for shoreface -> used only in spit-width function
-%      .Dbb                                                 % underwater part of active height for back-barrier -> used only in spit-width function
-%      .Bheight                                             % berm height used for overwash funciton (i.e. added to Dsf or Dbb)
-%      .tide_interaction
-%      .wave_interaction
-%      .wavefile                                            % wave table (.mat)
-%      .surf_width_w                                        % width of surf zone, where to collect the wave conditions from wave table
-%      .surf_width                                          % width of surf zone, where to update the bathymetry
-%      .bathy_update                                        % the dates when the bathymetry should be updated, the input should be in dates form, can accept more than one  {'yyyy-mm-dd'}
+%      .spitmethod         : overwash formulation
+%      .spitwidth          : width of tip of spit (used for overwash)
+%      .spitheadwidth      : width of tip of spit (used for upwind correction)
+%      .owscale            : scales the rate of the overwash per timestep (i.e. what part of the deficit is moved to the backbarrier)
+%      .Dsf                : underwater part of active height for shoreface -> used only in spit-width function
+%      .Dbb                : underwater part of active height for back-barrier -> used only in spit-width function
+%      .bheight            : berm height used for overwash funciton (i.e. added to Dsf or Dbb)
+%      .tideinteraction    : tide interaction parameter
+%      .waveinteraction    : wave interaction parameter
+%      .wavefile           : wave table (.mat)
+%      .surfwidthw         : width of surf zone, where to collect the wave conditions from wave table
+%      .surfwidth          : width of surf zone, where to update the bathymetry
+%      .bathyupdate        : the dates when the bathymetry should be updated, the input should be in dates form, can accept more than one  {'yyyy-mm-dd'}
 %         
 % OUTPUT:
 %    SPIT
-%      .method                                              % overwash formulation (currently 'default')
-%      .spit_width                                          % width of tip of spit (used for overwash)
-%      .spit_headwidth                                      % width of tip of spit (used for upwind correction)
-%      .OWscale                                             % scales the rate of the overwash per timestep (i.e. what part of the deficit is moved to the backbarrier)
-%      .Dsf                                                 % underwater part of active height for shoreface -> used only in spit-width function
-%      .Dbb                                                 % underwater part of active height for back-barrier -> used only in spit-width function
-%      .Bheight                                             % berm height used for overwash funciton (i.e. added to Dsf or Dbb)
-%      .tide_interaction
-%      .wave_interaction
-%      .wavefile                                            % wave table (.mat)
-%      .surf_width_w                                        % width of surf zone, where to collect the wave conditions from wave table
-%      .surf_width                                          % width of surf zone, where to update the bathymetry
-%      .bathy_update                                        % the dates when the bathymetry should be updated, the input should be in dates form, can accept more than one  {'yyyy-mm-dd'}
+%      .method             : overwash formulation (currently 'default')
+%      .spitwidth          : width of tip of spit (used for overwash)
+%      .spitheadwidth      : width of tip of spit (used for upwind correction)
+%      .owscale            : scales the rate of the overwash per timestep (i.e. what part of the deficit is moved to the backbarrier)
+%      .Dsf                : underwater part of active height for shoreface -> used only in spit-width function
+%      .Dbb                : underwater part of active height for back-barrier -> used only in spit-width function
+%      .bheight            : berm height used for overwash funciton (i.e. added to Dsf or Dbb)
+%      .tideinteraction    : tide interaction parameter
+%      .waveinteraction    : wave interaction parameter
+%      .wavefile           : wave table (.mat)
+%      .surfwidth          : width of surf zone, where to update the bathymetry
+%      .bathyupdate        : the dates when the bathymetry should be updated, the input should be in dates form, can accept more than one  {'yyyy-mm-dd'}
 %
 %
 %% Copyright notice
@@ -55,35 +56,34 @@ function [SPIT]=prepare_spit(S)
 %
 %   This library is distributed in the hope that it will be useful,
 %   but WITHOUT ANY WARRANTY; without even the implied warranty of
-%   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
+%   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU
 %   Lesser General Public License for more details.
 %
 %   You should have received a copy of the GNU Lesser General Public
-%   License along with this library. If not, see <http://www.gnu.org/licenses
+%   License along with this library. If not, see <http://www.gnu.org/licenses>
 %   --------------------------------------------------------------------
 
     fprintf('  Prepare spit \n');
     %% Migrating spit
     SPIT=struct;
     SPIT.used=1;   
-    SPIT.method=S.spit_method;                                                             % overwash formulation
-    SPIT.spit_width=S.spit_width;                                                         % width of tip of spit (used for overwash)
-    SPIT.spit_headwidth=S.spit_headwidth;                                                 % width of tip of spit (used for upwind correction)
-    SPIT.OWscale=S.OWscale;                                                               % scales the rate of the overwash per timestep (i.e. what part of the deficit is moved to the backbarrier)
-    SPIT.OWtimescale=S.OWtimescale;                                                       % timescale for the overwash process in years(i.e. what part of the deficit is moved to the backbarrier)
-    % SPIT.OWtimescale overrides SPIT.OWscale if it is >0
-    if SPIT.OWtimescale>0
-        SPIT.OWscale=0;
+    SPIT.method=S.spitmethod;                                                         % overwash formulation
+    SPIT.spitwidth=S.spitwidth;                                                       % width of tip of spit (used for overwash)
+    SPIT.spitheadwidth=S.spitheadwidth;                                               % width of tip of spit (used for upwind correction)
+    SPIT.owscale=S.owscale;                                                           % scales the rate of the overwash per timestep (i.e. what part of the deficit is moved to the backbarrier)
+    SPIT.owtimescale=S.owtimescale;                                                   % timescale for the overwash process in years(i.e. what part of the deficit is moved to the backbarrier)
+    % SPIT.owtimescale overrides SPIT.owscale if it is >0
+    if SPIT.owtimescale>0
+        SPIT.owscale=0;
     end
-    SPIT.Dsf=S.spit_Dsf;                                                                     % underwater part of active height for shoreface -> used only in spit-width function
-    SPIT.Dbb=S.spit_Dbb;                                                                  % underwater part of active height for back-barrier -> used only in spit-width function
-    SPIT.Bheight=S.Bheight;                                                               % berm height used for overwash funciton (i.e. added to Dsf or Dbb)
-    SPIT.tide_interaction=S.tide_interaction;
-    SPIT.wave_interaction=S.wave_interaction;
-    SPIT.wavefile=S.wavefile;                                                             % wave table (.mat)
-    SPIT.surf_width_w=S.surf_width_w;                                                     % width of surf zone, where to collect the wave conditions from wave table
-    SPIT.surf_width=S.surf_width;                                                         % width of surf zone, where to update the bathymetry
-    SPIT.bathy_update=S.bathy_update;                                                     % the dates when the bathymetry should be updated, the input should be in dates form, can accept more than one  {'yyyy-mm-dd'};
+    SPIT.Dsf=S.spitdsf;                                                               % underwater part of active height for shoreface -> used only in spit-width function
+    SPIT.Dbb=S.spitdbb;                                                               % underwater part of active height for back-barrier -> used only in spit-width function
+    SPIT.bheight=S.bheight;                                                           % berm height used for overwash funciton (i.e. added to Dsf or Dbb)
+    SPIT.tideinteraction=S.tideinteraction;
+    SPIT.waveinteraction=S.waveinteraction;
+    SPIT.wavefile=S.wavefile;                                                         % wave table (.mat)
+    SPIT.surfwidth=S.surfwidth;                                                       % width of surf zone, where to update the bathymetry
+    SPIT.bathyupdate=S.bathyupdate;                                                   % the dates when the bathymetry should be updated, the input should be in dates form, can accept more than one  {'yyyy-mm-dd'};
     %% write logfile
     % struct2log(SPIT,'SPIT','a');
 

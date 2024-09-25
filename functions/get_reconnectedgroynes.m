@@ -1,16 +1,16 @@
 function [COAST]=get_reconnectedgroynes(COAST,GROYNE)   
 % function [COAST]=get_reconnectedgroynes(COAST,GROYNE)   
 %
-% INPUT : 
-%              COAST              coast data strcuture (e.g. field 'x_mc')
-%              WAVE               wave data structure (e.g. field 'Hso_mc')
-%              TRANSP             transport properties (e.g. field 'QS_mc')
-%              GROYNE             groyne data structure with field 'idcoast'   
+% INPUT:  
+%    COAST       : coast data strcuture (e.g. field 'x_mc')
+%    WAVE        : wave data structure (e.g. field 'Hso_mc')
+%    TRANSP      : transport properties (e.g. field 'QS_mc')
+%    GROYNE      : groyne data structure with field 'idcoast'   
 %
-% OUTPUT :
-%              COAST              coast data strcuture (e.g. field 'x_mc')
-%              WAVE               wave data structure (e.g. field 'Hso_mc')
-%              TRANSP             transport properties (e.g. field 'QS_mc')
+% OUTPUT:
+%    COAST       : coast data strcuture (e.g. field 'x_mc')
+%    WAVE        : wave data structure (e.g. field 'Hso_mc')
+%    TRANSP      : transport properties (e.g. field 'QS_mc')
 %
 %% Copyright notice
 %   --------------------------------------------------------------------
@@ -33,11 +33,11 @@ function [COAST]=get_reconnectedgroynes(COAST,GROYNE)
 %
 %   This library is distributed in the hope that it will be useful,
 %   but WITHOUT ANY WARRANTY; without even the implied warranty of
-%   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
+%   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU
 %   Lesser General Public License for more details.
 %
 %   You should have received a copy of the GNU Lesser General Public
-%   License along with this library. If not, see <http://www.gnu.org/licenses
+%   License along with this library. If not, see <http://www.gnu.org/licenses>
 %   --------------------------------------------------------------------
 
     COAST0=COAST;

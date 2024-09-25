@@ -1,17 +1,17 @@
 function [COAST]=get_transportpoints(COAST,i_mc_range)
 % function [COAST]=get_transportpoints(COAST,i_mc_range)
 % 
-% INPUT:
+% INPUT: 
 %   COAST
-%        .x_mc          x-coordinate of coastal segment [m]
-%        .y_mc          y-coordinate of coastal segment [m]
-%        .ds0           default grid cell size
-%        .BNDgroyne     index showing whether coastline element has a groyne at the beginning or end (.BNDgroyne=[0,1] means no groyne at the left and a groyne at the right side)
-%   i_mc_range          index of the to be evaluated coastline segment/element, leave empty if all coastline elements should be evaluated.
+%        .x_mc        : x-coordinate of coastal segment [m]
+%        .y_mc        : y-coordinate of coastal segment [m]
+%        .ds0         : default grid cell size
+%        .BNDgroyne   : index showing whether coastline element has a groyne at the beginning or end (.BNDgroyne=[0,1] means no groyne at the left and a groyne at the right side)
+%   i_mc_range        : index of the to be evaluated coastline segment/element, leave empty if all coastline elements should be evaluated.
 %
 % OUTPUT:
-%   xq_mc               x-coordinate of transport points [m]
-%   yq_mc               y-coordinate of transport points [m]
+%   xq_mc             : x-coordinate of transport points [m]
+%   yq_mc             : y-coordinate of transport points [m]
 %
 %% Copyright notice
 %   --------------------------------------------------------------------
@@ -34,11 +34,11 @@ function [COAST]=get_transportpoints(COAST,i_mc_range)
 %
 %   This library is distributed in the hope that it will be useful,
 %   but WITHOUT ANY WARRANTY; without even the implied warranty of
-%   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
+%   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU
 %   Lesser General Public License for more details.
 %
 %   You should have received a copy of the GNU Lesser General Public
-%   License along with this library. If not, see <http://www.gnu.org/licenses
+%   License along with this library. If not, see <http://www.gnu.org/licenses>
 %   --------------------------------------------------------------------
 
     % the function can be used for all coastline segments, or just this one

@@ -1,5 +1,24 @@
-function [H, phiw_cd, x_cd, y_cd]=get_interpolated_waves_from_grid(COAST,WAVE,xg,yg,Hg,phiwg)
-% function [H phiw_cd x_cd y_cd]=wave_refraction(COAST.x,COAST.y,WAVE.surf_width,xg,yg,Hg,phiwg)
+function [H,phiw_cd,x_cd,y_cd]=get_interpolated_waves_from_grid(x,y,n,nq,surfwidth,xg,yg,Hg,phiwg)
+% function [H,phiw_cd,x_cd,y_cd]=get_interpolated_waves_from_grid(x,y,n,nq,surfwidth,xg,yg,Hg,phiwg)
+% 
+% This function interpolates waves from a grid.
+% 
+% INPUT: 
+%    x              : x-coordinates of the coastline [m]
+%    y              : y-coordinates of the coastline [m]
+%    n              : number of grid cells of the coastline
+%    nq             : number of grid cells of the qs-points
+%    surfwidth      : surfzone width [m]
+%    xg             : x-coordinates of the wave grid [m]
+%    yg             : y-coordinates of the wave grid [m]
+%    Hg             : wave height field of the wave grid [m]
+%    phiwg          : wave direction fields of the wave grid [°N]
+%
+% OUTPUT: 
+%    H              : wave height [m]
+%    phiw_cd        : wave direction [°N]
+%    x_cd           : x-coordinates of wave stations [m]
+%    y_cd           : y-coordinates of wave stations [m]
 %
 %% Copyright notice
 %   --------------------------------------------------------------------
@@ -22,31 +41,31 @@ function [H, phiw_cd, x_cd, y_cd]=get_interpolated_waves_from_grid(COAST,WAVE,xg
 %
 %   This library is distributed in the hope that it will be useful,
 %   but WITHOUT ANY WARRANTY; without even the implied warranty of
-%   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
+%   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU
 %   Lesser General Public License for more details.
 %
 %   You should have received a copy of the GNU Lesser General Public
-%   License along with this library. If not, see <http://www.gnu.org/licenses
+%   License along with this library. If not, see <http://www.gnu.org/licenses>
 %   --------------------------------------------------------------------
 
     H=[];
     phiw_cd=[];
     %% create line at depth of closure x_cd, y_cd
     %COAST.n=length(COAST.x)-1;
-    for i=1:COAST.nq
-        i1=mod(i-1,COAST.n);
-        i2=mod(i,COAST.n);
+    for i=1:nq
+        i1=mod(i-1,n);
+        i2=mod(i,n);
         
-        dX=COAST.x(i2)-COAST.x(i1);
-        dY=COAST.y(i2)-COAST.y(i1);
+        dX=x(i2)-x(i1);
+        dY=y(i2)-y(i1);
         Hyp=hypot(dX,dY);
-        dx=WAVE.surf_width*sind(phiwg(1,1));
-        dy=WAVE.surf_width*cosd(phiwg(1,1));
-        x_cd(i)=0.5*(COAST.x(i1)+COAST.x(i2))+dx;
-        y_cd(i)=0.5*(COAST.y(i1)+COAST.y(i2))+dy;
+        dx=surfwidth*sind(phiwg(1,1));
+        dy=surfwidth*cosd(phiwg(1,1));
+        x_cd(i)=0.5*(x(i1)+x(i2))+dx;
+        y_cd(i)=0.5*(y(i1)+y(i2))+dy;
     end
-    for i=1:COAST.nq
-        if ~isnan(COAST.x)
+    for i=1:nq
+        if ~isnan(x)
             [row,col]=find_in_grid(xg,yg,x_cd(i),y_cd(i));
             if (size(row,1)>1)
                 break %continue%/break to check

@@ -5,8 +5,8 @@ function [status]=runShorelineS(runfile);
 % The model computes shoreline changes as a result of gradients in alongshore  
 % sediment transport for arbitrary shaped coastlines. 
 %
-% INPUT:
-%     runfile  filename of a textfile with datafields of ShorelineS input:
+% INPUT: 
+%     runfile  filename of a textfile with datafields of ShorelineS INPUT 
 %              <fieldname1> = <property1>
 %              <fieldname2> = <property2>
 %              ...
@@ -35,11 +35,11 @@ function [status]=runShorelineS(runfile);
 %
 %   This library is distributed in the hope that it will be useful,
 %   but WITHOUT ANY WARRANTY; without even the implied warranty of
-%   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
+%   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU
 %   Lesser General Public License for more details.
 %
 %   You should have received a copy of the GNU Lesser General Public
-%   License along with this library. If not, see <http://www.gnu.org/licenses
+%   License along with this library. If not, see <http://www.gnu.org/licenses>
 %   --------------------------------------------------------------------
 
     S=readkeys(runfile);

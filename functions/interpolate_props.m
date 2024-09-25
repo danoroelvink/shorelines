@@ -1,37 +1,38 @@
 function [COAST]=interpolate_props(COAST,DUNE,MUD,TIME)
 % function [COAST]=interpolate_props(COAST,DUNE,MUD,TIME)
-%
-% INPUT :
-%      COAST
-%         .x           : x-coordinate of transport points (m)
-%         .y           : y-coordinate of transport points (m)
-%      DUNE
-%         .xdune       : x coordinates where dune props are specified (m)
-%         .ydune       : y coordinates where dune props are specified
-%         .Wberm       : initial beach width at these locations (m)
-%         .Dfelev      : initial dune foot elevation (m)
-%         .Dcelev      : initial dune crest elevation (m)
-%         .Wberm_mc0   : initial beach width at start of simulation (m)
-%      MUD
-%         .xmgv        : x coordinates where mangrove props are specified (m)
-%         .ymgv        : y coordinates where mangrove props are specified (m)
-%         .Bf          : initial mud flat width (m)
-%         .Bm          : initial mangrove width (m)
-%
-% OUTPUT :
-%      COAST
-%         .Wberm    : beach width
-%         .Dfelev   : dune foot elevation
-%         .Dcelev   : dune crest elevation
 % 
-%         .Bf       : mud flat width
-%         .Bm       : mangrove width
-%         .Bfm      : Mangrove width on mud flat
+% This function re-interpolates parameters along the coast at 
+% every timestep, which is needed when the grid changes. 
+% 
+% INPUT: 
+%      COAST
+%         .x          : x-coordinate of transport points (m)
+%         .y          : y-coordinate of transport points (m)
+%      DUNE
+%         .xdune      : x coordinates where dune props are specified (m)
+%         .ydune      : y coordinates where dune props are specified
+%         .wberm      : initial beach width at these locations (m)
+%         .dfelev     : initial dune foot elevation (m)
+%         .dcelev     : initial dune crest elevation (m)
+%         .wberm_mc0  : initial beach width at start of simulation (m)
+%      MUD
+%         .xmgv       : x coordinates where mangrove props are specified (m)
+%         .ymgv       : y coordinates where mangrove props are specified (m)
+%         .Bf         : initial mud flat width (m)
+%         .Bm         : initial mangrove width (m)
 %
-%         .Cs       : 
-%         .Cstill   : 
-%         .xtill    : 
-%         .tillperc : 
+% OUTPUT:
+%      COAST
+%         .wberm      : beach width
+%         .dfelev     : dune foot elevation
+%         .dcelev     : dune crest elevation
+%         .Bf         : mud flat width
+%         .Bm         : mangrove width
+%         .Bfm        : Mangrove width on mud flat
+%         .cs         : erosion factor of sandy dunes
+%         .cstill     : erosion factor of cohesive/till dunes 
+%         .xtill      : width of the sand dune in front of the cohesive dune
+%         .tillperc   : percentage of cohesive material in the dunes (sand percentage = 100-perctill)
 % 
 %% Copyright notice
 %   --------------------------------------------------------------------
@@ -54,14 +55,14 @@ function [COAST]=interpolate_props(COAST,DUNE,MUD,TIME)
 %
 %   This library is distributed in the hope that it will be useful,
 %   but WITHOUT ANY WARRANTY; without even the implied warranty of
-%   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
+%   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU
 %   Lesser General Public License for more details.
 %
 %   You should have received a copy of the GNU Lesser General Public
-%   License along with this library. If not, see <http://www.gnu.org/licenses
+%   License along with this library. If not, see <http://www.gnu.org/licenses>
 %   --------------------------------------------------------------------
    if ~MUD.used && ~DUNE.used
-      COAST.Wberm = [];
+      COAST.wberm = [];
       return;
    end
    
@@ -73,36 +74,38 @@ function [COAST]=interpolate_props(COAST,DUNE,MUD,TIME)
       x            =   COAST.x;
       y            =   COAST.y;
       method       =   'weighted_distance';
+      
       if DUNE.used
-          % fprintf('  Interpolate dune properties alongshore \n');
-          %fldnms1={'Wberm','Dfelev','Dcelev','xhard','qshard','xtill','perctill'};
-          fieldnm1={'Wberm','Dfelev','Dcelev'};
+          % Interpolate sandy dune properties alongshore
+          fieldnm1={'wberm','dfelev','dcelev'};
           [var1i,idGRID,distw]=get_interpolation_on_grid(method,x,y,DUNE.xdune,DUNE.ydune,DUNE,fieldnm1,{});
-          COAST.Wberm  = var1i.Wberm(:)';
-          COAST.Dfelev  = var1i.Dfelev(:)';
-          COAST.Dcelev  = var1i.Dcelev(:)';
-          fieldnm1={'Cs','Cstill','xtill','perctill'};
+          COAST.wberm  = var1i.wberm(:)';
+          COAST.dfelev  = var1i.dfelev(:)';
+          COAST.dcelev  = var1i.dcelev(:)';
+          
+          % Interpolate cohesive dune properties alongshore
+          fieldnm1={'cs','cstill','xtill','perctill'};
           [var1i,idGRID,distw]=get_interpolation_on_grid(method,x,y,DUNE.xdune0,DUNE.ydune0,DUNE,fieldnm1,{});
-          COAST.Cs = var1i.Cs(:)';
-          COAST.Cstill = var1i.Cstill(:)';
+          COAST.cs = var1i.cs(:)';
+          COAST.cstill = var1i.cstill(:)';
           COAST.perctill = var1i.perctill(:)';
-          if TIME.it==0  %|| (~strcmpi(fieldnm1{ff},'xtill') && ~strcmpi(fieldnm1{ff},'xhard'))
-              COAST.xtill  = var1i.xtill(:)';
-              %COAST.xhard  = var1i.xhard(:)';
-          else
+          COAST.xtill  = var1i.xtill(:)';
+          
+          % Make sure to either initialize the 'xtill' or re-interpolate. 
+          if TIME.it~=0 && ~isempty(DUNE.xtill)
               x1_mc=COAST.x1_mc;
               y1_mc=COAST.y1_mc;
               if COAST.i_mc==1
                   COAST.xtill_mc1=COAST.xtill_mc(:)'; % cross-shore position of till in dune [m w.r.t. dune front]
-                  %COAST.xhard_mc1=COAST.xhard_mc(:)'; % cross-shore position of hard layer in coast [m w.r.t. coastline]
               end
-              fieldnm1={'xtill_mc1'};             
+              fieldnm1={'xtill_mc1'};         
+              COAST.xtill_mc1=interpNANs(COAST.xtill_mc1);
               [var1i]=get_interpolation_on_grid(method,x,y,x1_mc,y1_mc,COAST,fieldnm1,{});
               COAST.xtill=var1i.xtill_mc1(:)';
           end
       end
       if MUD.used
-          % fprintf('  Interpolate mangrove properties alongshore \n');
+          % Interpolate mangrove properties alongshore
           fieldnm1={'Bf','Bm','Bfm'};
           [var1i,~,~]=get_interpolation_on_grid(method,x,y,MUD.xmgv,MUD.ymgv,MUD,fieldnm1,{});
           for ff=1:length(fieldnm1)

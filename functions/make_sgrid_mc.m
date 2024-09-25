@@ -1,28 +1,53 @@
 function [COAST]=make_sgrid_mc(COAST,TIME,i_mc)
 % function [COAST]=make_sgrid_mc(COAST,TIME,i_mc)
+%
+% The model grid is made in this function. There are two
+% methods for creating the grid:
+%   griddingmethod 1 : split or merge only the cells that are 
+%                      too small or too large. This approach 
+%                      reduces diffusion in the grid generation. 
+%   griddingmethod 2 : re-interpolates the whole grid if a single
+%                      grid cell is too large or too small.
+%                      This very stable but does effectively 
+%                      creates a small bit of diffusion. 
+%
+% INPUT: 
+%     COAST
+%         .x_mc           : x-coordinates of all coastal sections [m]
+%         .y_mc           : y-coordinates of all coastal sections [m]
+%         .ds0            : preferred grid cell size [m]
+%         .griddingmethod : method of grid generation, either:
+%                           1=locally split/merge cells if needed, or 
+%                           2=re-generate a full smooth grid when threshold is exceeded
+%     TIME      
+%         .it             : timestep index (starts at it=0 at model start)
+%     i_mc                : index of the active coastline element       
 % 
 % OUTPUT:
 %     COAST
-%         .s       : alongshore distance along the grid [m]
-%         .x       : x-coordinates of considered coastal section [m]
-%         .y       : y-coordinates of considered coastal section [m]
-%         .n       : number of points of considered coastal section
-%         .xq      : x-coordinates of transport points in section (m)
-%         .yq      : y-coordinates of transport points in section (m)
-%         .nq      : number of transpor tpoints in section.
-%         .x_mc    : x-coordinate of coastline (all sections)
-%         .y_mc    : y-coordinate of coastline (all sections)
-%         .ar      : area (not computed)
-%         .cyclic  : Index describing whether the considered coastline section is cyclic
-%     TIME      
-%         .it   
-%     i_mc      
+%         .x              : x-coordinates of considered coastal section [m]
+%         .y              : y-coordinates of considered coastal section [m]
+%         .n              : number of points of the considered coastal section
+%         .ds             : grid cell size [m]
+%         .xq             : x-coordinates of transport points in section (m)
+%         .yq             : y-coordinates of transport points in section (m)
+%         .nq             : number of transport points in the considered coastal section.
+%         .dsq            : grid cell size for QS-points [m]
+%         .x_mc           : x-coordinate of coastline (all sections)
+%         .y_mc           : y-coordinate of coastline (all sections)
+%         .n_mc           : number of coastal sections
+%         .cyclic         : index describing whether the considered coastline section is cyclic
+%         .clockwise      : index describing whether the considered coastline section is cyclic
+%         .idgrid         : identifiers storing the index of the gridcells in the former administration for the new grid (e.g. showing a number with a 0.5 is a cell was doubled)
+%         .idgridnr       : identifiers storing cells that were split or doubled (e.g. showing 0 if a cell is removed and 2 if it is doubled)
+%         .gridchange     : status indicator showing whether the grid has changed in this timestep-iteration
 % 
-% Example:
+% Example :
 %         COAST.x_mc=[0,40,1000,1200,2500,4022,4023];
 %         COAST.y_mc=[100,101,100,100,200,300,320];
+%         TIME.it=10;
 %         i_mc=1;
-%         [COAST]=make_sgrid_mc(COAST,i_mc);
+%         [COAST]=make_sgrid_mc(COAST,TIME,i_mc);
 %
 %% Copyright notice
 %   --------------------------------------------------------------------
@@ -45,17 +70,18 @@ function [COAST]=make_sgrid_mc(COAST,TIME,i_mc)
 %
 %   This library is distributed in the hope that it will be useful,
 %   but WITHOUT ANY WARRANTY; without even the implied warranty of
-%   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
+%   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU
 %   Lesser General Public License for more details.
 %
 %   You should have received a copy of the GNU Lesser General Public
-%   License along with this library. If not, see <http://www.gnu.org/licenses
+%   License along with this library. If not, see <http://www.gnu.org/licenses>
 %   --------------------------------------------------------------------
     eps=0.1;
     sqrt2=sqrt(2.);
     %% find number of sections
     [x,y]=get_one_polygon( COAST.x_mc,COAST.y_mc,i_mc );  
     clockwise=get_clockpoly(x,y);
+    COAST.gridchange=0;
     
     %% METHOD 1: preserve existing points as much as possible by splitting cells -> a quick method wherein only relevant cells are changed with low diffusion, but with a less smooth grid
     if COAST.griddingmethod==1
@@ -64,6 +90,8 @@ function [COAST]=make_sgrid_mc(COAST,TIME,i_mc)
         niter=1;
         if TIME.it==0 
             niter=10; % at t=0 it needs more iterations
+            % make sure to update the grid interpolation at t0
+            COAST.gridchange=1;
         end 
         
         for mm=1:niter
@@ -84,9 +112,9 @@ function [COAST]=make_sgrid_mc(COAST,TIME,i_mc)
 
             if max(ds./ds0imean>2)==1 || max(ds./ds0imean<0.5)==1
             %if max(ds)>2*COAST.ds0 || min(ds)<COAST.ds0/2
+                COAST.gridchange=1;
                 % compute number of grid cells that can fit in-between each xy-point.
                 sn0=ds./ds0imean;
-                %sn0=ds./COAST.ds0;
 
                 % make sure last x,y point is accounted for by adding the relative fraction of a grid cell of adjacent cells (near the end, until it is at least > 0.5*ds0)
                 if sn0(end)<0.5
@@ -115,9 +143,6 @@ function [COAST]=make_sgrid_mc(COAST,TIME,i_mc)
                     sn=round(sn0(ii)+sn0rest);
                     idgridnr(1,ii)=sn;
                     sn0rest=max(sn0(ii)+sn0rest-sn,0);
-                    %if ii==length(sn0)
-                    %    sn=max(sn,1);
-                    %end
                     if sn>0
                         s2=[snew(end):(s(ii+1)-snew(end))/sn:s(ii+1)];   
                         id2=idgrid(end)+[1:1:sn]/sn;
@@ -151,6 +176,7 @@ function [COAST]=make_sgrid_mc(COAST,TIME,i_mc)
         
         %if max(ds./ds0imean>2)==1 || TIME.it==0 
         if max(ds)>2*ds0 || TIME.it==0 
+            COAST.gridchange=1;
             % remove double points
             IDunique = [true,ds>eps];
             x0=x(IDunique);
@@ -169,10 +195,8 @@ function [COAST]=make_sgrid_mc(COAST,TIME,i_mc)
         %[ds0i,ds0imean]=get_gridsize(x,y,COAST.ds0);
         while i<=length(snew)            
             ds2=snew(i)-snew(i-1);
-            %sref=snew;
-            %ds0imean=(ds0i(1:end-1)+ds0i(2:end))/2;
-            %if ds<ds0imean(i-1)/sqrt(2) && snew(end)>=ds0imean(i-1)/sqrt2
             if ds2<ds0/sqrt2 && snew(end)>=ds0/sqrt2
+                COAST.gridchange=1;
                 %throw out point i
                 if i>2 && i<length(snew)
                     snew=[snew(1:i-1),snew(i+1:end)];
@@ -183,14 +207,10 @@ function [COAST]=make_sgrid_mc(COAST,TIME,i_mc)
                 else
                     i=i+1;
                 end
-                %ds0i=interp1(sref,ds0i,snew);
-                %sref=snew;
-            %elseif ds>ds0imean(i-1)*sqrt(2)
             elseif ds2>ds0*sqrt2 
+                COAST.gridchange=1;
                 %insert point i                
                 snew=[snew(1:i-1),.5*(snew(i-1)+snew(i)),snew(i:end)];
-                %ds0i=interp1(sref,ds0i,snew);
-                %sref=snew;
                 i=i+1;
             else
                 i=i+1;
@@ -267,14 +287,11 @@ function [COAST]=make_sgrid_mc(COAST,TIME,i_mc)
     COAST.n=length(x);
     COAST.s=s;
     COAST.ds=ds;
-    %COAST.ds0i=ds0i;
-    %COAST.ds0imean=ds0imean;
     COAST.xq=xq;
     COAST.yq=yq;
     COAST.dsq=[ds(1),(ds(1:end-1)+ds(2:end))/2,ds(end)];
     COAST.nq=length(xq);
     COAST.cyclic=cyclic;
-    %COAST.ar=ar;
     COAST.clockwise=clockwise;
     
     %% insert x,y back into COAST.x_mc,COAST.y_mc

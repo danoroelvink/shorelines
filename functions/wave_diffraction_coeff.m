@@ -1,13 +1,16 @@
 function [kd]=wave_diffraction_coeff(omega,kdform,wdform,dspr)
 % function [kd]=wave_diffraction_coeff(omega,kdform,wdform,dspr)
 %
-% INPUT:
-%    omega   : angle difference in degrees
-%    kdform  : either 'Kamphuis' or 'Roelvink'
-%    dpsr    : (optional) directional spreading
+% The wave height reduction as a result of wave diffraction is computed in this routine. 
+% 
+% INPUT: 
+%    omega   : angle difference in degrees [°]
+%    kdform  : method for computing wave height attenuation due to diffraction (either 'Kamphuis' or 'Roelvink')
+%    wdform  : method for computing impact of directional spreading on direction of diffracted waves (either 'Roelvink' or 'Dabees'/'Kamphuis')
+%    dpsr    : (optional) directional spreading [°]
 %
 % OUTPUT:
-%    kd      : wave height reduction factor
+%    kd      : wave height reduction factor [-]
 %
 %% Copyright notice
 %   --------------------------------------------------------------------
@@ -30,11 +33,11 @@ function [kd]=wave_diffraction_coeff(omega,kdform,wdform,dspr)
 %
 %   This library is distributed in the hope that it will be useful,
 %   but WITHOUT ANY WARRANTY; without even the implied warranty of
-%   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
+%   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU
 %   Lesser General Public License for more details.
 %
 %   You should have received a copy of the GNU Lesser General Public
-%   License along with this library. If not, see <http://www.gnu.org/licenses
+%   License along with this library. If not, see <http://www.gnu.org/licenses>
 %   --------------------------------------------------------------------
 
     % create discretized components of the directional spectrum with their probabilities

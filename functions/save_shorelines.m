@@ -1,34 +1,131 @@
 function [O,P,itout]=save_shorelines(O,P,S,TIME,COAST,WAVE,TRANSP,STRUC,NOUR,FNOUR,GROYNE,DUNE,MUD)
 % function [O,P,itout]=save_shorelines(O,P,S,TIME,COAST,WAVE,TRANSP,STRUC,NOUR,FNOUR,GROYNE,DUNE,MUD)
 %
-% INPUT:
-%      O                                                    % Output structure (where data is added to)
-%      P                                                    % Output structure on projected grid (where data is added to)
-%           .xg                                             % x-coordinates of output grid on which data is projected
-%           .yg                                             % y-coordinates of output grid on which data is projected
-%           .itout                                          % current output timestep 
-%           .cntr                                           % number of timesteps that have evolved for the current output timestep 'ind'
-%      S                                                    % Model input data structure
-%      TIME
-%           .it,.dt,.tc,.nt,.timenum1,.timenum0,...         % model time parameters
-%           .itout,.storageinterval                         % output time parameters
-%      COAST
-%           .x_mc,.y_mc,.dSds,...                           % x,y (after coastline update) and coastline change
-%           .x_mc1,.y_mc1,.PHIc,.QS,...                     % x,y (before coastline update) and corresponding QS
-%      WAVE
-%          .HSo,.PHIo,.tper,.PHIf,...                       % offshore waves & lower-shoreface orientation
-%          .HS,.PHI,.dPHI,...                               % nearshore waves at depth-of-closure
-%          .HSbr,.PHIbr,.dPHIbr,.hbr,...                    % waves at point of breaking
-%      STRUC                                                % structures
-%          .x_hard
-%          .y_hard
-%      NOUR
-%          .x_nour,.y_nour,...                              % nourishment locations
-%      GROYNE                                               % groyne locations
-%          .x
-%          .y
+% INPUT: 
+%     O                    : Data structure with raw instanteneous data (where data is added to)
+%     P                    : Data structure with projected and time-averaged data on a grid (where data is added to)
+%         .xg              : x-coordinates of output grid on which data is projected
+%         .yg              : y-coordinates of output grid on which data is projected
+%         .itout           : current output timestep 
+%         .cntr            : number of timesteps that have evolved for the current output timestep 'ind'
+%     S                    : Model input data structure
+%     TIME
+%         .it              : timestep index (starts at it=0 at model start)
+%         .dt              : timestep [years]
+%         .tc              : ratio of adaptive time step (tc=0 means using a fixed timestep)
+%         .nt              : number of timesteps
+%         .tnow            : current model time [days in datenum format]
+%         .timenum0        : model start time [days in datenum format]
+%         .itout           : timestep index of next output moment   
+%         .storageinterval : interval between output moments [days]
+%     COAST
+%         .x_mc            : x-coordinates of the coastline of all elements
+%         .y_mc            : y-coordinates of the coastline of all elements
+%         .x_mc1           : x-coordinates of the initial coastline of all elements at t0
+%         .y_mc1           : y-coordinates of the initial coastline of all elements at t0
+%         .dSds            : coastline change rate 
+%         .PHIc            : coastline orientation of the current coastline [°N]
+%         .QS              : transport along the coast [m3/yr]
+%         .QSmax           : maximum theoretical transport capacity along the coast [m3/yr]
+%     WAVE
+%         .HSo             : offshore wave height along the coast [m]
+%         .PHIo            : offshore wave direction along the coast [°N]
+%         .tper            : wave period along the coast [s]
+%         .PHIf            : lower-shoreface orientation [°N]
+%         .HS              : significant wave height at depth-of-closure [m]
+%         .PHI             : wave direction at depth-of-closure [°N] 
+%         .dPHI            : relative angle of nearshore waves at depth-of-closure w.r.t. coastline [°]
+%         .HSbr            : significant wave height at point of breaking [m]
+%         .PHIbr           : wave direction at point of breaking [°N] 
+%         .dPHIbr          : relative angle of waves at point of breaking w.r.t. coastline [°]  
+%         .hbr             : waves at point of breaking
+%     STRUC                : structures
+%         .xhard           : x-coordinates of the hard structures
+%         .yhard           : y-coordinates of the hard structures
+%     NOUR
+%         .xnour           : x-coordinates of the nourishment locations
+%         .ynour           : y-coordinates of the nourishment locations
+%     GROYNE               : groyne locations
+%         .x               : x-coordinates of the groynes
+%         .y               : y-coordinates of the groynes
 % OUTPUT:
-%      O                                        % Output structure with corresponding fields to the input variables
+%     O                    : Data-structure with raw instanteneous data, with corresponding fields to the input variables
+%         .it              : timestep index (starts at it=0 at model start)
+%         .dt              : timestep [years]
+%         .tc              : ratio of adaptive time step (tc=0 means using a fixed timestep)
+%         .nt              : number of timesteps
+%         .timenum         : current model time [days in datenum format]
+%         .n               : number of cells of all coastline elements [-]
+%         .x               : x-coordinates of all coastline elements [m], where elements are separated by NaNs
+%         .y               : y-coordinates of all coastline elements [m], where elements are separated by NaNs
+%         .wberm           : width of the berm/beach [m]
+%         .qs              : dune erosion volume change that increases the beach width [m3/m/yr]
+%         .ql              : dune erosion volume change that does not increase the beach width [m3/m/yr]
+%         .qw              : wind transport from the beach to the dune [m3/m/yr]
+%         .R               : runup level for dune erosion [m]
+%         .SWL             : still water level for dune erosion [m]
+%         .PHIcxy          : shore-normal orientation at coastline points [°N]
+%         .xdune           : x-coordinates of the dunes [m]
+%         .ydune           : y-coordinates of the dunes [m]
+%         .Bf              : mud flat width [m]
+%         .Bm              : mangrove width [m]
+%         .Bfm             : colonizing mangrove width [m]
+%         .distx           : alongshore distance along the coastline elements [m]
+%         .distQS          : alongshore transport along the coastline elements [m]
+%         .dSds            : coastline change rate
+%         .n1              : number of cells of all coastline elements at t0 [-]
+%         .x1              : x-coordinates of all coastline elements at t0 [m]
+%         .y1              : y-coordinates of all coastline elements at t0 [m]
+%         .distx1          : alongshore distance along the coastline elements at t0 [m]
+%         .distQS1         : alongshore transport along the coastline elements at t0 [m]
+%         .PHIc            : coastline orientation of the current coastline [°N]
+%         .QS              : transport along the coast [m3/yr]
+%         .HSo             : offshore wave height along the coast [m]
+%         .PHIo            : offshore wave direction along the coast [°N]
+%         .TP              : wave period along the coast [s]
+%         .PHIf            : lower-shoreface orientation [°N]
+%         .HS              : significant wave height at depth-of-closure [m]
+%         .PHI             : wave direction at depth-of-closure [°N] 
+%         .dPHI            : relative angle of nearshore waves at depth-of-closure w.r.t. coastline [°]
+%         .HSbr            : significant wave height at point of breaking [m]
+%         .PHIbr           : wave direction at point of breaking [°N] 
+%         .dPHIbr          : relative angle of waves at point of breaking w.r.t. coastline [°] 
+%         .hbr             : depth at point of breaking [m]
+%         .xhard           : x-coordinates of the hard structures
+%         .yhard           : y-coordinates of the hard structures
+%         .nhard           : number of structures
+%         .xnour           : x-coordinates of the nourishment locations
+%         .ynour           : y-coordinates of the nourishment locations
+%         .nnour           : number of nourishments
+%         .x_fnour         : x-coordinates of shoreface nourishment locations
+%         .y_fnour         : y-coordinates of shoreface nourishment locations
+%         .n_fnour         : number of shoreface nourishments
+%         .V_fnour_t       : volume of shoreface nourishments
+%         .q_fnour_t       : discharge rate of shoreface nourishments
+%     P                    : Data structure with projected on a grid which is for the waves and transports also time-averaged data in-between output timesteps, with the following fields:
+%         .it              : timestep index (starts at it=0 at model start)
+%         .itout           : index for the next output step of the P-structure
+%         .cntr            : reset counter for moving average of current output step of the P-structure
+%         .tc              : ratio of adaptive time step (tc=0 means using a fixed timestep)
+%         .dt              : timestep [years]
+%         .nt              : number of timesteps
+%         .timenum         : model time at output timesteps [days in datenum format]
+%         .xg              : x-coordinates of the output grids [m], where elements are separated by NaNs
+%         .yg              : y-coordinates of the output grids [m], where elements are separated by NaNs
+%         .zg              : cross-shore position of the fitted coastline at each output timestep w.r.t. shorenormal transects of the output grid [m]
+%         .xc              : x-coordinates of the fitted coastline at each output timestep w.r.t. the output grid [m]
+%         .yc              : y-coordinates of the fitted coastline at each output timestep w.r.t. the output grid [m]
+%         .TP              : wave period along the output grid [s]
+%         .HSo             : offshore wave height along the output grid [m]
+%         .HStdp           : significant wave height at depth-of-closure along the output grid [m]
+%         .HSbr            : significant wave height at point of breaking along the output grid [m]
+%         .PHIc            : orientation of the coastline along the output grid [°N]
+%         .PHIf            : lower-shoreface orientation along the output grid [°N]
+%         .PHIo            : wave direction at offshore along the output grid [°N] 
+%         .PHItdp          : wave direction at depth-of-closure along the output grid [°N] 
+%         .PHIbr           : wave direction at point of breaking along the output grid [°N] 
+%         .QS              : transport along the coast [m3/yr]
+%         .QSmax           : maximum theoretical transport capacity along the coast [m3/yr]
 %
 %% Copyright notice
 %   --------------------------------------------------------------------
@@ -51,11 +148,11 @@ function [O,P,itout]=save_shorelines(O,P,S,TIME,COAST,WAVE,TRANSP,STRUC,NOUR,FNO
 %
 %   This library is distributed in the hope that it will be useful,
 %   but WITHOUT ANY WARRANTY; without even the implied warranty of
-%   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
+%   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU
 %   Lesser General Public License for more details.
 %
 %   You should have received a copy of the GNU Lesser General Public
-%   License along with this library. If not, see <http://www.gnu.org/licenses
+%   License along with this library. If not, see <http://www.gnu.org/licenses>
 %   --------------------------------------------------------------------
 
     % only save data when a stoarge time-interval has passed
@@ -82,7 +179,7 @@ function [O,P,itout]=save_shorelines(O,P,S,TIME,COAST,WAVE,TRANSP,STRUC,NOUR,FNO
             Bfm_mc=COAST.Bfm_mc;
         end
         if DUNE.used
-            Wberm_mc=COAST.Wberm_mc;
+            wberm_mc=COAST.wberm_mc;
             qs_mc=COAST.qs_mc;
             ql_mc=COAST.ql_mc;
             qw_mc=COAST.qw_mc;
@@ -92,28 +189,28 @@ function [O,P,itout]=save_shorelines(O,P,S,TIME,COAST,WAVE,TRANSP,STRUC,NOUR,FNO
             xdune = COAST.xdune;
             ydune = COAST.ydune;
         end
-        dSds=COAST.dSds_mc;                       % x,y (after coastline update) and coastline change
+        dSds=COAST.dSds_mc;                 % x,y (after coastline update) and coastline change
         x_mc1=COAST.x1_mc;
         y_mc1=COAST.y1_mc;
         PHIc=COAST.PHIc_mc;
-        QS=TRANSP.QS_mc;                          % x,y (before coastline update) and corresponding QS
+        QS=TRANSP.QS_mc;                    % x,y (before coastline update) and corresponding QS
         HSo=WAVE.HSo_mc;
         PHIo=WAVE.PHIo_mc;
         TP=WAVE.TP_mc;
-        PHIf=COAST.PHIf_mc;                          % offshore waves & lower-shoreface orientation
+        PHIf=COAST.PHIf_mc;                 % offshore waves & lower-shoreface orientation
         HS=WAVE.HStdp_mc;
         PHI=WAVE.PHItdp_mc;
-        dPHI=WAVE.dPHItdp_mc;                     % nearshore waves at depth-of-closure
+        dPHI=WAVE.dPHItdp_mc;               % nearshore waves at depth-of-closure
         HSbr=WAVE.HSbr_mc;
         PHIbr=WAVE.PHIbr_mc;
         dPHIbr=WAVE.dPHIbr_mc;
-        hbr=WAVE.hbr_mc;                          % waves at point of breaking
-        x_hard=STRUC.x_hard;
-        y_hard=STRUC.y_hard;                      % structures
-        x_nour=NOUR.x_nour;
-        y_nour=NOUR.y_nour;                       % nourishment locations
+        hbr=WAVE.hbr_mc;                    % waves at point of breaking
+        xhard=STRUC.xhard;
+        yhard=STRUC.yhard;                  % structures
+        xnour=NOUR.xnour;
+        ynour=NOUR.ynour;                 % nourishment locations
         x_groyne=GROYNE.x;
-        y_groyne=GROYNE.y;
+        y_groyne=GROYNE.y;                  % groyne locations on shoreline
         if FNOUR.fnourish == 1
             x_fnour=FNOUR.x;                % shoreface nourishment info 
             y_fnour=FNOUR.y;
@@ -149,7 +246,7 @@ function [O,P,itout]=save_shorelines(O,P,S,TIME,COAST,WAVE,TRANSP,STRUC,NOUR,FNO
         [O.x]         = addVECTOR(O.x, x_mc');
         [O.y]         = addVECTOR(O.y, y_mc');
         if DUNE.used
-            [O.Wberm] = addVECTOR(O.Wberm, Wberm_mc'); 
+            [O.wberm] = addVECTOR(O.wberm, wberm_mc'); 
             [O.qs]    = addVECTOR(O.qs, qs_mc'); 
             [O.ql]    = addVECTOR(O.ql, ql_mc'); 
             [O.qw]    = addVECTOR(O.qw, qw_mc'); 
@@ -174,6 +271,8 @@ function [O,P,itout]=save_shorelines(O,P,S,TIME,COAST,WAVE,TRANSP,STRUC,NOUR,FNO
         [O.y1]        = addVECTOR(O.y1, y_mc1');
         [O.distx1]    = addVECTOR(O.distx1, distx1');
         [O.distQS1]   = addVECTOR(O.distQS1, distQS1');
+        
+        % coastline orientation and transport
         [O.PHIc]      = addVECTOR(O.PHIc, PHIc');
         [O.QS]        = addVECTOR(O.QS, QS');
 
@@ -195,16 +294,16 @@ function [O,P,itout]=save_shorelines(O,P,S,TIME,COAST,WAVE,TRANSP,STRUC,NOUR,FNO
         [O.hbr]       = addVECTOR(O.hbr, hbr);
 
         % structures
-        [O.x_hard]    = addVECTOR(O.x_hard, x_hard');
-        [O.y_hard]    = addVECTOR(O.y_hard, y_hard');
-        [O.n_hard]    = addVECTOR(O.n_hard, length(y_hard));
-
+        [O.xhard]     = addVECTOR(O.xhard, xhard');
+        [O.yhard]     = addVECTOR(O.yhard, yhard');
+        [O.nhard]     = addVECTOR(O.nhard, length(yhard));
+        
         % nourishments
-        [O.x_nour]    = addVECTOR(O.x_nour, x_nour');
-        [O.y_nour]    = addVECTOR(O.y_nour, y_nour');
-        [O.n_nour]    = addVECTOR(O.n_nour, length(y_nour));
+        [O.xnour]    = addVECTOR(O.xnour, xnour');
+        [O.ynour]    = addVECTOR(O.ynour, ynour');
+        [O.nnour]    = addVECTOR(O.nnour, length(ynour));
 
-        % groyne locations
+        % groyne locations at shoreline
         [O.x_groyne]  = addVECTOR(O.x_groyne, x_groyne(:));
         [O.y_groyne]  = addVECTOR(O.y_groyne, y_groyne(:));
 
@@ -231,7 +330,7 @@ function [O,P,itout]=save_shorelines(O,P,S,TIME,COAST,WAVE,TRANSP,STRUC,NOUR,FNO
         % number of timesteps that have evolved for the current output timestep 'ind'
         cntr=P(pp).cntr;
         
-        % output projection grid used for exporting data
+        % OUTPUT: projection grid used for exporting data
         xp=P(pp).xg;
         yp=P(pp).yg;
         % xq grid stored after the collect variables step
