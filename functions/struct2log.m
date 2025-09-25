@@ -31,17 +31,30 @@ function struct2log(P,structname,writeopt)
 %   License along with this library. If not, see <http://www.gnu.org/licenses>
 %   --------------------------------------------------------------------
 
-    % Get the field names of the P structure
-    fieldname = fieldnames(P);
     % Open a file for appending
     fid = fopen('logfile.txt', writeopt);
 
-    % Write the structure contents to the file
-    fprintf(fid, '%s\n',['%%%%%%%%%%% ',structname,' ',repmat('%',[1,15-length(structname)])]);
-    for i=1:length(fieldname)
-        val = P.(fieldname{i});
-        fieldnm = fieldname{i};
-        printinputfield(fid,fieldnm,val,' ');
+    if ischar(P)
+        % print the characters of a warning message to the log-file
+        if ischar(structname)
+            structname={structname};
+        end
+        for jj=1:length(structname)
+            fprintf(fid, '%s\n',[structname{jj}]);
+            if strcmpi(P,'print') || strcmpi(P,'warning')
+                fprintf('%s\n',[structname{jj}]);
+            end
+        end
+    else
+        % Get the field names of the P structure
+        fieldname = fieldnames(P);
+        % Write the structure contents to the file
+        fprintf(fid, '%s\n',['%%%%%%%%%%% ',structname,' ',repmat('%',[1,15-length(structname)])]);
+        for i=1:length(fieldname)
+            val = P.(fieldname{i});
+            fieldnm = fieldname{i};
+            printinputfield(fid,fieldnm,val,' ');
+        end
     end
     fprintf(fid, '\n');
     % Close the file

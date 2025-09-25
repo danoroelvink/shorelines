@@ -52,12 +52,11 @@ function [S,O]=ShorelineS(S0)
     %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
     %% DEFAULT INPUT PARAMETERS
     %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-    tstart    = now;
     [S]       = initialize_defaultvalues(S0);
     [S]       = initialize_randomgenerator(S);
     [TIME]    = initialize_time(S);
     [COAST]   = prepare_coastline(S);
-    [DUNE]    = prepare_dunes(S);
+    [DUNE]    = prepare_dunes(S,COAST);
     [CC]      = prepare_climatechange(S,TIME);
     [WAVE]    = prepare_waveconditions(S,TIME);
     [RUNUP]   = prepare_runupconditions(S,TIME);
@@ -73,14 +72,13 @@ function [S,O]=ShorelineS(S0)
     [DELTA]   = prepare_delta(S);
     [BATHY]   = initialize_bathyupdate(S);
     [FORMAT]  = initialize_plot(S,COAST);    
-    [O,P,V]   = initialize_output(S);
-    TIME.adt=1/365/24;
+    [O,P,V]   = initialize_output(S,TIME,COAST,DUNE,MUD);
     
     %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
     %% Loop over time
     %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
     fprintf('  Loop over time \n'); 
-    while  TIME.tnow<TIME.tend || (TIME.tnow==TIME.tend && TIME.tc==0)
+    while TIME.tnow<TIME.tend || (TIME.tnow==TIME.tend && TIME.tc==0)
         TIME.it=TIME.it+1; 
         TIME.nt=TIME.it; 
         
@@ -89,6 +87,7 @@ function [S,O]=ShorelineS(S0)
             save('debug.mat'); 
             if ~isoctave, warning on, end
         end 
+
         %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
         %% PHASE 0 : GRID                                        %%
         %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
@@ -112,9 +111,9 @@ function [S,O]=ShorelineS(S0)
             
             %% Interpolate wave conditions along the coast
             [WAVE]=introduce_wave(WAVE,TIME,COAST,CC);
-            
+                        
             %% Interpolate runup conditions along the coast
-            [RUNUP]=introduce_runup(RUNUP,TIME,COAST,DUNE,STRUC);
+            [RUNUP]=introduce_runup(RUNUP,TIME,COAST,DUNE,STRUC,WAVE);
             
             %% Interpolate tide components along the coast
             [TIDE]=interpolate_tide(TIDE,COAST);
@@ -168,28 +167,28 @@ function [S,O]=ShorelineS(S0)
             [TRANSP,WAVE]=transport_shadow_treat(COAST,STRUC,WAVE,TRANSP);
             
             %% Revetments
-            [TRANSP,COAST]=transport_revetment(COAST,STRUC,TRANSP,TIME);  
+            [TRANSP,COAST]=transport_revetment(COAST,STRUC,TRANSP,TIME,WAVE);  
             
             %% Smoothen shoreline angles
             [COAST,TRANSP]=get_smoothangles(COAST,TRANSP);
             
             %% Upwind correction for high-angle -> using wave angle at the nearshore location ('tdp')
-            [TRANSP]=get_upwindcorrection(COAST,WAVE,TRANSP,SPIT);          
+            [TRANSP]=get_upwindcorrection(COAST,WAVE,TRANSP);          
             
             %% Sand Bypassing and Transmission (GROYNE.QS)
             [GROYNE]=transport_bypass(TRANSP,WAVE,COAST,STRUC,GROYNE,TIDE);
             
             %% Cross-shore flux from/to dune
-            [DUNE,COAST]=dune_flux(COAST,DUNE,WIND,RUNUP,TRANSP,TIME);
+            [DUNE,COAST]=dune_flux(COAST,DUNE,WIND,RUNUP,TRANSP,TIME,CC);
             
             %% Boundary condition
             [TRANSP]=transport_boundary_condition(TRANSP,COAST,GROYNE);      
             
             %% Adaptive time step based on transport of separate coastline sections
-            [TIME]=get_timestep(TIME,COAST,TRANSP);
+            [TIME]=get_timestep(TIME,COAST,TRANSP,WAVE);
             
             %% Collect QS, s and WAVE.PHItdp in QS_mc, WAVE.PHIo_mc and s_mc -> stores the data of this coastline section in 'mc'
-            [COAST,WAVE,TRANSP]=collect_variables(COAST,WAVE,TRANSP,DUNE,MUD,i_mc);
+            [COAST,WAVE,TRANSP]=collect_variables(COAST,WAVE,TRANSP,DUNE,MUD,GROYNE,TIME,i_mc);
             
             %% debugging plot for QS and SPHI
             plot_debug(S.debug,COAST,WAVE,TRANSP); % only used when S.debug=1;
@@ -213,6 +212,7 @@ function [S,O]=ShorelineS(S0)
         %% Re-connect coastal sections at groynes                     %%
         %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
         for i_mc=1:COAST.n_mc
+            
             %% Retrieve data of individual segment (i_mc)
             [COAST,WAVE,TRANSP]=get_segmentdata(COAST,WAVE,TRANSP,DUNE,MUD,i_mc);
             
@@ -223,7 +223,7 @@ function [S,O]=ShorelineS(S0)
             [FNOUR]=get_fnourishment(TIME,COAST,FNOUR,WAVE,i_mc);
             
             %% Coastline change 
-            [COAST,GROYNE,STRUC]=coastline_change(COAST,WAVE,TRANSP,DUNE,MUD,STRUC,GROYNE,TIME,NOUR,FNOUR,CC);
+            [COAST,GROYNE,STRUC,TRANSP]=coastline_change(COAST,WAVE,TRANSP,DUNE,MUD,STRUC,GROYNE,TIME,NOUR,FNOUR,CC);
             
         end % loop over sections
         
@@ -237,21 +237,24 @@ function [S,O]=ShorelineS(S0)
         %% Move channels                                              %%
         %% Splitting and Merging coastlines                           %%
         %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-        
+
         %% Overwash process
         [COAST,SPIT]=find_overwash_mc(COAST,WAVE,SPIT,STRUC,TRANSP,DUNE,MUD,TIME);
         
+        %% Move channel
+        [CHANNEL,COAST]=move_channel(CHANNEL,COAST,TIME);
+        
         %% reconnect coastlines through groynes
         [COAST]=get_reconnectedgroynes(COAST,GROYNE); 
-        
-        %% move channel
-        [CHANNEL,COAST]=move_channel(CHANNEL,COAST,TIME);
         
         %% merge multiple coastline sections -> only x_mc and y_mc are currently merged.
         for i_mc=1:COAST.n_mc
             [COAST]=merge_coastlines(COAST,i_mc);  
         end
         [COAST]=merge_coastlines_mc(COAST);
+
+        %% make transport points xq_mc and yq_mc
+        [COAST]=get_transportpoints(COAST,1:COAST.n_mc);
         
         %% clean up redundant NaNs
         [COAST]=cleanup_nans(COAST);
@@ -259,10 +262,12 @@ function [S,O]=ShorelineS(S0)
         %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
         %% PHASE 4 : PLOTTING AND STORING COASTLINES                  %%
         %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%  
-        
-        %% Store data in OUTPUT.MAT (information before coastline update)
-        [O,P,TIME.itout]=save_shorelines(O,P,S,TIME,COAST,WAVE,TRANSP,STRUC,NOUR,FNOUR,GROYNE,DUNE,MUD); 
-        
+        if O.netcdf==1 % write to 'shorelines_output.nc'
+            [O,P]=save_shorelines_netcdf(O,P,TIME,COAST,WAVE,TRANSP,DUNE,MUD);
+        else % write to 'output.mat'
+            [O,P]=save_shorelines(O,P,TIME,COAST,WAVE,TRANSP,STRUC,NOUR,FNOUR,GROYNE,DUNE,MUD); 
+        end
+
         %% Plotting                                     
         [V,FORMAT,TIME]=plot_coast(CHANNEL,STRUC,COAST,DUNE,WAVE,TIME,TRANSP,FORMAT,V,FNOUR);
         [FORMAT]=plot_profiles(FORMAT,TIME,DUNE,O);
@@ -273,21 +278,10 @@ function [S,O]=ShorelineS(S0)
         %% Bathymetry update & Plot                              
         [S,BATHY]=update_bathy(S,BATHY,TIME,COAST);
         
-        %% Next time step                                    
-        TIME.tprev=TIME.tnow;
-        TIME.tnow=TIME.tnow + TIME.dt*365;     %calculate the current time after each time step
-        
-        %% Status update on screen
-        HSavg=median(WAVE.HStdp_mc(~isnan(WAVE.HStdp_mc)));
-        PHIavg=mod(atan2d(median(sind(WAVE.PHItdp_mc(~isnan(WAVE.PHItdp_mc)))),median(cosd(WAVE.PHItdp_mc(~isnan(WAVE.PHItdp_mc))))),360);
-        fprintf('   %s  Hs_tdp=%2.1f, Dir_tdp=%1.0f \n',datestr(double(TIME.tnow),'yyyy-mm-dd HH:MM'),HSavg,PHIavg);     % fprintf('   %s \n',datestr(double(TIME.tnow),'yyyy-mm-dd HH:MM'));
+        %% Next time step + Status update on screen
+        [TIME]=get_nexttimestep(TIME,WAVE,DUNE,WIND);
     end
-    
-    %% Store all shoreline data
-    if ~isoctave, warning off, end
-    save(fullfile(pwd,FORMAT.outputdir,'output.mat'),'O','P','S');
-    if ~isoctave, warning on, end
-    
+       
     %% Extract shorelines coordinates and plotting figures at specific dates (x_mc0 and y_mc0)
     fprintf('  Post-process results \n');
     extract_shoreline(S,STRUC,COAST,FORMAT);
@@ -296,7 +290,4 @@ function [S,O]=ShorelineS(S0)
     if S.video==1
         make_video(S,V);
     end
-    
-    %% Display model run-time
-    fprintf(['  Run completed successfully in ' num2str((now-tstart)*86400) 's. \n']);
 end

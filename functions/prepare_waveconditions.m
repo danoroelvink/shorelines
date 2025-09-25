@@ -72,9 +72,11 @@ function [WAVE]=prepare_waveconditions(S,TIME)
     WAVE.spread=S.spread;                                                             % wave spreading [?] (wave_dir from range:  S.phiw0 +/- 0.5*S.spread)
     WAVE.wvcfile=S.wvcfile;
     WAVE.diffraction=S.diffraction;    
+    WAVE.diffsmooth=S.diffsmooth;
     WAVE.sphimax=S.sphimax;
     WAVE.interpolationmethod=S.interpolationmethod;  
-    
+    WAVE.mergeconditions=S.mergeconditions;
+
     % add climate impact
     WAVE.ccslr=S.ccslr;               % climate impacted rise in sea level (SLR) [Nx2] with 'time in datenum format' and 'sea level with respect to initial situation' (rates per year are computed automatically) % S.tanbeta is used as 'slope angle'.
     WAVE.ccdir=S.ccdir;               % climate impacted change in wave direction [Nx2] with 'time in datenum format' and 'relative change in wave direction w.r.t. initial situation' as a # degrees (rates per year are computed automatically) 
@@ -116,7 +118,6 @@ function [WAVE]=prepare_waveconditions(S,TIME)
         WAVE.spread=S.spread;
         WAVE.tper=S.tper;               
     end
-    %% write logfile
-    % struct2log(WAVE,'WAVE','a');
+    WAVE.dtrewind=zeros(1,max(length(WAVE.WVC),1));
 
 end

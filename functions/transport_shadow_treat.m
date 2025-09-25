@@ -75,29 +75,39 @@ function [TRANSP,WAVE]=transport_shadow_treat(COAST,STRUC,WAVE,TRANSP)
 %   License along with this library. If not, see <http://www.gnu.org/licenses>
 %   --------------------------------------------------------------------
 
+    nw=size(WAVE.HStdp,1); % number of wave conditions taken along at this timestep (can be more than 1 in case of simultaneous wave conditions)
+    nq=size(WAVE.HStdp,2); % number of transport points
+    nc=length(COAST.x);    % number of coastline points
+
     QS0=TRANSP.QS;
     WAVE.dPHItdp_sh=WAVE.dPHItdp;
     shadowS_90deg=abs(WAVE.dPHItdp)>2*WAVE.dPHIcrit; 
     
+    rev.x=[];
+    rev.y=[];
+    if ~isempty(STRUC.xrevet) 
+        rev.x=[rev.x,nan,STRUC.xrevet];
+        rev.y=[rev.y,nan,STRUC.yrevet];
+    end
+    if ~isempty(TRANSP.xsedlim) 
+        rev.x=[rev.x,nan,TRANSP.xsedlim];
+        rev.y=[rev.y,nan,TRANSP.ysedlim];
+    end
     struc.x=[];
     struc.y=[];
     if ~isempty(STRUC.xhard) 
-        struc.x=[struc.x,nan,STRUC.xhard];
-        struc.y=[struc.y,nan,STRUC.yhard];
-    end
-    if ~isempty(STRUC.xrevet) 
-        struc.x=[struc.x,nan,STRUC.xrevet];
-        struc.y=[struc.y,nan,STRUC.yrevet];
-    end
-    if ~isempty(TRANSP.xsedlim) 
-        struc.x=[struc.x,nan,TRANSP.xsedlim];
-        struc.y=[struc.y,nan,TRANSP.ysedlim];
+        struc.x=[nan,STRUC.xhard,rev.x];
+        struc.y=[nan,STRUC.yhard,rev.y];
     end
     if ~isempty(struc.x)
         struc.x=struc.x(2:end);
         struc.y=struc.y(2:end);
     end
-    
+    if ~isempty(rev.x)
+        rev.x=rev.x(2:end);
+        rev.y=rev.y(2:end);
+    end
+
     if strcmpi(TRANSP.trform,'CERC')
         WAVE.PHIbr=WAVE.PHItdp;
     end
@@ -106,38 +116,60 @@ function [TRANSP,WAVE]=transport_shadow_treat(COAST,STRUC,WAVE,TRANSP)
     [ TRANSP.shadowS ] = find_shadows_mc(COAST.xq,COAST.yq,COAST.x_mc,COAST.y_mc,WAVE.PHIo,WAVE.PHItdp,WAVE.PHIbr,WAVE.dist);
     TRANSP.shadowS = TRANSP.shadowS | shadowS_90deg;
     
-    if ~isempty(struc.x) && ~isempty(COAST.x) && STRUC.diffraction==0
-        [ TRANSP.shadowS_h ] = find_shadows_mc(COAST.xq,COAST.yq,struc.x,struc.y,WAVE.PHIo,WAVE.PHItdp,WAVE.PHIbr,WAVE.dist);
-        TRANSP.shadow=max([TRANSP.shadowS(1:end-1);TRANSP.shadowS_h(1:end-1);TRANSP.shadowS(2:end);TRANSP.shadowS_h(2:end)],[],1);
-    
+    if ~isempty(STRUC.xhard) && ~isempty(COAST.x) && STRUC.diffraction==0
+        %% shadowing in case without diffraction
+        [ TRANSP.shadowS_h ] = find_shadows_mc(COAST.xq,COAST.yq,STRUC.xhard,STRUC.yhard,WAVE.PHIo,WAVE.PHItdp,WAVE.PHIbr,WAVE.dist);
+        TRANSP.shadow=max([TRANSP.shadowS(:,1:end-1);TRANSP.shadowS_h(:,1:end-1);TRANSP.shadowS(:,2:end);TRANSP.shadowS_h(:,2:end)],[],1);
+        TRANSP.shadowS_rev=zeros(nw,nq);
         if ~STRUC.diffraction
-            TRANSP.shadow=max(TRANSP.shadowS(1:end-1),TRANSP.shadowS(2:end));
+            TRANSP.shadow=max(TRANSP.shadowS(:,1:end-1),TRANSP.shadowS(:,2:end));
         end
         WAVE.dPHItdp_sh(TRANSP.shadowS)=0;
         WAVE.dPHItdp_sh(TRANSP.shadowS_h)=0;
     else
-        TRANSP.shadowS_h=false(1,length(TRANSP.QS));
+        %% shadowing in case with diffraction
+        TRANSP.shadowS_h=false(nw,nq);
         WAVE.dPHItdp_sh(TRANSP.shadowS)=0;
-        TRANSP.shadow=max(TRANSP.shadowS(1:end-1),TRANSP.shadowS(2:end));
+        TRANSP.shadow=max(TRANSP.shadowS(:,1:end-1),TRANSP.shadowS(:,2:end));
+    end
+
+    %% add revetment shadows
+    TRANSP.shadowS_rev=zeros(nw,nq);
+    if ~isempty(rev.x) 
+        xrev=rev.x;
+        yrev=rev.y;
+        [PHItdp]=get_smoothdata(WAVE.PHItdp,'angle',3);
+        [ TRANSP.shadowS_revq ] = find_shadows_mc(COAST.xq,COAST.yq,xrev,yrev,WAVE.PHIo,PHItdp,PHItdp,mean(COAST.ds0*5));
+        idshadowrevneg=find(TRANSP.shadowS_rev & TRANSP.QS<0);
+        idshadowrevpos=find(TRANSP.shadowS_rev & TRANSP.QS>=0);
+        [PHItdp]=get_smoothdata(WAVE.PHItdp,'anglemean',3);
+        [PHIo]=get_smoothdata(WAVE.PHIo,'anglemean',3);
+        [ TRANSP.shadowS_rev ] = find_shadows_mc(COAST.x,COAST.y,xrev,yrev,PHIo,PHItdp,PHItdp,mean(COAST.ds0*5));
+        % idshadowrevneg=find(TRANSP.shadowS_rev & TRANSP.QS<0);
+        % idshadowrevpos=find(TRANSP.shadowS_rev & TRANSP.QS>=0);
+        % TRANSP.QS([TRANSP.shadowS_rev,false(nw,1)])=0;
+        % TRANSP.QS([false(nw,1),TRANSP.shadowS_rev])=0;
+        % TRANSP.QS(idshadowrevneg)=max(TRANSP.QS(min(idshadowrevneg+1,nq)),TRANSP.QS(idshadowrevneg));
+        % TRANSP.QS(idshadowrevpos)=min(TRANSP.QS(max(idshadowrevpos-1,1)),TRANSP.QS(idshadowrevpos));
     end
 
     %% shadow zone for dune flux 
-    if ~isempty(STRUC.xrevet) && ~isempty(COAST.x) && ~isempty(COAST.wberm)
+    if ~isempty(struc.x) && ~isempty(COAST.x) && ~isempty(COAST.wberm)
         xdune = COAST.x - COAST.wberm.*sind(COAST.PHIcxy); 
         ydune = COAST.y - COAST.wberm.*cosd(COAST.PHIcxy); 
         PHIoAvg = get_smoothdata(WAVE.PHIo,'anglemean');
         PHItdpAvg = get_smoothdata(WAVE.PHItdp,'anglemean');
         PHIbrAvg = get_smoothdata(WAVE.PHIbr,'anglemean');
-        distAvg = (WAVE.dist(1:end-1)+WAVE.dist(2:end))/2;
-        [ TRANSP.shadowS_hD ] = find_shadows_mc(xdune,ydune,STRUC.xrevet,STRUC.yrevet,PHIoAvg,PHItdpAvg,PHIbrAvg,distAvg);
+        distAvg = (WAVE.dist(:,1:end-1)+WAVE.dist(:,2:end))/2;
+        [ TRANSP.shadowS_hD ] = find_shadows_mc(xdune,ydune,struc.x,struc.y,PHIoAvg,PHItdpAvg,PHIbrAvg,distAvg);
     else
-        TRANSP.shadowS_hD=false(1,length(COAST.x));
+        TRANSP.shadowS_hD=false(nw,nc);
     end
     %%
 
     % Remove erroneous local points with just 1 shadowed cell
-    dsh=diff(TRANSP.shadowS);
-    idsh=find((dsh(1:end-1)-dsh(2:end))==2);
+    dsh=diff(TRANSP.shadowS,1,2);
+    idsh=find((dsh(:,1:end-1)-dsh(:,2:end))==2);
     if ~isempty(idsh)
         TRANSP.shadowS(idsh+1)=0;
     end
@@ -156,10 +188,12 @@ function [TRANSP,WAVE]=transport_shadow_treat(COAST,STRUC,WAVE,TRANSP)
         
         % make sure sediment is not transported away from shadowed coastline points (by not allowing transport away from these points)
         if STRUC.diffraction==0
-            idpos=find(TRANSP.QS>0 & [0,TRANSP.shadow]);
-            TRANSP.QS(idpos)=max(TRANSP.QS(idpos-1),0);
-            idneg=find(TRANSP.QS<0 & [TRANSP.shadow,0]);
-            TRANSP.QS(idneg)=min(TRANSP.QS(idneg+1),0);
+            for kk=1:nw
+                idpos=find(TRANSP.QS(kk,:)>0 & [0,TRANSP.shadow(kk,:)]);
+                TRANSP.QS(kk,idpos)=max(TRANSP.QS(kk,idpos-1),0);
+                idneg=find(TRANSP.QS(kk,:)<0 & [TRANSP.shadow(kk,:),0]);
+                TRANSP.QS(kk,idneg)=min(TRANSP.QS(kk,idneg+1),0);
+            end
         end
         
     elseif usesmoothshadows==1
@@ -182,7 +216,7 @@ function [TRANSP,WAVE]=transport_shadow_treat(COAST,STRUC,WAVE,TRANSP)
     %     dPHIbr_sh(TRANSP.shadowS_h)=0;
     % end
     TRANSP.debug.QS1=TRANSP.QS;
-    TRANSP.shadow=TRANSP.shadowS(1:end-1)&TRANSP.shadowS(2:end);             % this uses & instead of the | at line 89
-    TRANSP.shadow_h=TRANSP.shadowS_h(1:end-1)&TRANSP.shadowS_h(2:end);
+    TRANSP.shadow=TRANSP.shadowS(:,1:end-1)&TRANSP.shadowS(:,2:end);             % this uses & instead of the | at line 89
+    TRANSP.shadow_h=TRANSP.shadowS_h(:,1:end-1)&TRANSP.shadowS_h(:,2:end);
     
 end

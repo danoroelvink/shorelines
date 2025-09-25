@@ -1,5 +1,5 @@
-function [dmin,xcr,ycr,dmax,xcm,ycm] = get_polydistance(Xr,Yr,Xc,Yc,Lcrit)
-%function [dmin,xcr,ycr,dmax,xcm,ycm] = get_polydistance(Xr,Yr,Xc,Yc,Lcrit)
+function [dmin,xcr,ycr,ujmin,dmax,xcm,ycm,ujmax] = get_polydistance(Xr,Yr,Xc,Yc,Lcrit)
+%function [dmin,xcr,ycr,ujmin,dmax,xcm,ycm,ujmax] = get_polydistance(Xr,Yr,Xc,Yc,Lcrit)
 %
 % INPUT: 
 %    Xr          : x-coordinate of reference line [m]
@@ -11,9 +11,11 @@ function [dmin,xcr,ycr,dmax,xcm,ycm] = get_polydistance(Xr,Yr,Xc,Yc,Lcrit)
 %    dmin        : distance from reference line point to the specified coastline [m] (negative is at right-side of the line)
 %    xcr         : x-coordinate of coastline point as projected on the grid [m] (closest value to the grid)
 %    ycr         : y-coordinate of coastline point as projected on the grid [m] (closest value to the grid)
-%    dmin        : distance from reference line point to the specified coastline [m] (negative is at right-side of the line)(farthest crossing from the grid)
-%    xcr         : x-coordinate of coastline point as projected on the grid [m] (farthest crossing from the grid)
-%    ycr         : y-coordinate of coastline point as projected on the grid [m] (farthest crossing from the grid)
+%    ujmin       : alongshore index of the cross-ing point for each grid point of the reference line [i.e. index as a fraction of Xc/Yc grid]
+%    dmax        : distance from reference line point to the specified coastline for the farthest crossing [m] (negative is at right-side of the line)(farthest crossing from the grid)
+%    xcm         : x-coordinate of coastline point as projected on the grid for the farthest crossing [m] (farthest crossing from the grid)
+%    ycm         : y-coordinate of coastline point as projected on the grid for the farthest crossing [m] (farthest crossing from the grid)
+%    ujmax       : alongshore index of the cross-ing point for each grid point of the reference line for the farthest crossing [i.e. index as a fraction of Xc/Yc grid]
 %
 % EXAMPLE:
 %    Xr=[20.5:185.5]';
@@ -59,10 +61,12 @@ function [dmin,xcr,ycr,dmax,xcm,ycm] = get_polydistance(Xr,Yr,Xc,Yc,Lcrit)
     xcr=nan(length(Xr),1);
     ycr=nan(length(Xr),1);
     dmin=nan(length(Xr),1);
-    if nargout>3
+    ujmin=nan(length(Xr),1);
+    if nargout>4
     xcm=nan(length(Xr),1);
     ycm=nan(length(Xr),1);
     dmax=nan(length(Xr),1);
+    ujmax=nan(length(Xr),1);
     end
     Lxy=(dx2.^2+dy2.^2).^0.5;
     Xrnormal = [Xr,Xr]+[-Lcrit./Lxy.*dy2,Lcrit./Lxy.*dy2];
@@ -70,17 +74,19 @@ function [dmin,xcr,ycr,dmax,xcm,ycm] = get_polydistance(Xr,Yr,Xc,Yc,Lcrit)
     
     for ii=1:length(Xr)
         %quick=1;
-        [xcr0,ycr0,~,~,~,~,ui,~]=get_intersections(Xrnormal(ii,:),Yrnormal(ii,:),Xc,Yc);
+        [xcr0,ycr0,~,~,~,~,ui,uj]=get_intersections(Xrnormal(ii,:),Yrnormal(ii,:),Xc,Yc);
         if ~isempty(xcr0)
             imin=find(ui==min(ui));
             xcr(ii)=xcr0(imin);
             ycr(ii)=ycr0(imin);
             dmin(ii)=(0.5-ui(imin))*Lcrit*2;
-            if nargout>3
+            ujmin(ii)=uj(imin); % alongshore location index
+            if nargout>4
                 imax=find(ui==max(ui));
                 xcm(ii)=xcr0(imax);
                 ycm(ii)=ycr0(imax);
                 dmax(ii)=(0.5-ui(imax))*Lcrit*2;
+                ujmax(ii)=uj(imax);
             end
         end 
     end 

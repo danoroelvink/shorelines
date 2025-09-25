@@ -87,8 +87,15 @@ function [wberm,qs_avg,qss_avg,ql_avg,R]=dune_erosion(runupform,runupfactor,wber
             R = runupfactor*slope.*sqrHsL0;
         else
             % Run-up height [m] Larson et al. (2016) = default
+            %CF = 0.03;
+            %X = 2 .* wberm .* (1 - SWL ./ dfelev);
             R = runupfactor*0.158*sqrHsL0;
+            %RPRIM = R .* exp(-2. .* CF .* X) + (dfelev - SWL) .* (1. - exp(-2. .* CF .* X));
+            %if RPRIM + SWL > DFOOT
+            %    R = RPRIM;
+            %end
         end
+        
         ero=SWL+R>dfelev;
         wldf=SWL+R-dfelev;
         if sum(ero)==0

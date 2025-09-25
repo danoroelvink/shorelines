@@ -76,13 +76,14 @@ function [COAST]=make_sgrid_mc(COAST,TIME,i_mc)
 %   You should have received a copy of the GNU Lesser General Public
 %   License along with this library. If not, see <http://www.gnu.org/licenses>
 %   --------------------------------------------------------------------
+
     eps=0.1;
     sqrt2=sqrt(2.);
     %% find number of sections
     [x,y]=get_one_polygon( COAST.x_mc,COAST.y_mc,i_mc );  
     clockwise=get_clockpoly(x,y);
     COAST.gridchange=0;
-    
+
     %% METHOD 1: preserve existing points as much as possible by splitting cells -> a quick method wherein only relevant cells are changed with low diffusion, but with a less smooth grid
     if COAST.griddingmethod==1
         
@@ -109,7 +110,7 @@ function [COAST]=make_sgrid_mc(COAST,TIME,i_mc)
                 ds=ds(idu(1:end-1));
                 [ds0i,ds0imean]=get_gridsize(x,y,COAST.ds0);
             end
-
+            
             if max(ds./ds0imean>2)==1 || max(ds./ds0imean<0.5)==1
             %if max(ds)>2*COAST.ds0 || min(ds)<COAST.ds0/2
                 COAST.gridchange=1;
@@ -131,7 +132,7 @@ function [COAST]=make_sgrid_mc(COAST,TIME,i_mc)
                         sn0(end)=0.5;
                     end
                 end
-
+                
                 % make the new distance table by each time adding the number of grid cells to the new xy-point
                 % if this number of grid cells (sn0) is 0 then no grid cells are added, and the xy-point is omitted.
                 sn0rest=0;
@@ -216,7 +217,7 @@ function [COAST]=make_sgrid_mc(COAST,TIME,i_mc)
                 i=i+1;
             end
         end
-
+        
         snew(2:end-1)=COAST.smoothfac*snew(1:end-2)+(1.-2*COAST.smoothfac)*snew(2:end-1)+COAST.smoothfac*snew(3:end);
         if length(snew)~=length(s) || sum(s)~=sum(snew)
             if clockwise==1 || min(s)<ds0/5
@@ -233,7 +234,7 @@ function [COAST]=make_sgrid_mc(COAST,TIME,i_mc)
         x(end)=x(1);
         y(end)=y(1);
     end
-
+    
     %% Compute grid cell size
     ds0=diff(s);
     if ~isempty(ds0)
@@ -248,7 +249,7 @@ function [COAST]=make_sgrid_mc(COAST,TIME,i_mc)
         if ~cyclic
             clockwise=1;
         end
-
+        
         % compute locations of transport points
         % and add extra boundary point
         xq=(x(1:end-1)+x(2:end))/2;
@@ -297,6 +298,5 @@ function [COAST]=make_sgrid_mc(COAST,TIME,i_mc)
     %% insert x,y back into COAST.x_mc,COAST.y_mc
     [COAST.x_mc,COAST.y_mc]=insert_section(COAST.x,COAST.y,COAST.x_mc,COAST.y_mc,COAST.i_mc);
     COAST.n_mc=length(find(isnan(COAST.x_mc)))+1;
-
 end
 

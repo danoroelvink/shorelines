@@ -95,77 +95,103 @@ function [TRANSP]=transport(TRANSP,WAVE,TIDE,STRUC,useQSmax)
         end
     end
     %% Initialize QS
-    QS=zeros(size(WAVE.HStdp));
+    nw=size(WAVE.HStdp,1); % number of wave conditions taken along at this timestep (can be more than 1 in case of simultaneous wave conditions)
+    nq=size(WAVE.HStdp,2); % number of coastline points
+    QS=zeros(nw,nq);
     
     %% Compute gradient of HS
-    nq=length(WAVE.HStdp);
-    dHS=zeros(1,nq);
+    dHS=zeros(nw,nq);
     if WAVE.diffraction==1 && strcmpi(fieldQS,'QS')
         HS=WAVE.HStdp;
         if ~strcmpi(TRANSP.trform,'CERC') && ~strcmpi(TRANSP.trform,'CERC2') && ~strcmpi(TRANSP.trform,'KAMP') && ~strcmpi(TRANSP.trform,'MILH')
             HS=WAVE.HSbr;
         end
-        dHS=zeros(size(HS));
+        dHS=zeros(nw,nq);
         xq = STRUC.xq;
         yq = STRUC.yq;      
-        if nq>1
+        if nq>1 || nw>1
             for i=1:nq
                 im1=max(i-1,1);
                 ip1=min(i+1,nq);
-                dHS(i)=(HS(ip1)-HS(im1)) / hypot(yq(ip1)-yq(im1),xq(ip1)-xq(im1)) ;
+                for j=1:nw
+                    dHS(j,i)=(HS(j,ip1)-HS(j,im1)) / max(hypot(yq(ip1)-yq(im1),xq(ip1)-xq(im1)),1) ;
+                end
             end
         end
+        dHS(isnan(dHS))=0;
     end 
     
+    %% Set wave angle to the critical wave angle for transport in case of high-angle incidence
+    if strcmpi(fieldQS,'QS') 
+        if TRANSP.suppresshighangle==1 
+            id = find(WAVE.dPHItdp>WAVE.dPHIcrit);
+            dHS(id)=dHS(id).*0;
+            dPHItdp=WAVE.dPHItdp;
+            dPHItdp(dPHItdp<-90)=-90;
+            dPHItdp(dPHItdp>90)=90;
+            WAVE.HStdp(abs(dPHItdp)>90)=0;
+            %WAVE.HStdp(id)=WAVE.HStdp(id).*max((1+min((abs(dPHItdp(id))-WAVE.dPHIcrit(id))./(WAVE.dPHIcrit(id)-90),0)),0); % linearly decreas the wave energy from dPHIcrit to 90°
+            WAVE.dPHItdp(id)=WAVE.dPHIcrit(id);
+            WAVE.dPHIbr(id)=WAVE.dPHIcritbr(id);
+        end
+    end
+    
     %% Transport : CERC with the offshore wave height and direction
-    if strcmpi(TRANSP.trform,'CERC') || strcmpi(TRANSP.trform,'CERC1')
+    if strcmpi(upper(TRANSP.trform),'CERC') || strcmpi(upper(TRANSP.trform),'CERC1')
         k=0.2;                                                       % using CERC (1984) value of k(SPM,Hs)=0.39 is suggested, but this is typically quite high
-        QS = TRANSP.qscal .* TRANSP.b .* WAVE.HStdp.^2.5 .* (sind(2*WAVE.dPHItdp)-2*cosd(WAVE.dPHItdp).* dHS); % use HS and dPHI, and dHS as second-order component dHS   
+        %QS = TRANSP.qscal .* TRANSP.b .* WAVE.HStdp.^2.5 .* (sind(2*WAVE.dPHItdp)-2*cosd(WAVE.dPHItdp).* dHS); % use HS and dPHI, and dHS as second-order component dHS (note that the HStdp here is equal to HSoffshore, with the addition of wave diffraction)   
+        QS = TRANSP.qscal .* TRANSP.b .* WAVE.HStdp.^2.5 .* (sind(2*WAVE.dPHItdp)-(2/TRANSP.tanbetasetup)*cosd(WAVE.dPHItdp).* dHS); % use HS and dPHI, and dHS as second-order component dHS (note that the HStdp here is equal to HSoffshore, with the addition of wave diffraction)   
         QS(abs(WAVE.dPHItdp)>90)=0;     % Set transport to 0 when angle exceeds 180 degrees
     
     %% Transport : CERC with the offshore wave height and direction, including an implicit refraction from offshore to nearshore within the transport formulation
-    elseif strcmpi(TRANSP.trform,'CERC2')
+    elseif ~isempty(findstr(lower(TRANSP.trform),'cerc2'))
         k=0.39;                                                      % using CERC (1984) value of k(SPM,Hs)=0.39
         b1 = k .* (TRANSP.rhow .* TRANSP.g.^0.5 ./ (16 .* sqrt(TRANSP.gamma).* (TRANSP.rhos-TRANSP.rhow) .* (1-TRANSP.porosity)));    % = theoretical 'b1' factor from Shore Protection Manual
         b2 = b1 .* ((TRANSP.gamma.*TRANSP.g).^0.5 ./(2*pi)).^0.2;               % b_theory = 0.0946 * 365*24*60*60 = 2.9833E+6
-        QS = TRANSP.qscal .* 365*24*60*60*b2.*WAVE.HStdp.^(12/5).*WAVE.TP.^(1/5).* (cosd(WAVE.dPHItdp).^(6/5).*sind(WAVE.dPHItdp)-2*cosd(WAVE.dPHItdp).* dHS); % use HS and dPHI, and dHS as second-order component dHS
+        %QS = TRANSP.qscal .* 365*24*60*60*b2.*WAVE.HStdp.^(12/5).*WAVE.TP.^(1/5).* (cosd(WAVE.dPHItdp).^(6/5).*sind(WAVE.dPHItdp)-2*cosd(WAVE.dPHItdp).* dHS); % use HS and dPHI, and dHS as second-order component dHS
+        QS = TRANSP.qscal .* 365*24*60*60*b2.*WAVE.HStdp.^(12/5).*WAVE.TP.^(1/5).* (cosd(WAVE.dPHItdp).^(6/5).*sind(WAVE.dPHItdp)-(2/TRANSP.tanbetasetup)*cosd(WAVE.dPHItdp).* dHS); % use HS and dPHI, and dHS as second-order component dHS
         QS(abs(WAVE.dPHItdp)>90)=0;     % Set transport to 0 when angle exceeds 180 degrees
     
     %% Transport: CERC with the nearshore breaking wave height and direction (e.g. Vitousek, Barnard, 2015)
-    elseif strcmpi(TRANSP.trform,'CERC3')
-        k=0.35;                                                                                  % using a default value of k=0.35
+    elseif ~isempty(findstr(lower(TRANSP.trform),'cerc3'))
+        k=0.35;                                                      % using a default value of k=0.35
         b3 = 1/16 * k  .* TRANSP.rhow ./ ((TRANSP.rhos-TRANSP.rhow) .* (1-TRANSP.porosity));     % b3 by default is 0.023 for CERC3 using k=0.35, rhos=2650, rhow=1025 and porosity=0.4
-        QS = TRANSP.qscal .* 365*24*60*60 .* b3 .* TRANSP.g.^0.5 .* (TRANSP.gamma).^-0.52 .* WAVE.HSbr.^2.5 .* (sind(2.*WAVE.dPHIbr)-2*cosd(WAVE.dPHIbr).* dHS); % use HS and dPHI, and dHS as second-order component dHS
+        %QS = TRANSP.qscal .* 365*24*60*60 .* b3 .* TRANSP.g.^0.5 .* (TRANSP.gamma).^-0.52 .* WAVE.HSbr.^2.5 .* (sind(2.*WAVE.dPHIbr)-2*cosd(WAVE.dPHIbr).* dHS); % use HS and dPHI, and dHS as second-order component dHS
+        QS = TRANSP.qscal .* 365*24*60*60 .* b3 .* TRANSP.g.^0.5 .* (TRANSP.gamma).^-0.52 .* WAVE.HSbr.^2.5 .* (sind(2.*WAVE.dPHIbr)-(2/TRANSP.tanbetasetup)*cosd(WAVE.dPHIbr).* dHS); % use HS and dPHI, and dHS as second-order component dHS
+        QScerc3mass = QS .* (1.0-TRANSP.porosity) .* TRANSP.rhos / (365*24*60*60); % kg/s
         QS(abs(WAVE.dPHIbr)>90)=0;      % Set transport to 0 when angle exceeds 180 degrees
     
     %% Transport : Kamphuis
-    elseif strcmpi(TRANSP.trform,'KAMP')
+    elseif ~isempty(findstr(lower(TRANSP.trform),'kamp'))
         % use HS and dPHI, and dHS as second-order component
-        %QSkampmass=TRANSP.qscal .* 2.33 .* WAVE.TP.^1.5 .* TRANSP.tanbeta.^0.75 .* TRANSP.d50.^-0.25 .* WAVE.HStdp.^2 .* ( abs(sind(2*WAVE.dPHIbr)).^0.6.*sign(WAVE.dPHIbr));
-        %QSkampmass=TRANSP.qscal .* 2.33 .* WAVE.TP.^1.5 .* TRANSP.tanbeta.^0.75 .* TRANSP.d50.^-0.25 .* WAVE.HStdp.^2 .* ( abs(sind(2*WAVE.dPHIbr)).^0.6.*sign(WAVE.dPHIbr) - 2.*cosd(WAVE.dPHIbr).*dHS );
-        QSkampmass=TRANSP.qscal .* 2.33 .* WAVE.TP.^1.5 .* TRANSP.tanbeta.^0.75 .* TRANSP.d50.^-0.25 .* WAVE.HSbr.^2 .* ( abs(sind(2*WAVE.dPHIbr)).^0.6.*sign(WAVE.dPHIbr) - (2/TRANSP.tanbeta).*cosd(WAVE.dPHIbr).*dHS );
-        QS = TRANSP.qscal .* 365*24*60*60*(QSkampmass /(TRANSP.rhos-TRANSP.rhow)) /(1.0-TRANSP.porosity);
+        %QSkampmass=TRANSP.qscal .* 2.33 .* TRANSP.rhos/(TRANSP.rhos-TRANSP.rhow) .* WAVE.TP.^1.5 .* TRANSP.tanbeta.^0.75 .* TRANSP.d50.^-0.25 .* WAVE.HStdp.^2 .* ( abs(sind(2*WAVE.dPHIbr)).^0.6.*sign(WAVE.dPHIbr));
+        %QSkampmass=TRANSP.qscal .* 2.33 .* TRANSP.rhos/(TRANSP.rhos-TRANSP.rhow) .* WAVE.TP.^1.5 .* TRANSP.tanbeta.^0.75 .* TRANSP.d50.^-0.25 .* WAVE.HStdp.^2 .* ( abs(sind(2*WAVE.dPHIbr)).^0.6.*sign(WAVE.dPHIbr) - 2.*cosd(WAVE.dPHIbr).*dHS ); % added secondary component due to spatial wave height differences 
+        QSkampmass=TRANSP.qscal .* 2.33 .* TRANSP.rhos/(TRANSP.rhos-TRANSP.rhow) .* WAVE.TP.^1.5 .* TRANSP.tanbeta.^0.75 .* TRANSP.d50.^-0.25 .* WAVE.HSbr.^2 .* ( abs(sind(2*WAVE.dPHIbr)).^0.6.*sign(WAVE.dPHIbr) - (2/TRANSP.tanbetasetup).*cosd(WAVE.dPHIbr).*dHS ); % added secondary component due to spatial wave height differences + the slope effect on this current
+        QS = 365*24*60*60*(QSkampmass / TRANSP.rhos) /(1.0-TRANSP.porosity);
         QS(abs(WAVE.dPHIbr)>90)=0;      % Set transport to 0 when angle exceeds 180 degrees
     
     %% Transport : Mil-Homens (2013)
-    elseif strcmpi(TRANSP.trform,'MILH')
-        QSmilhmass=TRANSP.qscal .* 0.15.* WAVE.TP.^0.89 .* TRANSP.tanbeta.^0.86 .* TRANSP.d50.^-0.69 .* WAVE.HSbr.^2.75 .*( abs(sind(2*WAVE.dPHIbr)).^0.5.*sign(WAVE.dPHIbr) - 2.*cosd(WAVE.dPHIbr).*dHS ); % <- this is the immersed mass under water
-        QS = TRANSP.qscal .* 365*24*60*60*(QSmilhmass /(TRANSP.rhos-TRANSP.rhow)) /(1.0-TRANSP.porosity);
+    elseif ~isempty(findstr(lower(TRANSP.trform),'milh'))
+        %QSmilhmass=TRANSP.qscal .* 0.15.*  TRANSP.rhos/(TRANSP.rhos-TRANSP.rhow) .* WAVE.TP.^0.89 .* TRANSP.tanbeta.^0.86 .* TRANSP.d50.^-0.69 .* WAVE.HSbr.^2.75 .* abs(sind(2*WAVE.dPHIbr)).^0.5;
+        %QSmilhmass=TRANSP.qscal .* 0.15.*  TRANSP.rhos/(TRANSP.rhos-TRANSP.rhow) .* WAVE.TP.^0.89 .* TRANSP.tanbeta.^0.86 .* TRANSP.d50.^-0.69 .* WAVE.HSbr.^2.75 .*( abs(sind(2*WAVE.dPHIbr)).^0.5.*sign(WAVE.dPHIbr) - 2.*cosd(WAVE.dPHIbr).*dHS ); % added secondary component due to spatial wave height differences 
+        QSmilhmass=TRANSP.qscal .* 0.15.*  TRANSP.rhos/(TRANSP.rhos-TRANSP.rhow) .* WAVE.TP.^0.89 .* TRANSP.tanbeta.^0.86 .* TRANSP.d50.^-0.69 .* WAVE.HSbr.^2.75 .*( abs(sind(2*WAVE.dPHIbr)).^0.5.*sign(WAVE.dPHIbr) - (2/TRANSP.tanbetasetup).*cosd(WAVE.dPHIbr).*dHS ); % added secondary component due to spatial wave height differences + the slope effect on this current
+        QS = 365*24*60*60*(QSmilhmass / TRANSP.rhos) /(1.0-TRANSP.porosity);
         QS(abs(WAVE.dPHIbr)>90)=0;     % Set transport to 0 when angle exceeds 180 degrees
     
     %% Transport : Van Rijn (2014)        
-    elseif strcmpi(TRANSP.trform,'VR14')
+    elseif ~isempty(findstr(lower(TRANSP.trform),'vr14'))
         vtide=0;
         kswell=0.015.*TRANSP.pswell+(1-0.01.*TRANSP.pswell);
-        vwave=0.3.*real(sind(2.*WAVE.dPHIbr)).*(TRANSP.g.*WAVE.HSbr).^0.5; % added secondary component due to wave height difference
-        %vwave=0.3.*real(sind(2.*WAVE.dPHIbr)-2.*cosd(WAVE.dPHIbr).*dHS).*(TRANSP.g.*WAVE.HSbr).^0.5; % added secondary component due to wave height difference
-        %vwave=0.3.*real(sind(2.*WAVE.dPHIbr)-2/TRANSP.tanbeta.*cosd(WAVE.dPHIbr).*dHS).*(TRANSP.g.*WAVE.HSbr).^0.5; % added secondary component due to wave height difference
+        %vwave=0.3.*(TRANSP.g.*WAVE.HSbr).^0.5.*sind(2.*WAVE.dPHIbr); 
+        %vwave=0.3.*(TRANSP.g.*WAVE.HSbr).^0.5.*(sind(2.*WAVE.dPHIbr)-2*cosd(WAVE.dPHIbr).* dHS); % added secondary component due to spatial wave height differences 
+        vwave=0.3.*(TRANSP.g.*WAVE.HSbr).^0.5.*(sind(2.*WAVE.dPHIbr)-(2/TRANSP.tanbetasetup)*cosd(WAVE.dPHIbr).* dHS); % added secondary component due to spatial wave height differences         
+        vwave(abs(WAVE.dPHIbr)>90)=0;
         vtotal=vwave+vtide;
-        QSvr14mass=TRANSP.qscal .* 0.0006 .* kswell .* TRANSP.rhos .* TRANSP.tanbeta.^0.4 .*TRANSP.d50.^-0.6 .* WAVE.HSbr.^2.6 .* abs(vtotal).*sign(WAVE.dPHIbr);
-        QS = 365*24*60*60*(QSvr14mass ./(TRANSP.rhos-TRANSP.rhow)) ./(1.0-TRANSP.porosity); 
+        QSvr14mass=TRANSP.qscal .* 0.0006 .* kswell .* TRANSP.rhos .* TRANSP.tanbeta.^0.4 .*TRANSP.d50.^-0.6 .* WAVE.HSbr.^2.6 .* vtotal;
+        QS = 365*24*60*60*(QSvr14mass ./ TRANSP.rhos) ./(1.0-TRANSP.porosity); 
         QS(abs(WAVE.dPHIbr)>90)=0;     % Set transport to 0 when angle exceeds 180 degrees
     
-    elseif strcmpi(TRANSP.trform,'RAY')
+    elseif ~isempty(findstr(lower(TRANSP.trform),'ray'))
         QS = -WAVE.c1.*WAVE.dPHItdp .* exp(-(WAVE.c2.*WAVE.dPHItdp).^2) + WAVE.QSoffset;
         QS(abs(WAVE.dPHItdp)>90)=0;     % Set transport to 0 when angle exceeds 180 degrees
         dQSdPHI = WAVE.c1.*exp(-(WAVE.c2.*WAVE.dPHItdp).^2) .* ( -2.*(WAVE.c2.*WAVE.dPHItdp).^2 + 1. ) *180./pi; 
@@ -173,36 +199,37 @@ function [TRANSP]=transport(TRANSP,WAVE,TIDE,STRUC,useQSmax)
     elseif ~isempty(findstr(lower(TRANSP.trform),'tideprof'))
         alpha=1.0;    % Default dissipation parameter Baldock
         gamma=0.78;   % Default breaking parameter Baldock
-        for i=1:length(WAVE.HStdp)
-            Hrms0=WAVE.HStdp(i)/sqrt(2);
-            Tp=WAVE.TP(i);
-            theta0=WAVE.dPHItdp(i);
-            [QS(i),Slong_mean,Slong,v,vt,vw,Hrms,h] = transport_tidewave ...
-            (TIDE.eta(i,:),TIDE.detads(i,:),TIDE.phi(i,:),TIDE.ss(i), ...
-             TIDE.Ttide,TIDE.nT,TIDE.k(i,:),TIDE.cf,TIDE.hmin, ...
-             Hrms0,Tp,theta0,alpha,gamma, ...
-             TRANSP.ks,TRANSP.d50,TRANSP.d90,TIDE.hclosure, ...
-             TIDE.x,TIDE.zb,TRANSP.Acal,TRANSP.n);
-            
+        for i=1:nq
+            Hrms0=WAVE.HStdp(1,i)/sqrt(2);
+            Tp=WAVE.TP(1,i);
+            theta0=WAVE.dPHItdp(1,i);
+            Hrms0(abs(theta0)>90)=0;
+            theta0(abs(theta0)>90)=0;
+            [QS(1,i),Slong_mean,Slong,v,vt,vw,Hrms,h] = transport_tidewave(TIDE.eta(i,:),TIDE.detads(i,:),TIDE.phi(i,:),TIDE.ss(i), ...
+                                                                         TIDE.Ttide,TIDE.nT,TIDE.k(i,:),TIDE.cf,TIDE.hmin, ...
+                                                                         Hrms0,Tp,theta0,alpha,gamma, ...
+                                                                         TRANSP.ks,TRANSP.d50,TRANSP.d90,TIDE.hclosure, ...
+                                                                         TIDE.x,TIDE.zb,TRANSP.acal,TRANSP.n);
             if TRANSP.submerged==1
-            [QSt,Dltr,zs]=transport_groynesubmerged(Slong,vw,h,TIDE.zb,TIDE.x,TRANSP.Aw,TRANSP.gamma,WAVE.HStdp(i))
-            end
-            
+                [QSti,Dltri,zsi]=transport_groynesubmerged(Slong,vw,h,TIDE.zb,TIDE.x,TRANSP.aw,TRANSP.gamma,WAVE.HStdp(1,i));
+                QSt(:,i)=QSti(:);
+                Dltr(:,i)=Dltri(:);
+                zs(:,i)=zsi(:);
+                QS(1,i)=mean(QSti);
+            end            
         end
+    else
+        fprintf(' Warning : No valid transport formulation defined!\n');
     end
-    
-    %% Get critical wave angle for transport
-    if strcmpi(fieldQS,'QS') 
-        %dPHIcrit = get_one_polygon( WAVE.dPHIcrit_mc0,WAVE.i_mc);
-        if TRANSP.suppresshighangle==1 
-            id = WAVE.dPHItdp==WAVE.dPHIcrit;
-            QS(id)=1.01*QS(id); 
-        end
-    end
-    
-    %% Set transport to 0 when angle exceeds 180 degrees
-    % QS(abs(dPHI)>90)=0; 
 
+    %% Export transport rates over cross-shore profile (if trform='TIDEWAVE')
+    if TRANSP.submerged==1
+        TRANSP.QSt=QSt;
+        TRANSP.Dltr=Dltr;
+        TRANSP.zs=zs;
+    end
+
+    %% Export transport
     TRANSP.(fieldQS)=QS;
     if strcmpi(fieldQS,'QS')
         TRANSP.debug.QS0=TRANSP.QS;

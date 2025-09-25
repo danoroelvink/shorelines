@@ -53,27 +53,30 @@ function [WAVE,TRANSP]=get_Sphimax(WAVE,TIDE,TRANSP,STRUC)
     eps=1d-4;
     WAVE.dPHIcrit=[];     % at depth-of-closure
     TRANSP.QSmax=[];
-    nq=length(WAVE.HStdp); % nr of grid cells of the coast
-    QSmax=zeros(1,nq);
+    nw=size(WAVE.HStdp,1); % nr of wave conditions
+    nq=size(WAVE.HStdp,2); % nr of grid cells of the coast
+    QSmax=zeros([nw,nq]);
     waveangle1=35;
     waveangle2=45;
-    WAVE.dPHIcrit=nan(size(WAVE.dPHItdp));
-    WAVE.dPHIcritbr=nan(size(WAVE.dPHItdp));
+    WAVE.dPHIcrit=nan([nw,nq]);
+    WAVE.dPHIcritbr=nan([nw,nq]);
     
     % computation 1
     WAVE1=WAVE;
-    WAVE1.dPHItdp=repmat(waveangle1,[1 nq]);
+    WAVE1.dPHItdp=repmat(waveangle1,[nw,nq]);
     WAVE1.HStdp=max(WAVE1.HStdp,eps);
     [WAVE1]=wave_breakingheight(WAVE1,TRANSP);
+    WAVE1.HStdp=min(WAVE1.HStdp,WAVE1.ddeep*0.5);
     [TRANSP]=transport(TRANSP,WAVE1,TIDE,STRUC,'QSmax');
     dPHI1=WAVE1.dPHItdp;
     QS1=TRANSP.QSmax; 
     
     % computation 2
     WAVE2=WAVE;
-    WAVE2.dPHItdp=repmat(waveangle2,[1 nq]);
+    WAVE2.dPHItdp=repmat(waveangle2,[nw,nq]);
     WAVE2.HStdp=max(WAVE2.HStdp,eps);
     [WAVE2]=wave_breakingheight(WAVE2,TRANSP);
+    WAVE2.HStdp=min(WAVE2.HStdp,WAVE2.ddeep*0.5);
     [TRANSP]=transport(TRANSP,WAVE2,TIDE,STRUC,'QSmax');
     dPHI2=WAVE2.dPHItdp;
     QS2=TRANSP.QSmax;
@@ -83,9 +86,9 @@ function [WAVE,TRANSP]=get_Sphimax(WAVE,TIDE,TRANSP,STRUC)
     dPHIm=.5*(dPHI1+dPHI2);       % at depth-of-closure
     
     % perform iteration for each alongshore grid cell -> map WAVE to WAVE1
-    err=repmat(1d3,[1 nq]);
+    err=repmat(1d3,[nw,nq]);
     iter=0; 
-    while ( min(err)>eps || iter<=1 ) && iter<10 %err0>err
+    while ( min(err(:))>eps || iter<=2 ) && iter<10 %err0>err
         iter=iter+1;
         
         % computation 3, 4 etc 
@@ -97,14 +100,17 @@ function [WAVE,TRANSP]=get_Sphimax(WAVE,TIDE,TRANSP,STRUC)
         % perform iteration for each alongshore grid cell 
         dPHImold=dPHIm;
         in=(err>eps);
-        for i=find(in)
+        [ivals,jvals]=find(in);
+        for i=1:length(ivals)
+            i1=ivals(i);
+            j1=jvals(i);
             % compute better estimate for dPHIm using computed dPHI's and QS's
-            A=[dPHI1(i)^2,dPHI1(i),1;dPHI2(i)^2,dPHI2(i),1;dPHIm(i)^2,dPHIm(i),1];              % at depth-of-closure
-            B=[QS1;QS2;QSm];
+            A=[dPHI1(i1,j1)^2,dPHI1(i1,j1),1;dPHI2(i1,j1)^2,dPHI2(i1,j1),1;dPHIm(i1,j1)^2,dPHIm(i1,j1),1];              % at depth-of-closure
+            B=[QS1(i1,j1);QS2(i1,j1);QSm(i1,j1)];
             warning off
             a=A\B;
             warning on
-            dPHIm(i)=-a(2)/(2*a(1));     % at depth-of-closure
+            dPHIm(i1,j1)=-a(2)/(2*a(1));     % at depth-of-closure
         end
         
         % renew the dPHI1/dPHI2 and QS1/QS2 for the next iteration cycle
@@ -119,8 +125,8 @@ function [WAVE,TRANSP]=get_Sphimax(WAVE,TIDE,TRANSP,STRUC)
         % get error value
         err=abs(dPHIm-dPHImold);
         dPHIm(dPHIm==999)=nan;
-        dPHIm(err>10)=nan;
-        QSm(err>10)=nan;
+        %dPHIm(err>10)=nan;
+        %QSm(err>10)=nan;
         
         % update the critical angles and maximum transports
         WAVE.dPHIcrit=dPHIm;     % at depth-of-closure
@@ -129,8 +135,28 @@ function [WAVE,TRANSP]=get_Sphimax(WAVE,TIDE,TRANSP,STRUC)
     end
     
     % interpolate the critical angles and maximum transports
-    WAVE.dPHIcrit=interpNANs(WAVE.dPHIcrit);
-    WAVE.dPHIcritbr=interpNANs(WAVE.dPHIcritbr);
-    TRANSP.QSmax=interpNANs(QSmax);
+    for i=1:nw
+    WAVE.dPHIcrit(i,:)=interpNANs(WAVE.dPHIcrit(i,:));
+    WAVE.dPHIcritbr(i,:)=interpNANs(WAVE.dPHIcritbr(i,:));   
+    TRANSP.QSmax(i,:)=interpNANs(QSmax(i,:));
+    end
+
+    % special case where no transport could be computed for whole domain (e.g. when wave height is zero)
+    WAVE.dPHIcrit(isnan(WAVE.dPHIcrit))=45;
+    WAVE.dPHIcritbr(isnan(WAVE.dPHIcritbr))=45;
+    TRANSP.QSmax(isnan(TRANSP.QSmax))=0;
     
+    % % re-combining the effect of multiple wave conditions to a single value (in case of climate with simultaneous wave conditions)
+    % if size(TRANSP.QSmax,1)>1
+    %     wghtNR=repmat(WAVE.Prob,[1,size(TRANSP.QSmax,2)]);
+    %     HStdp0=max(WAVE.HStdp,1e-6);
+    %     wghtHS=HStdp0.^2;
+    %     TRANSP.QSmax=sum(TRANSP.QSmax.*wghtNR,1);
+    %     sdr = sum(sind(WAVE.dPHIcrit).*wghtNR.*wghtHS,1);
+    %     cdr = sum(cosd(WAVE.dPHIcrit).*wghtNR.*wghtHS,1);
+    %     WAVE.dPHIcrit=mod(atan2d(sdr,cdr),360);
+    %     sdr = sum(sind(WAVE.dPHIcritbr).*wghtNR.*wghtHS,1);
+    %     cdr = sum(cosd(WAVE.dPHIcritbr).*wghtNR.*wghtHS,1);
+    %     WAVE.dPHIcritbr=mod(atan2d(sdr,cdr),360);
+    % end
 end

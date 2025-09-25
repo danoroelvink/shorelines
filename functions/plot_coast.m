@@ -99,9 +99,12 @@ function [V,FORMAT,TIME]=plot_coast(CHANNEL,STRUC,COAST,DUNE,WAVE,TIME,TRANSP,FO
 %   License along with this library. If not, see <http://www.gnu.org/licenses>
 %   --------------------------------------------------------------------
 
+    %% Formatting parameters
     qvrscale=1.5;
     eps=-1d-10;
     cols=[0.1 0.1 0.1; 0 0.6 0;0.5 0.1 0;0 0.2 0.5]; % colours of respectively the waves offshore (OFF), at the depth-of-closure (TDP) and at the point of breaking (BR)    
+    
+    %% Prepare variables for plotting
     if isempty(WAVE.HStdp_mc)
         WAVE.HStdp_mc=WAVE.HSo_mc.*0;
         WAVE.PHIbr_mc=WAVE.PHIo_mc;
@@ -130,6 +133,24 @@ function [V,FORMAT,TIME]=plot_coast(CHANNEL,STRUC,COAST,DUNE,WAVE,TIME,TRANSP,FO
         mkdir(fullfile(pwd,FORMAT.outputdir));
     end
 
+    %% Store coastlines every 'figplotfreq' interval [years]
+    if TIME.it==0 
+        FORMAT.figplotfreqcounter=0;
+        FORMAT.figplotfreqt=[];%TIME.tnow;
+        FORMAT.figplotfreqx={};%COAST.x_mc;
+        FORMAT.figplotfreqy={};%COAST.y_mc;
+    elseif ~isempty(FORMAT.figplotfreq)
+        n=FORMAT.figplotfreqcounter;
+        time=(TIME.tnow-TIME.timenum0)/365; % [in year w.r.t. t0]
+        if time>=(n+1)*FORMAT.figplotfreq
+            FORMAT.figplotfreqx{n+1}=COAST.x_mc; % [x coordinates at output timestep n w.r.t. t0]
+            FORMAT.figplotfreqy{n+1}=COAST.y_mc; % [y coordinates at output timestep n w.r.t. t0]
+            FORMAT.figplotfreqt=[FORMAT.figplotfreqt;TIME.tnow]; % [year of output timestep n w.r.t. t0]
+            FORMAT.figplotfreqcounter=n+1;
+        end
+    end
+
+    %% Plot model results (if TIME = plotinterval)
     if mod(TIME.it,FORMAT.plotinterval)==0
         %iplot=iplot+1;
         if 1
@@ -153,9 +174,24 @@ function [V,FORMAT,TIME]=plot_coast(CHANNEL,STRUC,COAST,DUNE,WAVE,TIME,TRANSP,FO
                 end 
             end 
             
-            %% PLOT COASTAL STRUCTURES
-            plot(COAST.x_mc0,COAST.y_mc0,'k-','linewidth',1,'Color',[0.5 0.5 0.5]); 
+            %% PLOT COASTLINES
+            plot(COAST.x_mc0,COAST.y_mc0,'k-','linewidth',1,'Color',[0.5 0.5 0.5]);hold on;
             plot(COAST.x_mc,COAST.y_mc,'b-','linewidth',1,'Color',[0.2 0.2 0.8]); 
+            n=length(FORMAT.figplotfreqt);
+            clr=flipud(jet(n));
+            hpi=[];
+            for i=1:n
+                hpi(i)=plot(FORMAT.figplotfreqx{i},FORMAT.figplotfreqy{i},'k--','linewidth',0.5,'Color',clr(i,:));hold on;
+            end
+            if ~isempty(hpi)
+                hleg0=legend(hpi,datestr(FORMAT.figplotfreqt,'dd-mmm-yyyy'));
+                set(hleg0,'FontSize',8);
+                try 
+                set(hleg0,'AutoUpdate','off');
+                end
+            end
+
+            %% PLOT COASTAL STRUCTURES
             for ist=1:STRUC.nhard
                 [xhard,yhard] = get_one_polygon( STRUC.xhard,STRUC.yhard,ist );
                 if STRUC.idgroyne(ist)~=0
@@ -179,15 +215,18 @@ function [V,FORMAT,TIME]=plot_coast(CHANNEL,STRUC,COAST,DUNE,WAVE,TIME,TRANSP,FO
             if DUNE.used==1
                 xdune0 = DUNE.xdune0; 
                 ydune0 = DUNE.ydune0; 
-                xdune = COAST.x_mc - COAST.wberm_mc.*sind(COAST.PHIcxy_mc); 
-                ydune = COAST.y_mc - COAST.wberm_mc.*cosd(COAST.PHIcxy_mc); 
-                hpd0=plot(xdune0,ydune0,'k--','linewidth',1,'Color',[0.5 0.5 0.5]);
-                hpd=plot(xdune,ydune,'k--','linewidth',1,'Color',[0.2 0.2 0.8]);
+                CST.xdune_mc = COAST.x_mc - COAST.wberm_mc.*sind(COAST.PHIcxy_mc); 
+                CST.ydune_mc = COAST.y_mc - COAST.wberm_mc.*cosd(COAST.PHIcxy_mc); 
+                %[CST]=get_disentangled(CST,{'xdune_mc','ydune_mc'});
+                hpd0=plot(xdune0,ydune0,'ks','MarkerSize',3,'Color',[0.4 0.4 0.4]);
+                hpd=plot(CST.xdune_mc,CST.ydune_mc,'k--','linewidth',1,'Color',[0.2 0.4 0.8]);
             end
 
             %% PLOT OFFSHORE WAVE HEIGHT TEXT
             if isempty(FORMAT.xywave)
                 FORMAT.xywave = [FORMAT.xyoffset(1)+FORMAT.xlimits(1)+(sind(PHI_mean)+1)/2*diff(FORMAT.xlimits),FORMAT.xyoffset(2)+FORMAT.ylimits(1)+(cosd(PHI_mean)+1)/2*0.95*diff(FORMAT.ylimits),diff(FORMAT.xlimits)/12];
+            elseif length(FORMAT.xywave)==2
+                FORMAT.xywave(3) = [diff(FORMAT.xlimits)/12];
             end
 
             %% PLOT WAVE QUIVER & OFFSHORE WAVE HEIGHT TEXT
@@ -260,16 +299,21 @@ function [V,FORMAT,TIME]=plot_coast(CHANNEL,STRUC,COAST,DUNE,WAVE,TIME,TRANSP,FO
                     set(hqvr3,'linewidth',2,'Color',cols(3,:),'AutoScale','off','AutoScaleFactor',1.2,'MaxHeadSize',1);
                     htxt=text(xx(gg)+FORMAT.xywave(3).*cosd(PHIf2(gg))/3,yy(gg)+FORMAT.xywave(3).*sind(PHIf2(gg))/3,[' ',num2str(HSbr2(gg),'%2.1f'),'m']);
                     set(htxt,'FontSize',9,'HorizontalAlignment','Center','VerticalAlignment','Middle','Color',cols(1,:));
+                    if mod(gg,5)==0
+                        plot(arx(gg),ary(gg),'ko');
+                    end
                 end
             end
 
             %% PLOT LOWER SHOREFACE ORIENTATION
             if ~isempty(PHIf2) && ~strcmpi(TRANSP.trform,'KAMP') && ~strcmpi(TRANSP.trform,'CERC') && ~strcmpi(TRANSP.trform,'CERC2')
-                for gg=1:length(arx)
-                    dx=FORMAT.xywave(3).*cosd(PHIf2(gg))/4.*[1,-1];
-                    dy=FORMAT.xywave(3).*sind(PHIf2(gg))/4.*[-1,1];
-                    hl=plot(arx(gg)+dx,ary(gg)+dy);hold on;
-                    set(hl,'linewidth',1,'Color',[0 0.5 0]);
+                if arx(gg)>FORMAT.xlimits(1) && arx(gg)<FORMAT.xlimits(2) && ary(gg)>FORMAT.ylimits(1) && ary(gg)<FORMAT.ylimits(2) 
+                    for gg=1:length(arx) 
+                        dx=FORMAT.xywave(3).*cosd(PHIf2(gg))/4.*[1,-1];
+                        dy=FORMAT.xywave(3).*sind(PHIf2(gg))/4.*[-1,1];
+                        hl=plot(arx(gg)+dx,ary(gg)+dy);hold on;
+                        set(hl,'linewidth',1,'Color',[0 0.5 0]);
+                    end
                 end
             end
             
@@ -308,9 +352,11 @@ function [V,FORMAT,TIME]=plot_coast(CHANNEL,STRUC,COAST,DUNE,WAVE,TIME,TRANSP,FO
                         idxy=COAST.xq1_mc(gg)>FORMAT.xlimits(1) && COAST.xq1_mc(gg)<FORMAT.xlimits(2) && COAST.yq1_mc(gg)>FORMAT.ylimits(1) && COAST.yq1_mc(gg)<FORMAT.ylimits(2);
                         if idxy && ~isnan(COAST.xq1_mc(gg)) && shadowS_h_mc(gg)<1 && shadowS_mc(gg)<1
                             factor = sqrt(waveheight/2)*0.7;
-                            QVR1=diff(FORMAT.xlimits)/12.*cosd(3/2*180-PHIwave).*factor;
-                            QVR2=diff(FORMAT.xlimits)/12.*sind(3/2*180-PHIwave).*factor;
-                            hqvr9=quiver(COAST.xq1_mc(gg)-FORMAT.xyoffset(1),COAST.yq1_mc(gg)-FORMAT.xyoffset(2),QVR1,QVR2,(max(1-shadowS_h_mc(gg)-shadowS_mc(gg),0))*qvrscale);hold on;
+                            qsfac=min(abs(TRANSP.QS_mc(gg)/5000),1);
+                            QVR1=diff(FORMAT.xlimits)/12.*cosd(3/2*180-PHIwave).*factor.*qsfac;
+                            QVR2=diff(FORMAT.xlimits)/12.*sind(3/2*180-PHIwave).*factor.*qsfac;
+                            shadowfac=(max(1-shadowS_h_mc(gg)-shadowS_mc(gg),0));
+                            hqvr9=quiver(COAST.xq1_mc(gg)-FORMAT.xyoffset(1),COAST.yq1_mc(gg)-FORMAT.xyoffset(2),QVR1,QVR2,qsfac*shadowfac*qvrscale);hold on;
                             set(hqvr9,'linewidth',2,'Color',cols(mm+1,:),'AutoScale','off','AutoScaleFactor',1.2,'MaxHeadSize',1);               
                             htxt=text(COAST.xq1_mc(gg)-FORMAT.xyoffset(1),COAST.yq1_mc(gg)-FORMAT.xyoffset(2),['',num2str(PHIwave,'%1.0f'),'°']);
                             set(htxt,'FontSize',9,'HorizontalAlignment','Center','VerticalAlignment',vertalignm{mm},'Color',cols(mm+1,:));
@@ -329,9 +375,9 @@ function [V,FORMAT,TIME]=plot_coast(CHANNEL,STRUC,COAST,DUNE,WAVE,TIME,TRANSP,FO
                 hqs=plot(COAST.xq1_mc(ggrange),COAST.yq1_mc(ggrange),'k+');
                 for gg=ggrange
                     idxy=COAST.xq1_mc(gg)>FORMAT.xlimits(1) && COAST.xq1_mc(gg)<FORMAT.xlimits(2) && COAST.yq1_mc(gg)>FORMAT.ylimits(1) && COAST.yq1_mc(gg)<FORMAT.ylimits(2);
-                    if idxy && ~isnan(COAST.xq1_mc(gg))
-                        htxt=text(COAST.xq1_mc(gg)-FORMAT.xyoffset(1),COAST.yq1_mc(gg)-FORMAT.xyoffset(2),['',num2str(TRANSP.QS_mc(gg)/1000,'%1.0f'),'m3/yr']);
-                        set(htxt,'FontSize',9,'HorizontalAlignment','Center','VerticalAlignment','Middle','Color',cols(1,:));
+                    if idxy && ~isnan(COAST.xq1_mc(gg)) && abs(TRANSP.QS_mc(gg))>1000
+                        htxt=text(COAST.xq1_mc(gg)-FORMAT.xyoffset(1),COAST.yq1_mc(gg)-FORMAT.xyoffset(2),['',num2str(TRANSP.QS_mc(gg)/1000,'%1.0f'),char(183),'10^3 m^3/yr']);
+                        set(htxt,'FontSize',9,'HorizontalAlignment','Center','VerticalAlignment','Middle','Color',cols(1,:),'FontWeight','Bold');
                     end
                 end
             end
@@ -350,10 +396,15 @@ function [V,FORMAT,TIME]=plot_coast(CHANNEL,STRUC,COAST,DUNE,WAVE,TIME,TRANSP,FO
             %% PLOT REFERENCE LINES AND LEGEND
             if ~isempty(FORMAT.ldbplot)
                 for mm=1:size(FORMAT.ldbplot,1)
-                    try
-                        ldbplotval = get_landboundary(FORMAT.ldbplot{mm,1});
-                    catch
-                        ldbplotval = load(FORMAT.ldbplot{mm,1});
+                    if ischar(FORMAT.ldbplot{mm,1})
+                        try
+                            ldbplotval = get_landboundary(FORMAT.ldbplot{mm,1});
+                        catch
+                            ldbplotval = load(FORMAT.ldbplot{mm,1});
+                        end
+                        FORMAT.ldbplot{mm,1}=ldbplotval;
+                    else
+                        ldbplotval = FORMAT.ldbplot{mm,1};
                     end
                     hp6(mm)=plot(ldbplotval(:,1)-FORMAT.xyoffset(1),ldbplotval(:,2)-FORMAT.xyoffset(2),FORMAT.ldbplot{mm,3},'linewidth',0.5);
                 end

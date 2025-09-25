@@ -64,24 +64,24 @@ function [TRANSP]=transport_boundary_condition(TRANSP,COAST,GROYNE)
             side=2;
             idgroyne=find(GROYNE.idcoast(:,side)==COAST.i_mc); 
             if (~isempty(idgroyne))
-                %TRANSP.QS(1)=min(TRANSP.QS(1),GROYNE.QS(idgroyne,side));
+                %TRANSP.QS(:,1)=min(TRANSP.QS(:,1),GROYNE.QS(idgroyne,side));
             end
         else
             if strcmpi(TRANSP.boundaryconditionstart{1},'Periodic') && ~COAST.cyclic
                 % periodic b.c.
-                TRANSP.QS(1)=(QS0(end-1)+QS0(2))/2;
+                TRANSP.QS(:,1)=(QS0(:,end-1)+QS0(:,2))/2;
             end
             if strcmpi(TRANSP.boundaryconditionstart{1},'Closed') && ~COAST.cyclic
                 % specify transport b.c.
                 if isnan(TRANSP.boundaryconditionstart{2})
-                    TRANSP.QS(1)=0;
+                    TRANSP.QS(:,1)=0;
                 else
-                    TRANSP.QS(1)=TRANSP.boundaryconditionstart{2};
+                    TRANSP.QS(:,1)=TRANSP.boundaryconditionstart{2};
                 end
             end
             if (strcmpi(TRANSP.boundaryconditionstart{1},'Neumann') || strcmpi(TRANSP.boundaryconditionstart{1},'Fixed')) && ~COAST.cyclic
                 % fixed coastline position b.c.
-                TRANSP.QS(1)=TRANSP.QS(2);
+                TRANSP.QS(:,1)=TRANSP.QS(:,2);
             end
             if (strcmpi(TRANSP.boundaryconditionstart{1},'Angleconstant') || strcmpi(TRANSP.boundaryconditionstart{1},'Gradient')) && ~COAST.cyclic 
                 % coast-angle constant b.c.
@@ -94,24 +94,24 @@ function [TRANSP]=transport_boundary_condition(TRANSP,COAST,GROYNE)
             side=1;
             idgroyne=find(GROYNE.idcoast(:,side)==COAST.i_mc); 
             if (~isempty(idgroyne))                
-                %TRANSP.QS(end)=max(TRANSP.QS(end),GROYNE.QS(idgroyne,side));
+                %TRANSP.QS(:,end)=max(TRANSP.QS(:,end),GROYNE.QS(idgroyne,side));
             end
         else
             if strcmpi(TRANSP.boundaryconditionend{1},'Periodic') && ~COAST.cyclic
                 % periodic b.c.
-                TRANSP.QS(end)=(QS0(end-1)+QS0(2))/2;
+                TRANSP.QS(:,end)=(QS0(:,end-1)+QS0(:,2))/2;
             end
             if strcmpi(TRANSP.boundaryconditionend{1},'Closed') && ~COAST.cyclic
                 % specify transport b.c.
                 if isnan(TRANSP.boundaryconditionend{2})
-                    TRANSP.QS(end)=0;
+                    TRANSP.QS(:,end)=0;
                 else
-                    TRANSP.QS(end)=TRANSP.boundaryconditionend{2};
+                    TRANSP.QS(:,end)=TRANSP.boundaryconditionend{2};
                 end
             end
             if (strcmpi(TRANSP.boundaryconditionend{1},'Neumann') || strcmpi(TRANSP.boundaryconditionend{1},'Fixed')) && ~COAST.cyclic
                 % fixed coastline position b.c.
-                TRANSP.QS(end)=TRANSP.QS(end-1);
+                TRANSP.QS(:,end)=TRANSP.QS(:,end-1);
             end
             if (strcmpi(TRANSP.boundaryconditionend{1},'Angleconstant') || strcmpi(TRANSP.boundaryconditionend{1},'Gradient')) && ~COAST.cyclic 
                 % coast-angle constant b.c.

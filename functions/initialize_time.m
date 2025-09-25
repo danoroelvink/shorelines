@@ -57,10 +57,14 @@ function [TIME]=initialize_time(S)
 
     TIME=struct;
     TIME.dt=S.dt;                                                              % timestep [years]
+    TIME.dt0=TIME.dt;
+    TIME.adt=1/365/24;                                                         % default step (if not specified)
+    TIME.dtsteps=0;
     TIME.tc=S.tc;                                                              % switch for using adaptive time step
     TIME.reftime=S.reftime;                                                    % Reference time (i.e. 'yyyy-mm-dd') <- leave empty to use t=0
     TIME.endofsimulation=S.endofsimulation;
-    
+    TIME.trealstart=now;
+
     %% Reference start time of the model
     if ~isfield(S,'timenum0')
         if ~isempty(S.reftime)
@@ -72,9 +76,8 @@ function [TIME]=initialize_time(S)
     else
         timenum0=S.timenum0;
     end
-    
     TIME.timenum0=timenum0;
-    
+
     %% Time parameters
     TIME.tnow=TIME.timenum0;
     if ~isfield(S,'tend')
@@ -86,7 +89,6 @@ function [TIME]=initialize_time(S)
     end
     TIME.tnext=TIME.tnow;  % next time for jpg output in 'make_Plot'
     TIME.it=-1;   % for now = -1 to follow the exisiting code
-    TIME.itout=0;
     TIME.automatic=S.dt<=0; 
     TIME.tprev=TIME.tnow;
 

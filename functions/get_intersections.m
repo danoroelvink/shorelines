@@ -1,5 +1,9 @@
 function [xcr,ycr,indc,inds,indi,indj,ui,uj]=get_intersections(xi0,yi0,xj0,yj0)
 % function [xcr,ycr,indc,inds,indi,indj,ui,uj]=get_intersections(xi0,yi0,xj0,yj0)
+%
+% or
+%
+% function [xcr,ycr,indc,inds,indi,indj,ui,uj]=get_intersections(xi0,yi0,disentangle)
 % 
 % finds all crossings of polygons
 % xcr and ycr are the crossing points.
@@ -16,7 +20,7 @@ function [xcr,ycr,indc,inds,indi,indj,ui,uj]=get_intersections(xi0,yi0,xj0,yj0)
 %     yi        : y-coordinates of polygon 1 [m]
 %     xj        : x-coordinates of polygon 2 [m]
 %     yj        : y-coordinates of polygon 2 [m]
-% 
+%     disentangle : alternative 3rd argument which is used to disentangle xi/yi polygon 
 % OUTPUT: 
 %     xcr       : x-coordinates of crossings [m]
 %     ycr       : y-coordinates of crossings [m]
@@ -57,10 +61,16 @@ function [xcr,ycr,indc,inds,indi,indj,ui,uj]=get_intersections(xi0,yi0,xj0,yj0)
 
     eps=1e-5;
     removesameindex=0;
+    disentangle=0;
     if nargin==2
         xj0=xi0;
         yj0=yi0;
         removesameindex=1;
+    elseif nargin==3
+        xj0=xi0;
+        yj0=yi0;
+        removesameindex=1;
+        disentangle=1;
     end
     xi0=xi0(:)';
     yi0=yi0(:)';
@@ -146,13 +156,17 @@ function [xcr,ycr,indc,inds,indi,indj,ui,uj]=get_intersections(xi0,yi0,xj0,yj0)
         yc(idremove)=nan;
         
         % make sure to use only the crossing points for the first line and not (the same mirrored ones) for the second line.
+        if disentangle==0
         mat0=meshgrid([1:m0],[1:n0]);
         idmat=mat0>mat0';
         xc(idmat)=nan;
         yc(idmat)=nan;
+        end
         
         % do not take beginning and end segment touching for a closed polygon
         if xi0(1)==xi0(end) && yi0(1)==yi0(end) && ~isempty(xc)
+            xc(1,end)=nan;
+            yc(1,end)=nan;
             xc(end,1)=nan;
             yc(end,1)=nan;
         end
@@ -160,54 +174,56 @@ function [xcr,ycr,indc,inds,indi,indj,ui,uj]=get_intersections(xi0,yi0,xj0,yj0)
     
     % find the x,y coordinates of the crossing points 
     idnotnan=find(~isnan(xc));
-    xcr=xc(idnotnan); 
-    ycr=yc(idnotnan); 
+    xcr=min(length(idnotnan),1);
+    
+    if nargout>1
+        xcr=xc(idnotnan); 
+        ycr=yc(idnotnan); 
 
-    % find the indices of the line segment points just before the crossings (so never after!)
-    [indi,indj]=find(~isnan(xc));
-
-    % find the fraction of the line segement where the crossing is located 
-    % (e.g. ui=0.25 means at 25% the length of the considered segment of xi,yi)
-    % the indi and ui may be added to get the fraction of the polygon where the crossing is located 
-    % (e.g. indj+uj = 16.3 means after the 16th node of xj,yj and at 30% of length in the direction of the 17th node of xj,yj)
-    for nn=1:length(xcr)
-        i=indi(nn);
-        j=indj(nn);
-        ui(1,nn)=((xcr(nn)-xi0(i)).*(xi0(i+1)-xi0(i))+(ycr(nn)-yi0(i))*(yi0(i+1)-yi0(i))) ./ ((xi0(i+1)-xi0(i)).^2+(yi0(i+1)-yi0(i)).^2);
-        uj(1,nn)=((xcr(nn)-xj0(j)).*(xj0(j+1)-xj0(j))+(ycr(nn)-yj0(j))*(yj0(j+1)-yj0(j))) ./ ((xj0(j+1)-xj0(j)).^2+(yj0(j+1)-yj0(j)).^2);
+        % find the indices of the line segment points just before the crossings (so never after!)
+        [indi,indj]=find(~isnan(xc));
+        
+        % find the fraction of the line segement where the crossing is located 
+        % (e.g. ui=0.25 means at 25% the length of the considered segment of xi,yi)
+        % the indi and ui may be added to get the fraction of the polygon where the crossing is located 
+        % (e.g. indj+uj = 16.3 means after the 16th node of xj,yj and at 30% of length in the direction of the 17th node of xj,yj)
+        for nn=1:length(xcr)
+            i=indi(nn);
+            j=indj(nn);
+            ui(1,nn)=((xcr(nn)-xi0(i)).*(xi0(i+1)-xi0(i))+(ycr(nn)-yi0(i))*(yi0(i+1)-yi0(i))) ./ ((xi0(i+1)-xi0(i)).^2+(yi0(i+1)-yi0(i)).^2);
+            uj(1,nn)=((xcr(nn)-xj0(j)).*(xj0(j+1)-xj0(j))+(ycr(nn)-yj0(j))*(yj0(j+1)-yj0(j))) ./ ((xj0(j+1)-xj0(j)).^2+(yj0(j+1)-yj0(j)).^2);
+        end
+        
+        % select only the unique points
+        % and cosmetic changes to makes sure the vectors are horizontal
+        ui=max(ui,0);
+        uj=max(uj,0);
+        ui=min(ui,1);
+        uj=min(uj,1);
+        [~,idu]=uniquetol(indi(:)+ui(:),eps);
+        xcr=xcr(idu);
+        ycr=ycr(idu);
+        indi=indi(idu);
+        indj=indj(idu);
+        ui=ui(idu);
+        uj=uj(idu);
+        [~,idv]=uniquetol(indj(:)+uj(:),eps);
+        xcr=xcr(idv);
+        ycr=ycr(idv);
+        indi=indi(idv);
+        indj=indj(idv);
+        ui=ui(idv);
+        uj=uj(idv);
+        %figure;plot(xi,yi,'b.-');hold on;plot(xj,yj,'r.-');
+        %plot(xcr,ycr,'k*');
+        
+        xcr=double(xcr(:)');
+        ycr=double(ycr(:)');
+        indi=double(indi(:)');
+        indj=double(indj(:)'); 
+        ui=double(ui(:)');
+        uj=double(uj(:)');
+        indc=double(indi+ui);
+        inds=double(indj+uj);
     end
-    
-    % select only the unique points
-    % and cosmetic changes to makes sure the vectors are horizontal
-    ui=max(ui,0);
-    uj=max(uj,0);
-    ui=min(ui,1);
-    uj=min(uj,1);
-    [~,idu]=unique(indi(:)+ui(:));
-    xcr=xcr(idu);
-    ycr=ycr(idu);
-    indi=indi(idu);
-    indj=indj(idu);
-    ui=ui(idu);
-    uj=uj(idu);
-    [~,idu]=unique(indj(:)+uj(:));
-    xcr=xcr(idu);
-    ycr=ycr(idu);
-    indi=indi(idu);
-    indj=indj(idu);
-    ui=ui(idu);
-    uj=uj(idu);
-    %figure;plot(xi,yi,'b.-');hold on;plot(xj,yj,'r.-');
-    %plot(xcr,ycr,'k*');
-    
-    xcr=double(xcr(:)');
-    ycr=double(ycr(:)');
-    indi=double(indi(:)');
-    indj=double(indj(:)'); 
-    ui=double(ui(:)');
-    uj=double(uj(:)');
-    indc=double(indi+ui);
-    inds=double(indj+uj);
-       
 end
-

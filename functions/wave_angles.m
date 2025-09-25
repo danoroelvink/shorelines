@@ -128,9 +128,11 @@ function [WAVE,TRANSP]=wave_angles(COAST,WAVE,TIDE,TRANSP,STRUC)
     
     %% Limit high-angle instabilities by forcing maximum transport when the angle is larger than dPHIcrit
     if TRANSP.suppresshighangle==1 
-       id=abs(WAVE.dPHItdp)>WAVE.dPHIcrit;
-       WAVE.dPHItdp=sign(WAVE.dPHItdp).*min([abs(WAVE.dPHItdp);WAVE.dPHIcrit],[],1);        
-       WAVE.dPHIbr(id)=sign(WAVE.dPHIbr(id)).*min([abs(WAVE.dPHIbr(id));WAVE.dPHIcritbr(id)],[],1);        
+        for kk=1:size(WAVE.dPHItdp,1)
+            id=abs(WAVE.dPHItdp(kk,:))>WAVE.dPHIcrit;
+            WAVE.dPHItdp(kk,:)=sign(WAVE.dPHItdp(kk,:)).*min([abs(WAVE.dPHItdp(kk,:));WAVE.dPHIcrit],[],1);        
+            WAVE.dPHIbr(kk,id)=sign(WAVE.dPHIbr(kk,id)).*min([abs(WAVE.dPHIbr(kk,id));WAVE.dPHIcritbr(id)],[],1);        
+        end
     end
     
     %% limit refraction

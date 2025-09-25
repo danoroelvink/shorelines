@@ -46,28 +46,21 @@ function [COAST]=get_coastline_orientation(COAST)
 %   License along with this library. If not, see <http://www.gnu.org/licenses>
 %   --------------------------------------------------------------------
 
-    % coast angles (PHIc) at transport points (only in-between coastline points, not at 'boundary transport points')    
-    % angle in-between grid cell points
+    % coast angles (PHIc) at transport points  
+    % angle in-between grid cell points (not at 'boundary transport points')   
     COAST.PHIc=mod(360.0-atan2d(diff(COAST.y),diff(COAST.x)),360);
-    
+
     % coast angles (PHIcxy) at coastline points
     COAST.PHIcxy=mod(360.0-atan2d(diff(COAST.yq),diff(COAST.xq)),360);
-    
-    % store initial coastline
-    if isnan(COAST.PHIc0bnd(1))
-        COAST.PHIc0bnd(1)=COAST.PHIc(1);
-    end
-    if isnan(COAST.PHIc0bnd(2))
-        COAST.PHIc0bnd(2)=COAST.PHIc(end);
-    end
-       
+
     % add extra boundary condition cell    
     if COAST.cyclic
-        % make sure to use end and start points to make it cyclical
+        % coast angles (PHIc) at transport points 
         COAST.PHIc=[COAST.PHIc(end),COAST.PHIc,COAST.PHIc(1)];
+        
     else
         % extend coast-angles in case of an open section
-        COAST.PHIc=[COAST.PHIc(1),COAST.PHIc,COAST.PHIc(end)];
+        COAST.PHIc=[COAST.PHIcxy(1),COAST.PHIc,COAST.PHIcxy(end)];
         
         % store coast-angle at bounary at t0 for 'angleconstant' boundary conditions
         % or use a prescribed angle for the boundary
@@ -88,6 +81,25 @@ function [COAST]=get_coastline_orientation(COAST)
                 COAST.PHIc(end)=COAST.boundaryconditionend{2};
             end
         end
+    end
+    
+    % store initial coastline
+    if isnan(COAST.PHIc0bnd(1))
+        COAST.PHIc0bnd(1)=COAST.PHIc(1);
+    end
+    if isnan(COAST.PHIc0bnd(2))
+        COAST.PHIc0bnd(2)=COAST.PHIc(end);
+    end
+    if COAST.gridchange==1 || COAST.mergegrid==1
+        COAST.PHIcxy0=COAST.PHIcxy;
+        if isfield(COAST,'PHIcxy1_mc')
+        method='weighted_distance';
+        try
+        [~,COAST.PHIcxy0]=get_interpolation_on_grid(method,COAST.x,COAST.y,COAST.x1_mc,COAST.y1_mc,'',COAST.PHIcxy1_mc);
+        end
+        end
+    else
+        COAST.PHIcxy0=get_one_polygon(COAST.PHIcxy1_mc,COAST.i_mc);
     end
     
     % smooth coastline angles

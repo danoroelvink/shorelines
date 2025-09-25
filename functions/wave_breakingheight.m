@@ -78,17 +78,17 @@ function [WAVE]=wave_breakingheight(WAVE,TRANSP)
     end
     
     if ~strcmpi(TRANSP.trform,'RAY') && ~strcmpi(TRANSP.trform,'CERC') && ~strcmpi(TRANSP.trform,'CERC2')
-        for i=1:length(WAVE.dPHItdp)   
-        
-            [~,ctdp,~,ntdp]=get_disper(WAVE.dnearshore,WAVE.TP(i));
-            cosPHI=max(cosd(WAVE.dPHItdp(i)),eps);
-            sinPHI=sind(WAVE.dPHItdp(i));
+        for i=1:size(WAVE.HStdp,1)   
+        for j=1:size(WAVE.HStdp,2)
+            [~,ctdp,~,ntdp]=get_disper(WAVE.dnearshore,WAVE.TP(i,j));
+            cosPHI=max(cosd(WAVE.dPHItdp(i,j)),eps);
+            sinPHI=sind(WAVE.dPHItdp(i,j));
             iter=1; % First estimate: Hbr=WAVE.HStdp
-            hbr1=max(WAVE.HStdp(i)./WAVE.gamma,eps);
-            [hbr2,dPHIbr0,err1,cbr0,nbr0]=wave_shoalref(hbr1,WAVE.TP(i),WAVE.gamma,WAVE.HStdp(i),ctdp,ntdp,sinPHI,cosPHI);
+            hbr1=max(WAVE.HStdp(i,j)./WAVE.gamma,eps);
+            [hbr2,dPHIbr0,err1,cbr0,nbr0]=wave_shoalref(hbr1,WAVE.TP(i,j),WAVE.gamma,WAVE.HStdp(i,j),ctdp,ntdp,sinPHI,cosPHI);
             hbr2b=max(hbr2,eps);
             iter=2; % Second estimate: fill in hbr2
-            [hbr3,dPHIbr0,err2,cbr0,nbr0]=wave_shoalref(hbr2b,WAVE.TP(i),WAVE.gamma,WAVE.HStdp(i),ctdp,ntdp,sinPHI,cosPHI);
+            [hbr3,dPHIbr0,err2,cbr0,nbr0]=wave_shoalref(hbr2b,WAVE.TP(i,j),WAVE.gamma,WAVE.HStdp(i,j),ctdp,ntdp,sinPHI,cosPHI);
             
             if abs(err2)<eps
                 hbrnew=hbr3;
@@ -96,7 +96,7 @@ function [WAVE]=wave_breakingheight(WAVE,TRANSP)
             else
                 for iter=3:10 % Following estimates: inter/extrapolate from last two WAVE.hbr/err pairs
                     hbrnew=max(hbr1-err1*(hbr2-hbr1)/(err2-err1),eps);
-                    [hbrest,dPHIbr0,errnew,cbr0,nbr0]=wave_shoalref(hbrnew,WAVE.TP(i),WAVE.gamma,WAVE.HStdp(i),ctdp,ntdp,sinPHI,cosPHI);
+                    [hbrest,dPHIbr0,errnew,cbr0,nbr0]=wave_shoalref(hbrnew,WAVE.TP(i,j),WAVE.gamma,WAVE.HStdp(i,j),ctdp,ntdp,sinPHI,cosPHI);
                     if abs(errnew)>eps
                         hbr1=hbr2;err1=err2;
                         hbr2=hbrnew;err2=errnew;
@@ -108,12 +108,13 @@ function [WAVE]=wave_breakingheight(WAVE,TRANSP)
             
             %disp([num2str(PHI(iphi),'%4.1f'),' ',num2str(iter,'%4i'),' ',num2str(hbrnew,'%4.2f'),' ',num2str(errnew,'%6.4f')])
             hbrnew(isnan(hbrnew))=0;
-            WAVE.HSbr(i)=hbrnew*WAVE.gamma;
-            WAVE.dPHIbr(i)=dPHIbr0;
+            WAVE.HSbr(i,j)=hbrnew*WAVE.gamma;
+            WAVE.dPHIbr(i,j)=dPHIbr0;
             WAVE.dPHIbr(isnan(WAVE.dPHIbr))=0;
-            WAVE.hbr(i)=hbrnew;
-            WAVE.cbr(i)=cbr0;
-            WAVE.nbr(i)=nbr0;
+            WAVE.hbr(i,j)=hbrnew;
+            WAVE.cbr(i,j)=cbr0;
+            WAVE.nbr(i,j)=nbr0;
+        end
         end
            
     else 

@@ -67,13 +67,19 @@ function [COAST,merged] = merge_coastlines(COAST,i_mc)
     merged=0;
     if length(xx0)==2
         indi=sort([indi(1:2),indj(1:2)]);
-        xnew=[[COAST.x(1:floor(indi(1))),xx(1),COAST.x(ceil(indi(4)):length(COAST.x))],nan,[xx(2),COAST.x(ceil(indi(2)):floor(indi(3))),xx(2)]];
-        ynew=[[COAST.y(1:floor(indi(1))),yy(1),COAST.y(ceil(indi(4)):length(COAST.y))],nan,[yy(2),COAST.y(ceil(indi(2)):floor(indi(3))),yy(2)]];
+        % xnew=[[COAST.x(1:floor(indi(1))),xx(1),COAST.x(ceil(indi(4)):length(COAST.x))],nan,[xx(2),COAST.x(ceil(indi(2)):floor(indi(3))),xx(2)]];
+        % ynew=[[COAST.y(1:floor(indi(1))),yy(1),COAST.y(ceil(indi(4)):length(COAST.y))],nan,[yy(2),COAST.y(ceil(indi(2)):floor(indi(3))),yy(2)]];
+        xnew=[[COAST.x(1:floor(indi(1))),COAST.x(ceil(indi(4)):length(COAST.x))],nan,[COAST.x(ceil(indi(2)):floor(indi(3))),COAST.x(ceil(indi(2)))]];
+        ynew=[[COAST.y(1:floor(indi(1))),COAST.y(ceil(indi(4)):length(COAST.y))],nan,[COAST.y(ceil(indi(2)):floor(indi(3))),COAST.y(ceil(indi(2)))]];
+        merged=1;
+        % insert new section in x_mc and y_mc
+        [COAST.x_mc,COAST.y_mc]=insert_section(xnew,ynew,COAST.x_mc,COAST.y_mc,i_mc);
+    elseif length(xx0)==1 
+        indi=sort([indi(1),indj(1)]);
+        xnew=[[COAST.x(1:floor(indi(1))),COAST.x(ceil(indi(2)):length(COAST.x))],nan,[COAST.x(ceil(indi(1)):floor(indi(2))),COAST.x(ceil(indi(1)))]];
+        ynew=[[COAST.y(1:floor(indi(1))),COAST.y(ceil(indi(2)):length(COAST.y))],nan,[COAST.y(ceil(indi(1)):floor(indi(2))),COAST.y(ceil(indi(1)))]];
         merged=1;
         % insert new section in x_mc and y_mc
         [COAST.x_mc,COAST.y_mc]=insert_section(xnew,ynew,COAST.x_mc,COAST.y_mc,i_mc);
     end
-    
-    %% make transport points xq_mc and yq_mc
-    [COAST]=get_transportpoints(COAST,i_mc);
 end

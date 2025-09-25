@@ -115,6 +115,8 @@ function [COAST,WAVE,TRANSP,i1,i2]=get_segmentdata(COAST,WAVE,TRANSP,DUNE,MUD,i_
     [ COAST.s ] = get_one_polygon(COAST.s_mc,i_mc);
     [ COAST.ds ] = get_one_polygon(COAST.ds_mc,i_mc);
     [ COAST.h0 ] = get_one_polygon(COAST.h0_mc,i_mc);
+    [ COAST.PHIcxy ] = get_one_polygon(COAST.PHIcxy_mc,i_mc);
+    [ COAST.PHIcxy0 ] = get_one_polygon(COAST.PHIcxy0_mc,i_mc);
     [ WAVE.HSo ] = get_one_polygon( WAVE.HSo_mc,i_mc);
     [ WAVE.TP ] = get_one_polygon( WAVE.TP_mc,i_mc);
     if DUNE.used

@@ -66,7 +66,16 @@ function [CHANNEL]=prepare_channel(S)
     
     if S.channel
         % SET THE X,Y LOCATION
-        if ~isempty(S.xrmc)
+        if strcmpi(S.ldbchannel,'manual') || strcmpi(S.ldbchannel,'interactive') 
+            figure(11);
+            xl=xlim;yl=ylim;
+            htxt2=text(xl(1)+0.02*diff(xl),yl(2)-0.01*diff(yl),'Add channel axis (LMB); Next channel (RMB); Exit (q)');set(htxt2,'HorizontalAlignment','Left','VerticalAlignment','Top','FontWeight','Bold','FontAngle','Italic','Color',[0.1 0.6 0.1]);
+            [xrmc,yrmc]=select_multi_polygon('k');
+            CHANNEL.xrmc=xrmc;
+            CHANNEL.yrmc=yrmc;
+            set(htxt2,'Visible','off');
+            save('rivers.mat','xrmc','yrmc');
+        elseif ~isempty(S.xrmc)
             % direct input via a keyword
             CHANNEL.xrmc=S.xrmc;
             CHANNEL.yrmc=S.yrmc;
@@ -84,15 +93,6 @@ function [CHANNEL]=prepare_channel(S)
                 CHANNEL.xrmc=xy_channel(:,1)'-S.xyoffset(1);
                 CHANNEL.yrmc=xy_channel(:,2)'-S.xyoffset(2);
             end
-        else
-            figure(11);
-            xl=xlim;yl=ylim;
-            htxt2=text(xl(1)+0.02*diff(xl),yl(2)-0.01*diff(yl),'Add channel axis (LMB); Next channel (RMB); Exit (q)');set(htxt2,'HorizontalAlignment','Left','VerticalAlignment','Top','FontWeight','Bold','FontAngle','Italic','Color',[0.1 0.6 0.1]);
-            [xrmc,yrmc]=select_multi_polygon('k');
-            CHANNEL.xrmc=xrmc;
-            CHANNEL.yrmc=yrmc;
-            set(htxt2,'Visible','off');
-            save('rivers.mat','xrmc','yrmc');
         end
         
         % SET THE WIDTH

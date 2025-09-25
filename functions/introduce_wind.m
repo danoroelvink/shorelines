@@ -81,17 +81,19 @@ function [WIND]=introduce_wind(WIND,TIME,WAVE,COAST)
             for kk=1:WIND.nloc
                 eps=1e-6;           
                 % check how many time instances of the SWL are within the current coastline timestep
-                idt=find(WND(kk).timenum>TIME.tprev & WND(kk).timenum<=TIME.tnow);
+                tnow=TIME.tnow+WAVE.dtrewind(1);
+                tprev=TIME.tprev+WAVE.dtrewind(1);
+                idt=find(WND(kk).timenum>tprev & WND(kk).timenum<=tnow);
 
                 % construct dune timesteps in case a different dt is specified for the dunes than for the coastline
-                timenow=TIME.tnow;
+                timenow=tnow;
                 if ~isempty(WIND.dt) && TIME.it~=0
-                    dt=min(WIND.dt*365,TIME.tnow-TIME.tprev);
-                    timenow=[TIME.tprev+dt:dt:TIME.tnow]';
+                    dt=min(WIND.dt*365,tnow-tprev);
+                    timenow=[tprev+dt:dt:tnow]';
                 end
                 
                 % interpolate the wind conditions
-                if length(idt)>1 && min(abs(WND(kk).timenum-TIME.tnow))<eps && min(abs(WND(kk).timenum-TIME.tprev))<eps && isempty(WIND.dt)
+                if length(idt)>1 && min(abs(WND(kk).timenum-tnow))<eps && min(abs(WND(kk).timenum-tprev))<eps && isempty(WIND.dt)
                     % in case more dense time-series than timesteps of coastline model
                     WIND.uz(:,kk) = WND(kk).uz(idt);
                     WIND.phiwnd(:,kk) = WND(kk).Dir(idt);     
@@ -114,14 +116,23 @@ function [WIND]=introduce_wind(WIND,TIME,WAVE,COAST)
             % get wave climate
             if length(WVC(1).Hs)==length(WND(1).uz) && ~isempty(WAVE.iwc)
                 % obtain random climate condition from wave climate 
-                WIND.iwc=WAVE.iwc;
-            elseif COAST.i_mc==1 && isfield(WND,'Prob')
-                % determine random climate condition based on probability
-                WIND.iwc=get_randsample(length(WND(1).uz),1,WND(1).Prob);
-            else
-                % determine random climate condition assuming equal probability of conditions
-                WIND.rnd=rand;
-                WIND.iwc=round((WIND.rnd*length(WND(1).uz)+0.5));
+                WIND.iwc=WAVE.iwc(:);
+                WIND.Prob=WAVE.Prob;
+            elseif COAST.i_mc==1 && TIME.dtsteps==0
+                if WIND.mergeconditions==1
+                    % draw all conditions with their respective probabilities
+                    WIND.iwc=[1:length(WVD(1).Hs)]';
+                    WIND.Prob=WND(1).Prob(:)./sum(WND(1).Prob);
+                elseif COAST.i_mc==1 && isfield(WND,'Prob')
+                    % determine random climate condition based on probability
+                    WIND.iwc=get_randsample(length(WND(1).uz),1,WND(1).Prob);
+                    WIND.Prob=WND(1).Prob(:)./sum(WND(1).Prob);
+                else
+                    % determine random climate condition assuming equal probability of conditions
+                    WIND.rnd=rand;
+                    WIND.iwc=round((WIND.rnd*length(WND(1).uz)+0.5));
+                    WIND.Prob=ones(length(WND(1).uz),1)/length(WND(1).uz);
+                end
             end 
             % use a wind climate conditiosn 
             WIND.uz=[];
@@ -138,11 +149,16 @@ function [WIND]=introduce_wind(WIND,TIME,WAVE,COAST)
                 end 
             end 
         end 
-        if WIND.nloc<=1
+        if WIND.nloc==0
+            % Use uniform wind
             WIND.uz=WIND.uz(1)*ones(size(COAST.x));
             WIND.phiwnd=WIND.phiwnd(1)*ones(size(COAST.x));
-        elseif WIND.nloc>1
-            % spatially varying wind
+        elseif WIND.nloc==1
+            % Use one timeseries/climate point with wind data
+            WIND.uz=repmat(WIND.uz(:),[1,length(COAST.x)]);
+            WIND.phiwnd=repmat(WIND.phiwnd(:),[1,length(COAST.x)]);
+        else
+            % Interpolate spatially varying wind
             xc=COAST.x;
             yc=COAST.y;
             method='weighted_distance';

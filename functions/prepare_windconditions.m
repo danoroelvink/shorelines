@@ -64,11 +64,12 @@ function [WIND]=prepare_windconditions(S,TIME)
     WIND.dune    = S.dune;
     WIND.mud     = S.mud;
     WIND.dt      = S.dtdune;
+    WIND.mergeconditions=S.mergeconditions;
 
     WND=[];
     if S.dune || S.mud
         WIND.rhoa    = S.rhoa;
-        WIND.Cd      = S.Cd;
+        WIND.Cd      = S.cd;
         WIND.uz      = S.uz;
         WIND.phiwnd  = S.phiwnd0;
         WIND.wndfile = S.wndfile;

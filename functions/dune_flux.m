@@ -1,11 +1,11 @@
-function [DUNE,COAST]=dune_flux(COAST,DUNE,WIND,RUNUP,TRANSP,TIME)
-% function [DUNE,COAST]=dune_flux(COAST,DUNE,WIND,RUNUP,TRANSP,TIME)
+function [DUNE,COAST]=dune_flux(COAST,DUNE,WIND,RUNUP,TRANSP,TIME,CC)
+% function [DUNE,COAST]=dune_flux(COAST,DUNE,WIND,RUNUP,TRANSP,TIME,CC)
 % 
 % This routine computes the dune erosion and dune growth.
 % 
 %  COAST
 %        .h0             : active height of the profile [m]
-%        .PHIcxy         : shore-normal orientation at coastline points [�N]
+%        .PHIcxy         : shore-normal orientation at coastline points [°N]
 %        .wberm          : Berm width (distance MSL to dune foot) [m]
 %        .dfelev         : Dune foot elevation [m]
 %        .dcelev         : Dune crest elevation [m]
@@ -15,7 +15,7 @@ function [DUNE,COAST]=dune_flux(COAST,DUNE,WIND,RUNUP,TRANSP,TIME)
 %        .perctill       : Percentage of till (0 to 100) of the cohesive dune, with the sand percentage being 100-perctill
 %  WIND
 %        .uz             : wind velocity [m/s]
-%        .phiwnd         : wind direction [�N]
+%        .phiwnd         : wind direction [°N]
 %        .rhoa           : Density of air [kg/m3]
 %  RUNUP
 %        .swl            : surge water-level [m w.r.t. MSL]
@@ -81,10 +81,16 @@ function [DUNE,COAST]=dune_flux(COAST,DUNE,WIND,RUNUP,TRANSP,TIME)
 %   You should have received a copy of the GNU Lesser General Public
 %   License along with this library. If not, see <http://www.gnu.org/licenses>
 %   --------------------------------------------------------------------
-
+    
+    %% Built-in dune model of ShorelineS
     if DUNE.used
         dt       = TIME.dt;
+        if ~isempty(DUNE.dt)
         dtdune   = DUNE.dt;
+        else
+        dtdune   = TIME.dt;
+        end
+        dtnum    = min(dtdune,1/365/48);
         phic     = COAST.PHIcxy;
         h0       = COAST.h0;
         n        = length(phic);
@@ -111,8 +117,6 @@ function [DUNE,COAST]=dune_flux(COAST,DUNE,WIND,RUNUP,TRANSP,TIME)
         por      = DUNE.porosity;
         segmaw   = DUNE.segmaw;
         maxslope = DUNE.maxslope;
-        spyr     = 3600*24*365;
-        dtnum    = min(dtdune,1/365/48);
         runupform= DUNE.runupform;
         runupfactor=DUNE.runupfactor;
         
@@ -122,16 +126,16 @@ function [DUNE,COAST]=dune_flux(COAST,DUNE,WIND,RUNUP,TRANSP,TIME)
         dcelev   = COAST.dcelev;
         
         % Extend single values over the whole grid
-        uwind=repmat(uwind,[1,n/size(uwind,2)]);
-        phiwnd=repmat(phiwnd,[1,n/size(phiwnd,2)]);
+        %uwind=repmat(uwind,[1,n/size(uwind,2)]);
+        %phiwnd=repmat(phiwnd,[1,n/size(phiwnd,2)]);
         
         %% Initialize fluxes
-        COAST.qs  = zeros(size(COAST.x));
-        COAST.qss = zeros(size(COAST.x));
-        COAST.qw  = zeros(size(COAST.x));
-        COAST.ql  = zeros(size(COAST.x));
-        COAST.R   = zeros(size(COAST.x));
-        COAST.SWL = zeros(size(COAST.x));
+        COAST.qs  = zeros(1,size(COAST.x,2));
+        COAST.qss = zeros(1,size(COAST.x,2));
+        COAST.qw  = zeros(1,size(COAST.x,2));
+        COAST.ql  = zeros(1,size(COAST.x,2));
+        COAST.R   = zeros(1,size(COAST.x,2));
+        COAST.SWL = zeros(1,size(COAST.x,2));
 
         % make sure to use sub-timesteps when multiple measurements of HS, SWL, TP or uwind are taking place in a single timestep 
         % (i.e. at more than just one timestep, but also inbetween moments)
@@ -146,68 +150,54 @@ function [DUNE,COAST]=dune_flux(COAST,DUNE,WIND,RUNUP,TRANSP,TIME)
             uwindi=uwind(min(tt,size(uwind,1)),:);
             phiwndi=phiwnd(min(tt,size(phiwnd,1)),:);
             
-            %% Compute dune erosion flux by waves
-        
+            % time step
+            dtdune=dt/dtfractions;
+            
             % Slope of the berm
             % make sure to limit the beach slope, which effectively means the dunefoot will get lower for narrow beaches, and the odds of erosion will increase.
             slope0=dfelev0./wberm;
             dfelev=dfelev0.*min(maxslope./slope0,1);
             slope=dfelev./wberm;
-
+            
             % Offshore wave conditions (or at toe of dynamic profile(?)
             HSo1 = HSi.*sqrt(max(cosd(dPHIi),eps));
             L0 = g/(2*pi)*TPi.^2;
             sqrHsL0=sqrt(HSo1.*L0);
             
-            dtdune=dt/dtfractions;
+            %% Compute dune erosion flux by waves
+            %SWLi=get_smoothdata(SWLi,'',ceil(250/COAST.ds0));
+            %TPi=get_smoothdata(TPi,'',ceil(250/COAST.ds0));
+            %sqrHsL0=get_smoothdata(sqrHsL0,'',ceil(250/COAST.ds0));
             [~,qs,qss,ql,R]=dune_erosion(runupform,runupfactor,wberm,dfelev0,dfelev,dcelev,h0,sqrHsL0,SWLi,TPi,cs,cstill,xtill,perctill,A,dtdune,dtnum);
             
             %% Aeolian transport rate from beach to dune
-
-            % Critical and shear velocity
-            uc=duneaw*sqrt((rhos-rhoa)*g*d50/rhoa);                                     % wind critical shear velocity (m/s)
-            uc=uc.*ones(1,n);
-            z0=d50/30;                                                                  % Larson 2016
-            %z0=0.081*log(DUNE.d50/0.18);                                               % Zingg (1953) Hallin et al. (2019)
-            us=k.*uwindi./log(z/z0);                                               % wind shear velocity (m/s)
-
-            % Potential aeolian transport rate (Kg/m/s)
-            mov=us>uc;
-            mwe(mov)=kw*sqrt(d50/d50r)*rhoa*us(mov).^2.*(us(mov)-uc(mov))/g;               
-            mwe(~mov)=0;
-
-            % Equilibrium transport rate [m3/m/yr] 
-            qwe=spyr*mwe/rhos/(1-por);                                                  % adapted by Anouk                                                 
-
-            % Estimation of the dry beach width
-            Bdry=max((1-(R+SWLi)./dfelev),0).*wberm ;      
-
-            % Fetch length
-            cosphiwndloc=cosd(phic-phiwndi);
-            FL = max(Bdry./cosphiwndloc,0);
-
-            % Aeolian transport rate
-            qw0=qwe.*(1-(exp(-segmaw.*FL))); 
-            qw=qw0.*cosphiwndloc; 
+            [qw,uc,us,mwe,qwe,Bdry,FL]=dune_growth(uwindi,duneaw,rhos,rhoa,por,g,d50,d50r,z,k,kw,R,SWLi,dfelev,wberm,phic,phiwndi,segmaw);
+            
+            % account for probability of the condition
+            Prob=1/dtfractions; % in case of eqaul likelihood (e.g. time-series)
+            if isfield(WIND,'Prob') && isfield(WIND,'iwc')
+                Prob=WIND.Prob(WIND.iwc(tt))/sum(WIND.Prob(WIND.iwc)); % in case of varying probability (e.g. wave climate)
+            end
+            
+            % set to 0 for shadowed sections of coast
+            tt2=min(tt,size(TRANSP.shadow,1));
+            qs(TRANSP.shadow(tt2,:))      = 0;      % Set dune transport to zero due to dune-dune shadowing
+            qs(TRANSP.shadow_h(tt2,:))    = 0;      % Set dune transport to zero due to being sheltered behind structures
+            qs(TRANSP.shadowS_hD(tt2,:))  = 0;      % Set dune transport to zero due to being sheltered behind revetment
+            qss(TRANSP.shadow(tt2,:))     = 0;      % Set dune transport to zero due to dune-dune shadowing
+            qss(TRANSP.shadow_h(tt2,:))   = 0;      % Set dune transport to zero due to being sheltered behind structures
+            qss(TRANSP.shadowS_hD(tt2,:)) = 0;      % Set dune transport to zero due to being sheltered behind revetment
+            ql(TRANSP.shadow(tt2,:))      = 0;      % Set dune transport to zero due to dune-dune shadowing
+            ql(TRANSP.shadow_h(tt2,:))    = 0;      % Set dune transport to zero due to being sheltered behind structures
+            ql(TRANSP.shadowS_hD(tt2,:))  = 0;      % Set dune transport to zero due to being sheltered behind revetment   
             
             % export data
-            COAST.qw=(COAST.qw*(tt-1)+qw)/tt;    % compute average qw, i.e. component due to wind transport
-            COAST.qs=(COAST.qs*(tt-1)+qs)/tt;    % compute average qs, i.e. dune erosion that is beneficial for the beach 
-            COAST.qss=(COAST.qss*(tt-1)+qss)/tt; % compute average qss, i.e. dune erosion that is beneficial for the beach (i.e. the sandy part, discarding the till part)
-            COAST.ql=(COAST.ql*(tt-1)+ql)/tt;    % compute average ql, i.e. dune erosion that is not beneficial for the beach 
-            COAST.R=max(COAST.R,R);              % use maximum instead of average for the runup
-            COAST.SWL=max(COAST.SWL,SWLi);       % use maximum instead of average for the still water level
+            COAST.qw=COAST.qw+qw*Prob;         % compute average qw, i.e. component due to wind transport
+            COAST.qs=COAST.qs+qs*Prob;         % compute average qs, i.e. dune erosion that is beneficial for the beach 
+            COAST.qss=COAST.qss+qss*Prob;      % compute average qss, i.e. dune erosion that is beneficial for the beach (i.e. the sandy part, discarding the till part)
+            COAST.ql=COAST.ql+ql*Prob;         % compute average ql, i.e. dune erosion that is not beneficial for the beach 
+            COAST.R=max(COAST.R,R);            % use maximum instead of average for the runup
+            COAST.SWL=max(COAST.SWL,SWLi);     % use maximum instead of average for the still water level
         end
-        
-        COAST.qs(TRANSP.shadow)     = 0;      % Set dune transport to zero due to dune-dune shadowing
-        COAST.qs(TRANSP.shadow_h)   = 0;      % Set dune transport to zero due to being sheltered behind structures
-        COAST.qs(TRANSP.shadowS_hD) = 0;      % Set dune transport to zero due to being sheltered behind revetment
-        COAST.qss(TRANSP.shadow)     = 0;      % Set dune transport to zero due to dune-dune shadowing
-        COAST.qss(TRANSP.shadow_h)   = 0;      % Set dune transport to zero due to being sheltered behind structures
-        COAST.qss(TRANSP.shadowS_hD) = 0;      % Set dune transport to zero due to being sheltered behind revetment
-        COAST.ql(TRANSP.shadow)     = 0;      % Set dune transport to zero due to dune-dune shadowing
-        COAST.ql(TRANSP.shadow_h)   = 0;      % Set dune transport to zero due to being sheltered behind structures
-        COAST.ql(TRANSP.shadowS_hD) = 0;      % Set dune transport to zero due to being sheltered behind revetment   
-
     end
 end

@@ -91,7 +91,7 @@ function [x,y,xb,yb,xmax,ymax,xmin,ymin,nmax] = plot_insert_land_fill(x,y,ld,it,
         o=mod(atan2d(diff(x),diff(y))-90,360);
         o2=[];
         for oo=1:usefillpoints
-            o2(oo)=get_smoothdata(o([ido4(oo):ido4(oo+1)]),'angleavgmean',3);
+            o2(oo)=mean(get_smoothdata(o([ido4(oo):ido4(oo+1)]),'angleavgmean',3));
         end
         x2=x(idx4);
         y2=y(idx4);        

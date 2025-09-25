@@ -1,5 +1,5 @@
-function [COAST,GROYNE,STRUC]=coastline_change(COAST,WAVE,TRANSP,DUNE,MUD,STRUC,GROYNE,TIME,NOUR,FNOUR,CC)
-% function [COAST,GROYNE,STRUC]=coastline_change(COAST,WAVE,TRANSP,DUNE,MUD,STRUC,GROYNE,TIME,NOUR,FNOUR,CC)
+function [COAST,GROYNE,STRUC,TRANSP]=coastline_change(COAST,WAVE,TRANSP,DUNE,MUD,STRUC,GROYNE,TIME,NOUR,FNOUR,CC)
+% function [COAST,GROYNE,STRUC,TRANSP]=coastline_change(COAST,WAVE,TRANSP,DUNE,MUD,STRUC,GROYNE,TIME,NOUR,FNOUR,CC)
 %
 % Updates the coastline and dune position (berm width) at each time step 
 % based on transport gradients and nourishment volumes. Both the sand
@@ -137,33 +137,22 @@ function [COAST,GROYNE,STRUC]=coastline_change(COAST,WAVE,TRANSP,DUNE,MUD,STRUC,
     COAST.dndt=zeros(1,n);
     COAST.dx=zeros(1,n);
     COAST.dy=zeros(1,n);
-    
-    %% COMPUTE RATE OF COASTLINE CHANGE, NOT INCLUDIN GROYNE EFFECTS
-    % dSds : rate of volumetric change in [m3/yr per meter coastline length]
-    % dndt : rate of coastline change in [m/yr]
-    for i=1:n
-       if COAST.cyclic
-          im1=get_mod(i-1,n);
-          ip1=get_mod(i+1,n);
-          im1q=get_mod(i,nq);
-          ip1q=get_mod(i+1,nq);
-       else
-          im1=max(i-1,1);
-          ip1=min(i+1,n);
-          im1q=max(i,1);
-          ip1q=min(i+1,nq);
-       end
        
-       COAST.ds(i)=hypot(COAST.x(ip1)-COAST.x(im1),COAST.y(ip1)-COAST.y(im1))/2;
-       COAST.ds(i)=max(COAST.ds(i),eps);
-       COAST.dSds(i)=(TRANSP.QS(ip1q)-TRANSP.QS(im1q))/COAST.ds(i);
-       COAST.dndt(i)=-COAST.dSds(i)/COAST.h0(i);
-    end
-    
     %% Determine dominant bypass transport in case of groynes
-    for ig=1:GROYNE.n
-       [QSm,imx]=max(abs(GROYNE.QS(ig,:)));
-       GROYNE.QS(ig,:)=GROYNE.QS(ig,imx);
+    if COAST.i_mc==1
+        for ig=1:GROYNE.n
+            if GROYNE.QS(ig,1)<=0 & GROYNE.QS(ig,2)>=0
+            % divergent transports -> set bypass at 0
+            GROYNE.QS(ig,:)=0;
+            elseif (GROYNE.QS(ig,1)>=0 & GROYNE.QS(ig,2)>=0) || (GROYNE.QS(ig,1)<=0 & GROYNE.QS(ig,2)<=0)    
+            % positive or negative transport at both sides -> pick the maximum
+            [QSm,imx]=max(abs(GROYNE.QS(ig,:)));
+            GROYNE.QS(ig,:)=GROYNE.QS(ig,imx);
+            else % GROYNE.QS(ig,1)>=0 & GROYNE.QS(ig,2)<=0
+            % converging transport
+            GROYNE.QS(ig,:)=sum(GROYNE.QS(ig,:),2);
+            end
+        end
     end
     
     %% Coastline treatment if a groyne is located at the beginning or end of a coastline section
@@ -221,182 +210,212 @@ function [COAST,GROYNE,STRUC]=coastline_change(COAST,WAVE,TRANSP,DUNE,MUD,STRUC,
              end
              fraction=max(([nq:-1:1]-(nq-ishadow))/(ishadow),0).^pwr;
              if ishadow>0
-                TRANSP.QS(1:ishadow)=TRANSP.QS(1:ishadow)+fraction(1:ishadow).*GROYNE.QS(idgroyne,segmentside);
+                 TRANSP.QS(1:ishadow)=TRANSP.QS(1:ishadow)+fraction(1:ishadow).*GROYNE.QS(idgroyne,segmentside);
              end
           else
               TRANSP.QS(pq)=GROYNE.QS(idgroyne,segmentside);
           end
        end
        
-       %% Determine the location where the coastline attaches to the perimeter of a groyne
-       if ~isempty(idgroyne)
-          % determine the which groyne is used (index 'ist'), the groyne polygon (xhard, yhard) and path along groyne perimeter (shard)
-          ist=GROYNE.strucnum(idgroyne);
-          [~    ,xhard,~   ,~ , ~ ] = get_one_polygon( STRUC.shard,STRUC.xhard,ist );
-          [shard,yhard,~   ,~ , ~ ] = get_one_polygon( STRUC.shard,STRUC.yhard,ist );
-          try
-             COAST.ds(p1)=hypot(COAST.x(p2)-COAST.x(p1),COAST.y(p2)-COAST.y(p1));
-          catch
-             ds0=COAST.ds0;
-             if ~isscalar(ds0)
-                ds0=min(ds0(:,3));
-             end
-             COAST.ds(min(max(p1,1),length(COAST.x)))=ds0;
-             %figure;plot(COAST.x_mc,COAST.y_mc,'k.-');hold on;plot(STRUC.xhard,STRUC.yhard,'r-');
-             fprintf('Please make sure that the groynes are not located exactly at the edge of the model or too close to each other!!! (with just 1 cell elements left inbetween). Model uses reference ds0.\n');
-          end
-          
-          % correct for relative angle of coastline to the groyne. 
-          dnratio=1.5./(1-cosd(min(GROYNE.PHIdn(idgroyne,segmentside),180)));
-          dnratio=min(dnratio,5);
-          
-          % compute the coastal change (dn) at the coastline point adjacent to the groyne
-          %segmentsign=(segmentside*2-3);
-          COAST.dSds(p1)=(TRANSP.QS(pq2)-TRANSP.QS(pq1))/COAST.ds(p1); 
-          COAST.dndt(p1)=-COAST.dSds(p1)/COAST.h0(p1);                          % dndt in [m/yr] = alongshore gradient in sediment transport in [m3/yr/m] divided by 'active height' [m]
-          if MUD.used
-             COAST.dndt(p1)=COAST.dndt(p1)+COAST.dndt_mud(p1);
-          end
-          dn=dnratio*(COAST.dndt(p1)+NOUR.growth*NOUR.rate_density(p1)/COAST.h0(p1)-CC.SLRo/COAST.tanbeta+FNOUR.q_tot(p1)/COAST.h0(p1))*TIME.dt;      % dndt in [m/yr] + nourishment in [m3/m/yr] divided by the active height [m] 
-          
-          % Make sure that the intersection of the coastline with the groyne is not beyond the tip of the groyne
-          % GROYNE.s is the distance along the groyne polygon where the crossing is found
-          shard_tip=shard(GROYNE.tipindx(idgroyne,segmentside));
-          
-          if segmentside==2
-             if max(GROYNE.s(idgroyne,segmentside)-dn,shard_tip)>max(shard)
-                % extend structure if needed -> so the leg will be extended in landward direction
-                sxt=max(GROYNE.s(idgroyne,segmentside)-dn,shard_tip)-max(shard)+epsgroyne;
-                dx=diff(xhard(end-1:end));
-                dy=diff(yhard(end-1:end));
-                dxt=sxt*dx/((dx.^2+dy.^2).^0.5);
-                dyt=sxt*dy/((dx.^2+dy.^2).^0.5);
-                shard(end)=shard(end)+sxt;
-                xhard(end)=xhard(end)+dxt;
-                yhard(end)=yhard(end)+dyt;
-                [STRUC.xhard,STRUC.yhard]=insert_section(xhard,yhard,STRUC.xhard,STRUC.yhard,ist);
-                [STRUC.shard]=insert_section(shard,STRUC.shard,ist);
-             end
-             GROYNE.s(idgroyne,segmentside)=min(max(GROYNE.s(idgroyne,segmentside)-dn,shard_tip),max(shard)-eps);
-          end
-          if segmentside==1
-             if min(GROYNE.s(idgroyne,segmentside)+dn,shard_tip)<min(shard)
-                % extend structure if needed -> so the leg will be extended in landward direction
-                sxt=min(GROYNE.s(idgroyne,segmentside)+dn,shard_tip)-min(shard)-epsgroyne;
-                dx=diff(xhard(end-1:end));
-                dy=diff(yhard(end-1:end));
-                dxt=-sxt*dx/((dx.^2+dy.^2).^0.5);
-                dyt=-sxt*dy/((dx.^2+dy.^2).^0.5);
-                shard(1)=shard(1)+sxt;
-                xhard(1)=xhard(1)+dxt;
-                yhard(1)=yhard(1)+dyt;
-                [STRUC.xhard,STRUC.yhard]=insert_section(xhard,yhard,STRUC.xhard,STRUC.yhard,ist);
-                [STRUC.shard]=insert_section(shard,STRUC.shard,ist);
-             end
-             GROYNE.s(idgroyne,segmentside)=max(min(GROYNE.s(idgroyne,segmentside)+dn,shard_tip),min(shard)+eps);
-          end
-          
-          % find the location where the coastline attaches to the perimeter of the groyne polygon
-          GROYNE.x(idgroyne,segmentside)=interp1(shard,xhard,GROYNE.s(idgroyne,segmentside));
-          GROYNE.y(idgroyne,segmentside)=interp1(shard,yhard,GROYNE.s(idgroyne,segmentside));
-          if ~isnan(GROYNE.x(idgroyne,segmentside))
-             xbnd(segmentside)=GROYNE.x(idgroyne,segmentside);
-             ybnd(segmentside)=GROYNE.y(idgroyne,segmentside);
-          end
-       end
+        %% Determine the location where the coastline attaches to the perimeter of a groyne
+        if ~isempty(idgroyne)
+            % determine the which groyne is used (index 'ist'), the groyne polygon (xhard, yhard) and path along groyne perimeter (shard)
+            ist=GROYNE.strucnum(idgroyne);
+            [~    ,xhard,~   ,~ , ~ ] = get_one_polygon( STRUC.shard,STRUC.xhard,ist );
+            [shard,yhard,~   ,~ , ~ ] = get_one_polygon( STRUC.shard,STRUC.yhard,ist );
+            try
+                COAST.ds(p1)=hypot(COAST.x(p2)-COAST.x(p1),COAST.y(p2)-COAST.y(p1));
+            catch
+                ds0=COAST.ds0;
+                if ~isscalar(ds0)
+                    ds0=min(ds0(:,3));
+                end
+                COAST.ds(min(max(p1,1),length(COAST.x)))=ds0;
+                %figure;plot(COAST.x_mc,COAST.y_mc,'k.-');hold on;plot(STRUC.xhard,STRUC.yhard,'r-');
+                fprintf('Please make sure that the groynes are not located exactly at the edge of the model or too close to each other!!! (with just 1 cell elements left inbetween). Model uses reference ds0.\n');
+            end
+            
+            % correct for relative angle of coastline to the groyne. 
+            dnratio=1.5./(1-cosd(min(GROYNE.PHIdn(idgroyne,segmentside),180)));
+            dnratio=1; %min(dnratio,1);
+            
+            % compute the coastal change (dn) at the coastline point adjacent to the groyne
+            %segmentsign=(segmentside*2-3);
+            COAST.dSds(p1)=(TRANSP.QS(pq2)-TRANSP.QS(pq1))/(COAST.ds(p1)/2); 
+            COAST.dndt(p1)=-COAST.dSds(p1)/COAST.h0(p1);                          % dndt in [m/yr] = alongshore gradient in sediment transport in [m3/yr/m] divided by 'active height' [m]
+            if MUD.used
+                COAST.dndt(p1)=COAST.dndt(p1)+COAST.dndt_mud(p1);
+            end
+            dn=dnratio*(COAST.dndt(p1)+NOUR.growth*NOUR.rate_density(p1)/COAST.h0(p1)-CC.SLRo/COAST.tanbeta+FNOUR.q_tot(p1)/COAST.h0(p1))*TIME.dt;      % dndt in [m/yr] + nourishment in [m3/m/yr] divided by the active height [m] 
+            
+            % Make sure that the intersection of the coastline with the groyne is not beyond the tip of the groyne
+            % GROYNE.s is the distance along the groyne polygon where the crossing is found
+            shard_tip=shard(GROYNE.tipindx(idgroyne,segmentside));
+            
+            if segmentside==2
+                if max(GROYNE.s(idgroyne,segmentside)-dn,shard_tip)>max(shard)
+                    % extend structure if needed -> so the leg will be extended in landward direction
+                    sxt=max(GROYNE.s(idgroyne,segmentside)-dn,shard_tip)-max(shard)+epsgroyne;
+                    dx=diff(xhard(end-1:end));
+                    dy=diff(yhard(end-1:end));
+                    dxt=sxt*dx/((dx.^2+dy.^2).^0.5);
+                    dyt=sxt*dy/((dx.^2+dy.^2).^0.5);
+                    shard(end)=shard(end)+sxt;
+                    xhard(end)=xhard(end)+dxt;
+                    yhard(end)=yhard(end)+dyt;
+                    [STRUC.xhard,STRUC.yhard]=insert_section(xhard,yhard,STRUC.xhard,STRUC.yhard,ist);
+                    [STRUC.shard]=insert_section(shard,STRUC.shard,ist);
+                end
+                GROYNE.s(idgroyne,segmentside)=min(max(GROYNE.s(idgroyne,segmentside)-dn,shard_tip),max(shard)-eps);
+            end
+            if segmentside==1
+                if min(GROYNE.s(idgroyne,segmentside)+dn,shard_tip)<min(shard)
+                    % extend structure if needed -> so the leg will be extended in landward direction
+                    sxt=min(GROYNE.s(idgroyne,segmentside)+dn,shard_tip)-min(shard)-epsgroyne;
+                    dx=diff(xhard(end-1:end));
+                    dy=diff(yhard(end-1:end));
+                    dxt=-sxt*dx/((dx.^2+dy.^2).^0.5);
+                    dyt=-sxt*dy/((dx.^2+dy.^2).^0.5);
+                    shard(1)=shard(1)+sxt;
+                    xhard(1)=xhard(1)+dxt;
+                    yhard(1)=yhard(1)+dyt;
+                    [STRUC.xhard,STRUC.yhard]=insert_section(xhard,yhard,STRUC.xhard,STRUC.yhard,ist);
+                    [STRUC.shard]=insert_section(shard,STRUC.shard,ist);
+                end
+                GROYNE.s(idgroyne,segmentside)=max(min(GROYNE.s(idgroyne,segmentside)+dn,shard_tip),min(shard)+eps);
+            end
+            
+            % find the location where the coastline attaches to the perimeter of the groyne polygon
+            GROYNE.x(idgroyne,segmentside)=interp1(shard,xhard,GROYNE.s(idgroyne,segmentside));
+            GROYNE.y(idgroyne,segmentside)=interp1(shard,yhard,GROYNE.s(idgroyne,segmentside));
+            if ~isnan(GROYNE.x(idgroyne,segmentside))
+                xbnd(segmentside)=GROYNE.x(idgroyne,segmentside);
+                ybnd(segmentside)=GROYNE.y(idgroyne,segmentside);
+            end
+        end
     end
-    
-    if DUNE.used
-       %% Add coastline change due to dune exchange
-       % COAST.qss is the sand part of the erosion of the dune
-       COAST.dndt=COAST.dndt+(COAST.qss-COAST.qw)./COAST.h0;
-       %% Update wberm
-       id1=logical(~TRANSP.shadowS_hD);
-       id2=logical(TRANSP.shadowS_hD);
-       COAST.wberm(id1)=max(COAST.wberm(id1)+(COAST.dndt(id1)+(COAST.qs(id1)+COAST.ql(id1)-COAST.qw(id1))./(COAST.dcelev(id1)-COAST.dfelev(id1)))*TIME.dt,1);
-       COAST.wberm(id2)=max(COAST.wberm(id2)+(COAST.dndt(id2)+(COAST.qs(id2)+COAST.ql(id2)-COAST.qw(id2))./(COAST.dcelev(id2)-COAST.dfelev(id2)))*TIME.dt,1);
-       
-       if find(isnan(COAST.wberm))
-          disp('nans in wberm')
-       end      
-    end
-    if MUD.used
-       %% Add mud coastline change
-       COAST.dndt=COAST.dndt_mud;
-       %% Update Bf and Bm
-       COAST.Bf=COAST.Bf+COAST.dBfdt*TIME.dt;
-       COAST.Bfm=COAST.Bfm+(COAST.dBfmdt-COAST.dBmdt)*TIME.dt;
-       COAST.Bm=COAST.Bm+COAST.dBmdt*TIME.dt;
-       COAST.Bf=max(COAST.Bf,0);
-       COAST.Bfm=max(COAST.Bfm,0);
-       COAST.Bm=min(COAST.Bm,MUD.Bmmax);
-       COAST.Bm=max(COAST.Bm,MUD.Bmmin);
-    end
-    if DUNE.used 
-       [COAST.wberm_mc,~,~]=insert_props(COAST.wberm,COAST.wberm_mc,COAST.i_mc);
-       [COAST.dfelev_mc,~,~]=insert_props(COAST.dfelev,COAST.dfelev_mc,COAST.i_mc);
-       [COAST.dcelev_mc,~,~]=insert_props(COAST.dcelev,COAST.dcelev_mc,COAST.i_mc);
-    end
-    if MUD.used
-       [COAST.Bf_mc,~,~]=insert_props(COAST.Bf,COAST.Bf_mc,COAST.i_mc);
-       [COAST.Bm_mc,~,~]=insert_props(COAST.Bm,COAST.Bm_mc,COAST.i_mc);
-       [COAST.Bfm_mc,~,~]=insert_props(COAST.Bfm,COAST.Bfm_mc,COAST.i_mc);
-    end
-    
-    %% Compute dn
+
+    %% COMPUTE RATE OF COASTLINE CHANGE, NOT INCLUDING GROYNE EFFECTS
+    % dSds : rate of volumetric change in [m3/yr per meter coastline length]
+    % dndt : rate of coastline change in [m/yr]
     for i=1:n
-       if COAST.cyclic
-          im1=get_mod(i-1,n);
-          ip1=get_mod(i+1,n);
-       else
-          im1=max(i-1,1);
-          ip1=min(i+1,n);
-       end
-       dn=(COAST.dndt(i)+(NOUR.rate_density(i)/COAST.h0(i))-CC.SLRo/COAST.tanbeta+(FNOUR.q_tot(i)/COAST.h0(i)))*TIME.dt;
+        if COAST.cyclic
+            im1=get_mod(i-1,n);
+            ip1=get_mod(i+1,n);
+            im1q=get_mod(i,nq);
+            ip1q=get_mod(i+1,nq);
+        else
+            im1=max(i-1,1);
+            ip1=min(i+1,n);
+            im1q=max(i,1);
+            ip1q=min(i+1,nq);
+        end
+        
+        COAST.ds(i)=hypot(COAST.x(ip1)-COAST.x(im1),COAST.y(ip1)-COAST.y(im1))/2;
+        COAST.ds(i)=max(COAST.ds(i),eps);
+        COAST.dSds(i)=(TRANSP.QS(ip1q)-TRANSP.QS(im1q))/COAST.ds(i);
+        COAST.dndt(i)=-COAST.dSds(i)/COAST.h0(i);
+    end
+    COAST.dndtnour=NOUR.rate_density./COAST.h0+FNOUR.q_tot./COAST.h0;
+
+    %% Compute Dune position change
+    if DUNE.used
+        % Add coastline change due to dune exchange
+        % COAST.qss is the sand part of the erosion of the dune
+        COAST.dndt=COAST.dndt+(COAST.qss-COAST.qw)./COAST.h0;
+        % change berm width when a nourishment is introduced, such that dune foot remains in place
+        COAST.wberm=COAST.wberm+COAST.dndtnour*TIME.dt;
+        % Make sure wberm has a minimum width
+        id1=logical(~TRANSP.shadowS_hD);
+        id2=logical(TRANSP.shadowS_hD);
+        COAST.wberm(id1)=max(COAST.wberm(id1)+(COAST.dndt(id1)+(COAST.qs(id1)+COAST.ql(id1)-COAST.qw(id1))./(COAST.dcelev(id1)-COAST.dfelev(id1)))*TIME.dt,1);
+        COAST.wberm(id2)=max(COAST.wberm(id2)+(COAST.dndt(id2)+(COAST.qs(id2)+COAST.ql(id2)-COAST.qw(id2))./(COAST.dcelev(id2)-COAST.dfelev(id2)))*TIME.dt,1);    
+        % Update wberm
+        [COAST.wberm_mc,~,~]=insert_props(COAST.wberm,COAST.wberm_mc,COAST.i_mc);
+        [COAST.dfelev_mc,~,~]=insert_props(COAST.dfelev,COAST.dfelev_mc,COAST.i_mc);
+        [COAST.dcelev_mc,~,~]=insert_props(COAST.dcelev,COAST.dcelev_mc,COAST.i_mc);
+    end
+
+    %% Compute Mud coast position change
+    if MUD.used
+        % Add mud coastline change
+        COAST.dndt=COAST.dndt_mud;
+        % Update Bf and Bm
+        COAST.Bf=COAST.Bf+COAST.dBfdt*TIME.dt;
+        COAST.Bfm=COAST.Bfm+(COAST.dBfmdt-COAST.dBmdt)*TIME.dt;
+        COAST.Bm=COAST.Bm+COAST.dBmdt*TIME.dt;
+        COAST.Bf=max(COAST.Bf,0);
+        COAST.Bfm=max(COAST.Bfm,0);
+        COAST.Bm=min(COAST.Bm,MUD.Bmmax);
+        COAST.Bm=max(COAST.Bm,MUD.Bmmin);
+        [COAST.Bf_mc,~,~]=insert_props(COAST.Bf,COAST.Bf_mc,COAST.i_mc);
+        [COAST.Bm_mc,~,~]=insert_props(COAST.Bm,COAST.Bm_mc,COAST.i_mc);
+        [COAST.Bfm_mc,~,~]=insert_props(COAST.Bfm,COAST.Bfm_mc,COAST.i_mc);
+    end
+    
+    %% Compute Coastline position change (dn)
+    for i=1:n
+        if COAST.cyclic
+            im1=get_mod(i-1,n);
+            ip1=get_mod(i+1,n);
+        else
+            im1=max(i-1,1);
+            ip1=min(i+1,n);
+        end
+        dn=(COAST.dndt(i)+COAST.dndtnour(i)-CC.SLRo/COAST.tanbeta)*TIME.dt;
        
-       if COAST.cyclic || (i>1 && i<n)
-          COAST.dx(i)=-dn*(COAST.y(ip1)-COAST.y(im1))/(2*COAST.ds(i));
-          COAST.dy(i)= dn*(COAST.x(ip1)-COAST.x(im1))/(2*COAST.ds(i));
-       else
-          COAST.dx(i)= dn*sind(COAST.PHIc0bnd(min(i,2))); % no minus sign here
-          COAST.dy(i)= dn*cosd(COAST.PHIc0bnd(min(i,2))); 
-       end
+        if COAST.preserveorientation==1
+            if length(COAST.PHIcxy0)~=length(COAST.x)
+                fprintf('Warning : grid length has changed');
+            end
+            COAST.dx(i)= dn*sind(COAST.PHIcxy0(i)); % no minus sign here
+            COAST.dy(i)= dn*cosd(COAST.PHIcxy0(i)); 
+        elseif i==1
+            COAST.dx(i)= dn*sind(COAST.PHIcxy0(1)); % no minus sign here
+            COAST.dy(i)= dn*cosd(COAST.PHIcxy0(1));           
+        elseif i==n
+            COAST.dx(i)= dn*sind(COAST.PHIcxy0(end)); % no minus sign here
+            COAST.dy(i)= dn*cosd(COAST.PHIcxy0(end)); 
+        else %if COAST.cyclic 
+            COAST.dx(i)=-dn*(COAST.y(ip1)-COAST.y(im1))/(2*COAST.ds(i));
+            COAST.dy(i)= dn*(COAST.x(ip1)-COAST.x(im1))/(2*COAST.ds(i));
+        end
     end
     
     %% Update coastline positions, all points
     x0=COAST.x(:);
     y0=COAST.y(:);
     for i=1:n
-       COAST.x(i)=x0(i)+COAST.dx(i);
-       COAST.y(i)=y0(i)+COAST.dy(i);
+        COAST.x(i)=x0(i)+COAST.dx(i);
+        COAST.y(i)=y0(i)+COAST.dy(i);
     end
     if COAST.cyclic
-       x1=(COAST.x(n)+COAST.x(1))/2;
-       y1=(COAST.y(n)+COAST.y(1))/2;
-       COAST.x(1)=x1;
-       COAST.y(1)=y1;
-       COAST.x(n)=x1;
-       COAST.y(n)=y1;
+        x1=(COAST.x(n)+COAST.x(1))/2;
+        y1=(COAST.y(n)+COAST.y(1))/2;
+        COAST.x(1)=x1;
+        COAST.y(1)=y1;
+        COAST.x(n)=x1;
+        COAST.y(n)=y1;
     end
     
     %% Overwrite coastline position if groyne at begin of coastline section
     if ~isnan(xbnd(2))
-       COAST.x(1)=xbnd(2);
-       COAST.y(1)=ybnd(2);
+        COAST.x(1)=xbnd(2);
+        COAST.y(1)=ybnd(2);
     end
     %% Overwrite coastline position if groyne at end of coastline section
     if ~isnan(xbnd(1))
-       COAST.x(n)=xbnd(1);
-       COAST.y(n)=ybnd(1);
+        COAST.x(n)=xbnd(1);
+        COAST.y(n)=ybnd(1);
     end
     
     % Replace nans with -1e10 in this way the number of elements stays n_mc
     if isempty(find(~isnan(COAST.x)))
-       COAST.x=-1e10;
-       COAST.y=-1e10;
-       COAST.dSds=-1e10;
+        COAST.x=-1e10;
+        COAST.y=-1e10;
+        COAST.dSds=-1e10;
     end
-    
+
     % Insert dSds in dSds_mc
     if  COAST.i_mc==1
         [COAST.dSds_mc]=COAST.dSds;
@@ -407,11 +426,15 @@ function [COAST,GROYNE,STRUC]=coastline_change(COAST,WAVE,TRANSP,DUNE,MUD,STRUC,
     %% insert new section into x_mc and y_mc
     [COAST.x_mc,COAST.y_mc]=insert_section(COAST.x,COAST.y,COAST.x_mc,COAST.y_mc,COAST.i_mc);
     
+    %% insert new section TRANSP.QS into TRANSP.QS_mc
+    [TRANSP.QS_mc]=insert_section(TRANSP.QS,TRANSP.QS_mc,COAST.i_mc);
+
     %% make transport points xq_mc and yq_mc
     [COAST]=get_transportpoints(COAST,COAST.i_mc);
     
     % Check area
     %A1 = polyarea(x0(:),y0(:));
     %A2 = polyarea(COAST.x(:),COAST.y(:));
+    %A3 = sum(COAST.ds_mc(~isnan(COAST.ds_mc)).*COAST.y_mc(~isnan(COAST.ds_mc)))
     %fprintf('Area=%12.0f, Area2=%12.0f      ',A1,A2);
 end

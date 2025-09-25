@@ -55,6 +55,7 @@ function [H,Dw,Urms,k,C,Cg,theta,Fy,vw] = wave_cur_1D(H0,T,theta0,alpha,gamma,cf
 
     g=9.81;
     rho=1025;
+    eps=1e-6;
     if ~isempty(n)
     cf=9.81*(n^2)./h.^(1/3);
     end
@@ -69,16 +70,16 @@ function [H,Dw,Urms,k,C,Cg,theta,Fy,vw] = wave_cur_1D(H0,T,theta0,alpha,gamma,cf
     try
         theta=asind(sind(theta0).*C./C(1,:)); 
     catch
-        theta0
+        theta=theta0;
     end
 
     E=zeros(size(h));
     beta=zeros(size(h));
-    E(1,:)=1/8*rho*g*H0^2;
+    E(1,:)=max(1/8*rho*g.*H0.^2,eps);
     for i=1:length(x)-1
-        beta(i,:)=2*alpha/T*dx*exp(-Emax(i,:)./E(i,:));
+        beta(i,:)=2*alpha./T*dx.*exp(-Emax(i,:)./abs(E(i,:)));
         E(i+1,:)=(E(i,:).*Cg(i,:).*cosd(theta(i,:))-beta(i,:).*Emax(i,:))./(Cg(i+1,:).*cosd(theta(i+1,:))+beta(i,:));
-        beta(i,:)=2*alpha/T*dx*exp(-Emax(i,:)./(E(i,:)+E(i+1,:))*2);
+        beta(i,:)=2*alpha./T*dx.*exp(-Emax(i,:)./abs(E(i,:)+E(i+1,:))*2);
         E(i+1,:)=(E(i,:).*Cg(i,:).*cosd(theta(i,:))-beta(i,:).*Emax(i,:))./(Cg(i+1,:).*cosd(theta(i+1,:))+beta(i,:));
         E(i+1,:)=max(min(E(i+1,:),0.125*rho*g*(gamma*h(i+1,:)).^2),eps);
     end
@@ -86,9 +87,11 @@ function [H,Dw,Urms,k,C,Cg,theta,Fy,vw] = wave_cur_1D(H0,T,theta0,alpha,gamma,cf
     H=sqrt(8*E/rho/g);
     Dw=beta/dx.*(Emax+E);
     Fy=Dw./C.*sind(theta);
-    Urms=1/sqrt(2)*pi*H./T./sinh(k.*h);
+    Urms=1/sqrt(2)*pi*min(H./T,1)./sinh(k.*h);
     aa=1./Urms.^2;bb=1.16^2;cc=-(Fy/rho./cf./Urms).^2;
     vw=sqrt((-bb+sqrt(bb.^2-4*aa.*cc))/2./aa).*sign(theta);
+    Urms(isnan(Urms))=0;
+    vw(isnan(vw))=0; 
     % vw=Fy/rho./cf./Urms;
     % vw=sqrt(abs(Fy)/rho./cf).*sign(Fy);
 end

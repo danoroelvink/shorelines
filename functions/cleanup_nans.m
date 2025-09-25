@@ -13,7 +13,7 @@ function [COAST,i_diff]=cleanup_nans(COAST)
 %      .x_mc        : x-coordinates for all coastal segments (updated)
 %      .y_mc        : y-coordinates for all coastal segments (updated)
 %      .n_mc        : number of coastal segments (updated)
-%    i_diff         : change in the number of points of x_mc/y_mc (-2 means two nan points were removed)
+%    i_diff         : change in the number of points of x_mc/y_mc (-2 means two NaN points were removed)
 % 
 %% Copyright notice
 %   --------------------------------------------------------------------
@@ -47,45 +47,67 @@ function [COAST,i_diff]=cleanup_nans(COAST)
     eps=0.1;
     i_diff=0;
     while i<=length(COAST.x_mc)
-        if i==1&& isnan(COAST.x_mc(i))    %[(Nan) 1 1 1 1] >> [1 1 1 1]
-            COAST.x_mc=COAST.x_mc(2:end);
-            COAST.y_mc=COAST.y_mc(2:end);
-        elseif i==length(COAST.x_mc)&& isnan(COAST.x_mc(i))  %[1 1 1 (Nan)] >> [1 1 1 ]
-            COAST.x_mc=COAST.x_mc(1:end-1);
-            COAST.y_mc=COAST.y_mc(1:end-1);
-        elseif i>1&&i<length(COAST.x_mc)&&isnan(COAST.x_mc(i-1))&&isnan(COAST.x_mc(i+1)) %[1 1 1 Nan (Nan) Nan 1 1] >> [1 1 1 1]
-            COAST.x_mc=[COAST.x_mc(1:i-1),COAST.x_mc(i+2:end)];
-            COAST.y_mc=[COAST.y_mc(1:i-1),COAST.y_mc(i+2:end)];
-            if ~isnan(COAST.x_mc(i))
-                i_diff=i_diff-1;  % administrate that 1 element is removed!
-            end
-        elseif i>1&&i<length(COAST.x_mc)-1&&isnan(COAST.x_mc(i-1))&&isnan(COAST.x_mc(i+2)) % [1 1 1 Nan (1) 1 Nan 1 1] >> [1 1 1 Nan 1 1]
-            COAST.x_mc=[COAST.x_mc(1:i-1),COAST.x_mc(i+3:end)];
-            COAST.y_mc=[COAST.y_mc(1:i-1),COAST.y_mc(i+3:end)];
-            if ~isnan(COAST.x_mc(i)) || ~isnan(COAST.x_mc(i+1))
+        % Remove NaN at beginning 
+        % [(NaN) 1 1 1 1] >> [1 1 1 1]
+        % and potentially starting elements of just 1 or 2 cells
+        if i<=3 && isnan(COAST.x_mc(i))
+            COAST.x_mc=COAST.x_mc(i+1:end);
+            COAST.y_mc=COAST.y_mc(i+1:end);
+            if i~=1
                 i_diff=i_diff-1;                            % administrate that 1 element is removed!
             end
-        elseif i==length(COAST.x_mc)-1&&isnan(COAST.x_mc(i))            % [1 1 (1)  Nan] >>  [1 1 1]
-            COAST.x_mc=[COAST.x_mc(1:i-1)];
-            COAST.y_mc=[COAST.y_mc(1:i-1)];
-        elseif isnan(COAST.x_mc(i))&&isnan(COAST.x_mc(i+1))             % [1 1 1 (nan) nan 1 1 1] >>  %[1 1 1 (nan) 1 1 1]
-            COAST.x_mc=[COAST.x_mc(1:i),COAST.x_mc(i+2:end)];
-            COAST.y_mc=[COAST.y_mc(1:i),COAST.y_mc(i+2:end)];
-        elseif i>1&&hypot(COAST.x_mc(i)-COAST.x_mc(i-1),COAST.y_mc(i)-COAST.y_mc(i-1))<eps  % remove repeated points    [.. xa xa ...] >> [.. xa ..] & [.. yb yb ..] >> [.. yb ..] 
+            i=1;                                            % <- this means redo the whole loop to check if the remainder of the element is still valid & remove any remaining excessive nans -> possibly only an element with just one point is left, which needs to be removed by restarting the loop.           
+        
+        % Remove NaN at end 
+        % [1 1 1 (NaN)] >> [1 1 1]
+        % and potentially remove trailing elements of just 1 or 2 cells
+        elseif i>=length(COAST.x_mc)-2 && isnan(COAST.x_mc(i))
+            COAST.x_mc=COAST.x_mc(1:i-1);
+            COAST.y_mc=COAST.y_mc(1:i-1);
+            if i~=length(COAST.x_mc)
+                i_diff=i_diff-1;                            % administrate that 1 element is removed!
+            end
+            i=1;                                            % <- this means redo the whole loop to check if the remainder of the element is still valid & remove any remaining excessive nans -> possibly only an element with just one point is left, which needs to be removed by restarting the loop.           
+        
+        % Remove multiple trailing NaNs
+        % [1 1 1 (NaN) NaN 1 1 1] >>  [1 1 1 NaN 1 1 1]
+        elseif i>1 && i<=length(COAST.x_mc)-1 && isnan(COAST.x_mc(i)) && isnan(COAST.x_mc(i+1))             
             COAST.x_mc=[COAST.x_mc(1:i-1),COAST.x_mc(i+1:end)];
             COAST.y_mc=[COAST.y_mc(1:i-1),COAST.y_mc(i+1:end)];
             i=1;                                            % <- this means redo the whole loop to check if the remainder of the element is still valid & remove any remaining excessive nans -> possibly only an element with just one point is left, which needs to be removed by restarting the loop.           
-        elseif i>2&&hypot(COAST.x_mc(i)-COAST.x_mc(i-2),COAST.y_mc(i)-COAST.y_mc(i-2))<eps ...  % if repeated points (same points with only one point in-between, possibly a triangular island, or local spike of coastline) [.. xa xb xa ...] >> [.. xa xb ..] & [.. yc yd yc ..] >> [.. yc yd ..]
-                &&~isnan(COAST.x_mc(i-2))&&~isnan(COAST.x_mc(i-1))&&~isnan(COAST.x_mc(i))
-            COAST.x_mc=[COAST.x_mc(1:i-1),COAST.x_mc(i+1:end)];
-            COAST.y_mc=[COAST.y_mc(1:i-1),COAST.y_mc(i+1:end)];
+        
+        % Remove elements of only 1-cells
+        % [1 1 1 (NaN) (1) NaN 1 1] >> [1 1 1 NaN 1 1]
+        elseif i<=length(COAST.x_mc)-1 && isnan(COAST.x_mc(i)) && isnan(COAST.x_mc(i+2)) 
+            COAST.x_mc=[COAST.x_mc(1:i-1),COAST.x_mc(i+2:end)];
+            COAST.y_mc=[COAST.y_mc(1:i-1),COAST.y_mc(i+2:end)];
+            i_diff=i_diff-1;                            % administrate that 1 element is removed!
+            i=1;                                            % <- this means redo the whole loop to check if the remainder of the element is still valid & remove any remaining excessive nans -> possibly only an element with just one point is left, which needs to be removed by restarting the loop.           
+        
+        % Remove elements of only 2-cells
+        % [1 1 1 (NaN) (1) (1) NaN 1 1] >> [1 1 1 NaN 1 1]
+        elseif i<=length(COAST.x_mc)-1 && isnan(COAST.x_mc(i)) && isnan(COAST.x_mc(i+3)) 
+            COAST.x_mc=[COAST.x_mc(1:i-1),COAST.x_mc(i+3:end)];
+            COAST.y_mc=[COAST.y_mc(1:i-1),COAST.y_mc(i+3:end)];
+            i_diff=i_diff-1;                            % administrate that 1 element is removed!
+            i=1;                                            % <- this means redo the whole loop to check if the remainder of the element is still valid & remove any remaining excessive nans -> possibly only an element with just one point is left, which needs to be removed by restarting the loop.           
+        
+        % remove repeated points
+        % [.. xa xa ..] >> [.. xa ..] 
+        % [.. yb yb ..] >> [.. yb ..] 
+        elseif i<=length(COAST.x_mc)-1 && hypot(COAST.x_mc(i+1)-COAST.x_mc(i),COAST.y_mc(i+1)-COAST.y_mc(i))<eps  
+            COAST.x_mc=[COAST.x_mc(1:i),COAST.x_mc(i+2:end)];
+            COAST.y_mc=[COAST.y_mc(1:i),COAST.y_mc(i+2:end)];
+            i=1;                                            % <- this means redo the whole loop to check if the remainder of the element is still valid & remove any remaining excessive nans -> possibly only an element with just one point is left, which needs to be removed by restarting the loop.           
+        
+        % if repeated points with only one point in-between, possibly a triangular island, or local spike of coastline
+        % [.. xa xb xa ..] >> [.. xa xb ..]
+        % [.. yc yd yc ..] >> [.. yc yd ..]
+        elseif i<=length(COAST.x_mc)-2 && hypot(COAST.x_mc(i+2)-COAST.x_mc(i),COAST.y_mc(i+2)-COAST.y_mc(i))<eps && ~isnan(COAST.x_mc(i+1))
+            COAST.x_mc=[COAST.x_mc(1:i+1),COAST.x_mc(i+3:end)];
+            COAST.y_mc=[COAST.y_mc(1:i+1),COAST.y_mc(i+3:end)];
             i=1;                                            % <- this means redo the whole loop to check if the remainder of the element is still valid & remove any remaining excessive nans -> possibly the 'repeated points' needs to be performed also in the restart of the loop to make it right again
-        elseif i==2 && isnan(COAST.x_mc(i))                       % [1 Nan 1 1 1] >>  [1 1 1]  
-            COAST.x_mc=[COAST.x_mc(i+1:end)];
-            COAST.y_mc=[COAST.y_mc(i+1:end)];
-            if ~isnan(COAST.x_mc(1))
-                i_diff=i_diff-1;                            % administrate that 1 element is removed!
-            end
+        
         else
             i=i+1;
         end

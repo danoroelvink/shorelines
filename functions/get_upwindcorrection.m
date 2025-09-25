@@ -1,5 +1,5 @@
-function [TRANSP]=get_upwindcorrection(COAST,WAVE,TRANSP,SPIT)
-% function [TRANSP]=get_upwindcorrection(COAST,WAVE,TRANSP,SPIT)
+function [TRANSP]=get_upwindcorrection(COAST,WAVE,TRANSP)
+% function [TRANSP]=get_upwindcorrection(COAST,WAVE,TRANSP)
 %
 % The upwind correction function corrects the transport to the maximum transport 
 % (as computed by the angles function with an S-Phi curve made for refracted nearshore breaking waves)
@@ -23,8 +23,6 @@ function [TRANSP]=get_upwindcorrection(COAST,WAVE,TRANSP,SPIT)
 %          .shadowS_h   : Index of cells which are in the shadow zone due to hard structures (TRANSP.QS-points)
 %          .QS          : Transport rates in grid cells [1xN] (in [m3/yr] including pores)
 %          .QSmax       : Maximum transport for considered cells [1xN] (in [m3/yr] including pores)
-%    SPIT
-%          .spitheadwidth     (not used yet)
 %
 % OUTPUT:
 %    TRANSP
@@ -70,8 +68,9 @@ function [TRANSP]=get_upwindcorrection(COAST,WAVE,TRANSP,SPIT)
     yq=COAST.yq;
     nq=COAST.nq;
     dsq=COAST.dsq;
-    
-    TRANSP.ivals=zeros(1,nq);
+    nw=size(TRANSP.QS,1); % number of wave conditions taken along at this timestep (can be more than 1 in case of simultaneous wave conditions)
+
+    TRANSP.ivals=zeros(nw,nq);
     QS=TRANSP.QS;
     QS0=TRANSP.QS;
     QS1=QS0;
@@ -81,11 +80,14 @@ function [TRANSP]=get_upwindcorrection(COAST,WAVE,TRANSP,SPIT)
     dPHItdp=WAVE.dPHItdp;
     dPHIcrit=WAVE.dPHIcrit;
 
-    if length(WAVE.dPHIcrit)==1
-    WAVE.dPHIcrit=repmat(WAVE.dPHIcrit,[1,length(WAVE.dPHItdp)]);
+    if size(dPHIcrit,1)<nw
+    dPHIcrit=repmat(dPHIcrit,[nw,1]);
+    end
+    if size(dPHIcrit,2)==1
+    dPHIcrit=repmat(dPHIcrit,[1,nq]);
     end
     
-    if COAST.clockwise==1 
+    if COAST.clockwise==1 && TRANSP.suppresshighangle~=1
         for cw=[1,-1]  % positive and negative transport directions
             if COAST.cyclic
                 iirange=[1:nq];
@@ -126,102 +128,102 @@ function [TRANSP]=get_upwindcorrection(COAST,WAVE,TRANSP,SPIT)
                         im2=min(i+2,nq);
                     end
                 end
-                
-                %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-                %% Take into account the inertia of the flow, which means that transport does not decelerate/accelerate instanteneously but over a relaxation distance
-                %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-                % the factor scales between 0 and 1 for accounting the difference in transport of the updrift cell with im1 index
-                % the relaxation length scales with the wave height
-                if ~isempty(TRANSP.relaxationlength)
-                    relaxationlength=TRANSP.relaxationlength; %*min(WAVE.HStdp(im1),1);
-                    relaxationmethod=2;
-                    if relaxationmethod==1
-                        % single (next downdrift) cell approach
-                        fac=min(max(1-dsq(min(i,length(dsq)))/relaxationlength,0),1);
-                        if QS0(im1)>0 && QS0(i)>=0 && cw==1
-                            QS(i)=max(QS(i),QS0(i)+max(QS0(im1)-QS0(i),0)*fac);
-                        elseif QS0(im1)<0 && QS0(i)<=0 && cw==-1
-                            QS(i)=min(QS(i),QS0(i)+min(QS0(im1)-QS0(i),0)*fac);
-                        end
-                    elseif relaxationmethod==2
-                        % multi-cell approach
-                        fac0=dsq(min(i,length(dsq)))/relaxationlength;
-                        fac1=[1:-fac0:0];
-                        ind=min(max(i-cw*round([0:1:1/fac0]),1),nq);
-                        if QS0(im1)>0 && QS0(i)>=0 && cw==1
-                            QS1(i)=max(QS0(i)+max(QS1(ind)-QS0(i),0).*fac1);
-                        elseif QS0(im1)<0 && QS0(i)<=0 && cw==-1
-                            QS2(i)=min(QS0(i)+min(QS2(ind)-QS0(i),0).*fac1);
-                        end
-                        if cw==-1
-                            QS(i)=QS1(i)+QS2(i)-QS0(i);
+
+                for kk=1:nw
+                    %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+                    %% Take into account the inertia of the flow, which means that transport does not decelerate/accelerate instanteneously but over a relaxation distance
+                    %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+                    % the factor scales between 0 and 1 for accounting the difference in transport of the updrift cell with im1 index
+                    % the relaxation length scales with the wave height
+                    if ~isempty(TRANSP.relaxationlength)
+                        relaxationlength=TRANSP.relaxationlength; %*min(WAVE.HStdp(im1),1);
+                        relaxationmethod=2;
+                        if relaxationmethod==1
+                            % single (next downdrift) cell approach
+                            fac=min(max(1-dsq(min(i,length(dsq)))/relaxationlength,0),1);
+                            if QS0(kk,im1)>0 && QS0(kk,i)>=0 && cw==1
+                                QS(kk,i)=max(QS(kk,i),QS0(kk,i)+max(QS0(kk,im1)-QS0(kk,i),0)*fac);
+                            elseif QS0(kk,im1)<0 && QS0(kk,i)<=0 && cw==-1
+                                QS(kk,i)=min(QS(kk,i),QS0(kk,i)+min(QS0(kk,im1)-QS0(kk,i),0)*fac);
+                            end
+                        elseif relaxationmethod==2
+                            % multi-cell approach
+                            fac0=dsq(min(i,length(dsq)))/relaxationlength;
+                            fac1=[1:-fac0:0];
+                            ind=min(max(i-cw*round([0:1:1/fac0]),1),nq);
+                            if QS0(kk,im1)>0 && QS0(kk,i)>=0 && cw==1
+                                QS1(kk,i)=max(QS0(kk,i)+max(QS1(kk,ind)-QS0(kk,i),0).*fac1);
+                            elseif QS0(kk,im1)<0 && QS0(kk,i)<=0 && cw==-1
+                                QS2(kk,i)=min(QS0(kk,i)+min(QS2(kk,ind)-QS0(kk,i),0).*fac1);
+                            end
+                            if cw==-1
+                                QS(kk,i)=QS1(kk,i)+QS2(kk,i)-QS0(kk,i);
+                            end
                         end
                     end
-                end
-                
-                %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-                %% UPWIND CORRECTION FOR TRANSITION POINTS TO HIGH-ANGLE                                    %%
-                %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-                if cw*dPHIcr(i)>0 ... % only when the wave angle is larger than the critical wave angle
-                   && (cw*dPHIcr(im1)<=0 || ...                                      % option 1: When there is a transition from low-angle to high-angle (so at 'im1' it is still low-angle)                        %(cw*QS(im1)>0 && max(cw*dPHIcr(ip1),0)<max(cw*dPHIcr(im1),0) && cw*dPHIcr(i)>max(cw*dPHIcr(im1),0)) || ...  % option 2: if it is just a local dip in the coastline, so the cell before it and after it are all dPHIcr>0
-                      (cw*QS(im1)>0 && (cw*dPHIcr(im1)-cw*dPHIcr(i))<-maxangle)) ... % option 3: When the updrift transport QS(im1) is larger than 0 and towards the cell & the angle change is very large
-                   && ~TRANSP.shadowS(im1) ...                                       % do not perform upwind for regions shaded by the coastline
-                   && (isempty(TRANSP.shadowS_h)||(~isempty(TRANSP.shadowS_h)&&~TRANSP.shadowS_h(ip1)&&~TRANSP.shadowS_h(ip2))) ... % do not perform upwind for regions shaded by hard structures
-                   && TRANSP.idrev(i)==0 && TRANSP.idrev(min(max(i-cw,1),nq))==0  % do not perform upwind for regions with revetments
                     
-                    i1=i;                               % index of considered transition point (which is the first point that becomes 'high-angle')
-                    i2=im1;                             % index of point updrift (which is still normal 'low-angle')
-                    %dxfactor = max(ds(i2)/ds(i1),0.5); % ratio of dx-size of grid cells (not yet used, but relevant for second order correction if grid cell sizes vary a lot)
-                    
-                    factorQS=1.05; % amplification factor of the max transport at the upwind corrected point, which smoothes local shapes if larger than 1
-                    QS(i1)=cw*max(factorQS*QSmax([i2,i1,ip1]));
-                    cf=1.1;  % reduction factor of the transport downdrift of the upwind corrected point, which smoothes local shapes if smaller than 1
-                    
-                    if TRANSP.twopoints==1
-                        QS(ip1)=QS(ip1)+cf*cw*max(0,(cw*QS(i1)-cw*QS(ip1))/2);                %cw*max(0,cw*QS(ip1));
-                    elseif TRANSP.twopoints==2
-                        QS(ip1)=QS(ip1)+cf*cw*max(0,(cw*QS(i1)-cw*QS(ip1))/2);                %cw*max(0.5*cw*QS(i1),cw*QS(ip1));
-                        QS(ip2)=QS(ip2)+cf*cw*max(0,(cw*QS(ip1)-cw*QS(ip2))/2);               %cw*max(0,cw*QS(ip2));               
-                    else
-                        %QS(ip1)=0;  
-                    end
-                    TRANSP.ivals(i1)=cw; 
-                    
-                    % take into account the upwind correction for the smoothing of transport over the relaxation distance
-                    if cw==1
-                        QS1(i1)=QS(i1);
-                        QS1(ip1)=QS(ip1);
-                        QS1(ip2)=QS(ip2);
-                    else
-                        QS2(i1)=QS(i1);
-                        QS2(ip1)=QS(ip1);
-                        QS2(ip2)=QS(ip2);
-                    end
-                    
-                    if debuginfo==1 
-                        figure(100+cw);clf;
-                        hold on;
-                        plot(COAST.x,COAST.y,'k-');hold on;
-                        hf=fill(COAST.x,COAST.y,'y');set(hf,'FaceColor',[1 1 0.5]);
-                        plot(xq([i]),yq([i]),'ks');
-                        plot(xq([i2]),yq([i2]),'ks');
-                        plot(xq([i1]),yq([i1]),'ko');
-                        plot(xq([ip1,ip2]),yq([ip1,ip2]),'k+');
-                        xlim(xq([i])+[-1000,1000]);ylim(yq([i])+[-1000,1000]);
-                        title('debug plot upwind scheme')
-                    elseif debuginfo==2 
-                        fprintf('-----------------------------------------------------------------\n');
-                        ivalsorted=sort([i2,i1,ip1,ip2]);
-                        fprintf('name       : %8s %8s %8s %8s  \n','i2','i1','ip1','ip2');
-                        fprintf('index      : %8.0f %8.0f %8.0f %8.0f  \n',ivalsorted);
-                        fprintf('QSmax      : %8.2f %8.2f %8.2f %8.2f  10^3 m^3/yr\n',QSmax(ivalsorted)/10^3);
-                        fprintf('QS         : %8.2f %8.2f %8.2f %8.2f  10^3 m^3/yr\n',QS(ivalsorted)/10^3);
-                        fprintf('dPHIo      : %8.3f %8.3f %8.3f %8.3f  °\n',dPHIo(ivalsorted));
-                        fprintf('dPHItdp    : %8.3f %8.3f %8.3f %8.3f  °\n',dPHItdp(ivalsorted));
-                        fprintf('dPHIo-tdp  : %8.3f %8.3f %8.3f %8.3f  °\n',dPHIo(ivalsorted)-dPHItdp(ivalsorted));
-                        fprintf('dPHIcr>THR : %8.3f %8.3f %8.3f %8.3f  °\n',dPHIcr(ivalsorted));
-                        fprintf('QS(new)    : %8.2f %8.2f %8.2f %8.2f  10^3 m^3/yr\n',QS(ivalsorted)/10^3);
-                        %[QSmax(i2:ip2)/10^5;QS(i2:ip2)/10^5;dPHIo(i2:ip2);dPHItdp(i2:ip2);dPHIo(i2:ip2)-dPHItdp(i2:ip2);dPHIcr(i2:ip2);i2:ip2]
+                    %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+                    %% UPWIND CORRECTION FOR TRANSITION POINTS TO HIGH-ANGLE                                    %%
+                    %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+                    if cw*dPHIcr(kk,i)>0 && ~TRANSP.idrevq(i) ... % only when the wave angle is larger than the critical wave angle
+                       && (cw*dPHIcr(kk,im1)<=0 || ...                                      % option 1: When there is a transition from low-angle to high-angle (so at 'im1' it is still low-angle)                        %(cw*QS(im1)>0 && max(cw*dPHIcr(kk,ip1),0)<max(cw*dPHIcr(kk,im1),0) && cw*dPHIcr(kk,i)>max(cw*dPHIcr(kk,im1),0)) || ...  % option 2: if it is just a local dip in the coastline, so the cell before it and after it are all dPHIcr>0
+                          (cw*QS(kk,im1)>0 && (cw*dPHIcr(kk,im1)-cw*dPHIcr(kk,i))<-maxangle)) ... % option 3: When the updrift transport QS(im1) is larger than 0 and towards the cell & the angle change is very large
+                       && ~TRANSP.shadowS(kk,im1) ...                                       % do not perform upwind for regions shaded by the coastline
+                       && (isempty(TRANSP.shadowS_h)||(~isempty(TRANSP.shadowS_h)&&~TRANSP.shadowS_h(kk,ip1)&&~TRANSP.shadowS_h(kk,ip2))) ... % do not perform upwind for regions shaded by hard structures
+                       && TRANSP.idrev(i)==0 && TRANSP.idrev(min(max(i-cw,1),nq))==0  % do not perform upwind for regions with revetments
+                        
+                        i1=i;                               % index of considered transition point (which is the first point that becomes 'high-angle')
+                        i2=im1;                             % index of point updrift (which is still normal 'low-angle')                       
+                        factorQS=1.05; % amplification factor of the max transport at the upwind corrected point, which smoothes local shapes if larger than 1
+                        QS(kk,i1)=cw*max(factorQS*QSmax(kk,[i2,i1,ip1]));
+                        cf=1.1;  % reduction factor of the transport downdrift of the upwind corrected point, which smoothes local shapes if smaller than 1
+                        
+                        if TRANSP.twopoints==1
+                            QS(kk,ip1)=QS(kk,ip1)+cf*cw*max(0,(cw*QS(kk,i1)-cw*QS(kk,ip1))/2);                %cw*max(0,cw*QS(ip1));
+                        elseif TRANSP.twopoints==2
+                            QS(kk,ip1)=QS(kk,ip1)+cf*cw*max(0,(cw*QS(kk,i1)-cw*QS(kk,ip1))/2);                %cw*max(0.5*cw*QS(i1),cw*QS(ip1));
+                            QS(kk,ip2)=QS(kk,ip2)+cf*cw*max(0,(cw*QS(kk,ip1)-cw*QS(kk,ip2))/2);               %cw*max(0,cw*QS(ip2));               
+                        else
+                            %QS(kk,ip1)=0;  
+                        end
+                        TRANSP.ivals(kk,i1)=cw; 
+                        
+                        % take into account the upwind correction for the smoothing of transport over the relaxation distance
+                        if cw==1
+                            QS1(kk,i1)=QS(kk,i1);
+                            QS1(kk,ip1)=QS(kk,ip1);
+                            QS1(kk,ip2)=QS(kk,ip2);
+                        else
+                            QS2(kk,i1)=QS(kk,i1);
+                            QS2(kk,ip1)=QS(kk,ip1);
+                            QS2(kk,ip2)=QS(kk,ip2);
+                        end
+                        
+                        if debuginfo==1 
+                            figure(100+cw);clf;
+                            hold on;
+                            plot(COAST.x,COAST.y,'k-');hold on;
+                            hf=fill(COAST.x,COAST.y,'y');set(hf,'FaceColor',[1 1 0.5]);
+                            plot(xq([i]),yq([i]),'ks');
+                            plot(xq([i2]),yq([i2]),'ks');
+                            plot(xq([i1]),yq([i1]),'ko');
+                            plot(xq([ip1,ip2]),yq([ip1,ip2]),'k+');
+                            xlim(xq([i])+[-1000,1000]);ylim(yq([i])+[-1000,1000]);
+                            title('debug plot upwind scheme')
+                        elseif debuginfo==2 
+                            fprintf('-----------------------------------------------------------------\n');
+                            ivalsorted=sort([i2,i1,ip1,ip2]);
+                            fprintf('name       : %8s %8s %8s %8s  \n','i2','i1','ip1','ip2');
+                            fprintf('index      : %8.0f %8.0f %8.0f %8.0f  \n',ivalsorted);
+                            fprintf('QSmax      : %8.2f %8.2f %8.2f %8.2f  10^3 m^3/yr\n',QSmax(kk,ivalsorted)/10^3);
+                            fprintf('QS         : %8.2f %8.2f %8.2f %8.2f  10^3 m^3/yr\n',QS(kk,ivalsorted)/10^3);
+                            fprintf('dPHIo      : %8.3f %8.3f %8.3f %8.3f  °\n',dPHIo(kk,ivalsorted));
+                            fprintf('dPHItdp    : %8.3f %8.3f %8.3f %8.3f  °\n',dPHItdp(kk,ivalsorted));
+                            fprintf('dPHIo-tdp  : %8.3f %8.3f %8.3f %8.3f  °\n',dPHIo(kk,ivalsorted)-dPHItdp(kk,ivalsorted));
+                            fprintf('dPHIcr>THR : %8.3f %8.3f %8.3f %8.3f  °\n',dPHIcr(kk,ivalsorted));
+                            fprintf('QS(new)    : %8.2f %8.2f %8.2f %8.2f  10^3 m^3/yr\n',QS(kk,ivalsorted)/10^3);
+                            %[QSmax(i2:ip2)/10^5;QS(kk,i2:ip2)/10^5;dPHIo(i2:ip2);dPHItdp(i2:ip2);dPHIo(i2:ip2)-dPHItdp(i2:ip2);dPHIcr(i2:ip2);i2:ip2]
+                        end
                     end
                 end
             end

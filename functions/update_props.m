@@ -32,14 +32,14 @@ function [COAST,DUNE,MUD] = update_props(COAST,DUNE,MUD)
 %   --------------------------------------------------------------------
    if DUNE.used 
       ok = ~isnan(COAST.x_mc);
-      DUNE.xdune = COAST.x_mc(ok);
-      DUNE.ydune = COAST.y_mc(ok);
+      DUNE.xdune = COAST.x_mc(ok); % - COAST.wberm_mc(ok).*sind(COAST.PHIcxy_mc(ok));
+      DUNE.ydune = COAST.y_mc(ok); % - COAST.wberm_mc(ok).*cosd(COAST.PHIcxy_mc(ok));
       DUNE.wberm = COAST.wberm_mc(ok);
       DUNE.dfelev = COAST.dfelev_mc(ok);
       DUNE.dcelev = COAST.dcelev_mc(ok);
-      COAST.xdune = COAST.x_mc - COAST.wberm_mc.*sind(COAST.PHIcxy_mc); 
-      COAST.ydune = COAST.y_mc - COAST.wberm_mc.*cosd(COAST.PHIcxy_mc); 
-
+      COAST.xdune_mc = COAST.x_mc - COAST.wberm_mc.*sind(COAST.PHIcxy_mc); 
+      COAST.ydune_mc = COAST.y_mc - COAST.wberm_mc.*cosd(COAST.PHIcxy_mc); 
+      %[COAST]=get_disentangled(COAST,{'xdune_mc','ydune_mc'});
    end
    if MUD.used
       ok = ~isnan(COAST.x_mc);

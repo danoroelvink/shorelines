@@ -22,6 +22,7 @@ function [MUD]=prepare_mudcoast(S)
 % 
 % OUTPUT:
 %     MUD
+%        .used            : use mud transport [0/1]
 %        .taucr           : critical shear stress for erosion [N/m2]
 %        .M               : erosion rate [kg/m2/s]
 %        .w               : fall velocity of the muddy sediment [m/s] 

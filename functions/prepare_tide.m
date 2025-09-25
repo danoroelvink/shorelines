@@ -54,7 +54,7 @@ function [TIDE]=prepare_tide(S)
 
     fprintf('  Prepare tide \n');
     if isfield(S,'tidefile') & ~isempty(S.tidefile)
-        td=load(S.tidefile);
+        td                      = load(S.tidefile);
         TIDE.x_stat             = td(:,1);
         TIDE.y_stat             = td(:,2);
         TIDE.eta_stat(:,1:2)    = td(:,3:4);
@@ -65,12 +65,15 @@ function [TIDE]=prepare_tide(S)
         TIDE.cf                 = S.cf;
         TIDE.hmin               = S.hmin;
         TIDE.hclosure           = S.hclosure;
-        xz=load(S.profile);
-        TIDE.x  = [xz(1,1):S.dx:xz(end,1)];
+        if isfield(S,'profile')
+            S.tideprofile=S.profile;
+        end
+        xz                      = load(S.tideprofile);
+        TIDE.x  = [xz(1,1):S.tidedx:xz(end,1)];
         TIDE.zb = interp1(xz(:,1),xz(:,2),TIDE.x);
         TIDE.Ttide              = 745*60;
         TIDE.nT                 = 24;
-
+        TIDE.n                  = S.tiden; 
         %% write logfile
         % struct2log(TIDE,'TIDE','a');
     else

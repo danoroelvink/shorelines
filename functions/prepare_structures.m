@@ -94,6 +94,7 @@ function [STRUC]=prepare_structures(S,COAST)
     STRUC.transmission=S.transmission;
     STRUC.transmform=S.transmform;
     STRUC.transmdir=S.transmdir;
+    STRUC.bypasscontrfac=S.bypasscontrfac;                                            % the maximum transport when the coastline is at the end of the structure (always >=1). Setting the bypass fraction larger than 1 means that the accretion does not go to the tip of the structure. 
     
     % Wave transmitting structures
     STRUC.perm=S.perm;                                                                  % switch for using hard structures
@@ -128,7 +129,7 @@ function [STRUC]=prepare_structures(S,COAST)
     STRUC.groinelev=S.groinelev;
     
     %% Coastal structures (blocking waves)
-    if S.struct 
+    if S.struct || ~isempty(S.ldbstructures)
         %  add groynes/breakwaters interactively with the graphical user interface
         if strcmpi(S.ldbstructures,'manual') || strcmpi(S.ldbstructures,'interactive') 
             figure(11);
@@ -161,6 +162,12 @@ function [STRUC]=prepare_structures(S,COAST)
         STRUC.nhard=length(find(isnan(STRUC.xhard)))+1;
     end
     
+    if length(S.bypasscontrfac)<STRUC.nhard
+        STRUC.bypasscontrfac(1:STRUC.nhard)=S.bypasscontrfac(1);
+    elseif length(S.bypasscontrfac)==STRUC.nhard
+        STRUC.bypasscontrfac=S.bypasscontrfac;
+    end
+    
     if STRUC.transmission == 1
         if ~isempty(S.transmfile)
             charac=load(S.transmfile);
@@ -181,32 +188,32 @@ function [STRUC]=prepare_structures(S,COAST)
                 STRUC.transmcrestwidth=charac(4,:);
                 STRUC.transmd50=charac(5,:);
             end
-        elseif ~isempty(S.xhard) && ~isempty(S.yhard)
-            if size(S.transmbwdepth,2)<STRUC.nhard
-                STRUC.transmbwdepth(1:STRUC.nhard)=S.transmbwdepth;
-            elseif size(S.transmbwdepth,2)==STRUC.nhard
+        elseif ~isempty(STRUC.xhard) && ~isempty(STRUC.yhard)
+            if length(S.transmbwdepth)<STRUC.nhard
+                STRUC.transmbwdepth(1:STRUC.nhard)=S.transmbwdepth(1);
+            elseif length(S.transmbwdepth)==STRUC.nhard
                STRUC.transmbwdepth=S.transmbwdepth;
             end
-            if size(S.transmcrestheight,2)<STRUC.nhard
-                STRUC.transmcrestheight(1:STRUC.nhard)=S.transmcrestheight;
-            elseif size(S.transmcrestheight,2)==STRUC.nhard
+            if length(S.transmcrestheight)<STRUC.nhard
+                STRUC.transmcrestheight(1:STRUC.nhard)=S.transmcrestheight(1);
+            elseif length(S.transmcrestheight)==STRUC.nhard
                STRUC.transmcrestheight=S.transmcrestheight;
             end
-            if size(S.transmslope,2)<STRUC.nhard
-               STRUC.transmslope(1:STRUC.nhard)=S.transmslope;
-            elseif size(S.transmslope,2)==STRUC.nhard
+            if length(S.transmslope)<STRUC.nhard
+               STRUC.transmslope(1:STRUC.nhard)=S.transmslope(1);
+            elseif length(S.transmslope)==STRUC.nhard
                STRUC.transmslope=S.transmslope;
             end
-            if size(S.transmcrestwidth,2)<STRUC.nhard
-               STRUC.transmcrestwidth(1:STRUC.nhard)=S.transmcrestwidth;
-            elseif size(S.transmcrestwidth,2)==STRUC.nhard
+            if length(S.transmcrestwidth)<STRUC.nhard
+               STRUC.transmcrestwidth(1:STRUC.nhard)=S.transmcrestwidth(1);
+            elseif length(S.transmcrestwidth)==STRUC.nhard
                STRUC.transmcrestwidth=S.transmcrestwidth;
             end
-            if size(S.transmd50,2)<STRUC.nhard
-                STRUC.transmd50(1:STRUC.nhard)=S.transmd50;
-            elseif size(S.transmd50,2)==STRUC.nhard
+            if length(S.transmd50)<STRUC.nhard
+                STRUC.transmd50(1:STRUC.nhard)=S.transmd50(1);
+            elseif length(S.transmd50)==STRUC.nhard
                 STRUC.transmd50=S.transmd50;
-            end
+            end 
         end
         if isfield(S,'transmform')
             STRUC.transmform=S.transmform;
@@ -293,9 +300,9 @@ function [STRUC]=prepare_structures(S,COAST)
         end
     end
     if ~isempty(STRUC.xrevet) 
-        STRUC.nrevet=sum(isnan(STRUC.xrevet))+1;
-        STRUC.xhard=[STRUC.xhard,nan,STRUC.xrevet];
-        STRUC.yhard=[STRUC.yhard,nan,STRUC.yrevet];
+        % STRUC.nrevet=sum(isnan(STRUC.xrevet))+1;
+        % STRUC.xhard=[STRUC.xhard,nan,STRUC.xrevet];
+        % STRUC.yhard=[STRUC.yhard,nan,STRUC.yrevet];
     end
     
     % Check whether to include diffraction

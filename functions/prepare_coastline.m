@@ -78,6 +78,8 @@ function [COAST]=prepare_coastline(S)
     COAST.tanbeta=S.tanbeta;
     COAST.griddingmethod=S.griddingmethod;
     COAST.maxangle=S.maxangle;
+    COAST.preserveorientation=S.preserveorientation;
+    COAST.mergegrid=0;
     
     % boundary conditions
     % {'Closed',e.g. 0 or 9000 m3/yr}, {'Neumann',dummy},{'Fixed',dummy},{'Angleconstant',empty to use at t0 or specified value e.g. 321°N};
@@ -155,6 +157,7 @@ function [COAST]=prepare_coastline(S)
     % determine number of coastline segments
     nans=find(isnan(COAST.x_mc));
     COAST.n_mc=length(nans)+1;
+    COAST.n_mc0=COAST.n_mc;
     
     % coast angles (PHIcxy_mc0) at coastline points only for plotting DUNE
     xq=(COAST.x_mc0(1:end-1)+COAST.x_mc0(2:end))/2;

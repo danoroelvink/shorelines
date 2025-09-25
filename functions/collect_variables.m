@@ -1,5 +1,5 @@
-function [COAST,WAVE,TRANSP]=collect_variables(COAST,WAVE,TRANSP,DUNE,MUD,i_mc)
-% function [COAST,WAVE,TRANSP]=collect_variables(COAST,WAVE,TRANSP,DUNE,MUD,i_mc)
+function [COAST,WAVE,TRANSP]=collect_variables(COAST,WAVE,TRANSP,DUNE,MUD,GROYNE,TIME,i_mc)
+% function [COAST,WAVE,TRANSP]=collect_variables(COAST,WAVE,TRANSP,DUNE,MUD,GROYNE,TIME,i_mc)
 %
 % This routine collects the variables of the evaluation of section 'i_mc'
 % into the overarching variable that stores data for all sections, with '_mc' suffix. 
@@ -7,7 +7,7 @@ function [COAST,WAVE,TRANSP]=collect_variables(COAST,WAVE,TRANSP,DUNE,MUD,i_mc)
 % back to x_mc and y_mc when the last element has been evaluated.  
 % 
 % INPUT:
-%     COAST   : fields stored 's','ds','x1','y1','xq','yq','xq1','yq1','PHIc','dPHIc','PHIcxy','PHIf','h0','cyclic','clockwise'
+%     COAST   : fields stored 's','ds','x1','y1','xq','yq','xq1','yq1','PHIc','dPHIc','PHIcxy','PHIcxy0','PHIf','h0','cyclic','clockwise'
 %     WAVE    : fields stored 'PHIo','PHItdp','PHIbr','HSo','HStdp','HSbr','dPHIo','dPHItdp','dPHIbr','TP','hbr','dPHIcrit','diff'
 %     TRANSP  : fields stored 'QS','QSmax','shadowS','shadowS_h','shadowS_hD','shadow','shadow_h','ivals','idrev'
 %     DUNE    : fields stored 'qs','qss','ql','qw','R','SWL','wberm','dfelev','dcelev','xtill'
@@ -48,61 +48,93 @@ function [COAST,WAVE,TRANSP]=collect_variables(COAST,WAVE,TRANSP,DUNE,MUD,i_mc)
 %   --------------------------------------------------------------------
 
     % temporarily store changes of x,y,xq,yq in a variable to not affect other coastal segments yet.
-    COAST.x1=COAST.x;
-    COAST.y1=COAST.y;
-    COAST.xq1=COAST.xq;
-    COAST.yq1=COAST.yq;
-    fields={'s','ds','x1','y1','xq','yq','xq1','yq1','PHIc','dPHIc','PHIcxy','PHIf','h0','cyclic','clockwise'};
+    fields={'s','ds','xq','yq','PHIc','dPHIc','PHIcxy','PHIcxy0','PHIf','h0','cyclic','clockwise'};
     fieldsdune={'qs','qss','ql','qw','R','SWL','wberm','dfelev','dcelev','xtill'};%,'xhard'};
     fieldsmud={'Bf','Bm','Bfm','dndt_mud','dBfdt','dBmdt','dBfmdt'};
-    if DUNE.used 
-       fields={fields{:},fieldsdune{:}};
+    if DUNE.used
+        if isempty(DUNE.xtill)
+            fieldsdune=fieldsdune(1:end-1);
+        end
+        fields={fields{:},fieldsdune{:}};
     end
     if MUD.used
-       fields={fields{:},fieldsmud{:}};
+        fields={fields{:},fieldsmud{:}};
     end
     fieldnm{1}=fields;   
     fieldnm{2}={'PHIo','PHItdp','PHIbr','HSo','HStdp','HSbr','dPHIo','dPHItdp','dPHIbr','TP','hbr','dPHIcrit','diff'};
-    fieldnm{3}={'QS','QSmax','shadowS','shadowS_h','shadowS_hD','shadow','shadow_h','ivals','idrev'};
+    fieldnm{3}={'QS','QSmax','shadowS','shadowS_h','shadowS_hD','shadow','shadow_h','shadowS_rev','ivals','idrev'}; 
     if i_mc==1
         for kk=1:length(fieldnm{1})
-        COAST.([(fieldnm{1}{kk}),'_mc'])=COAST.(fieldnm{1}{kk}); 
-        COAST=rmfield(COAST,fieldnm{1}{kk});
+            COAST.([(fieldnm{1}{kk}),'_mc'])=COAST.(fieldnm{1}{kk}); 
+            %COAST=rmfield(COAST,fieldnm{1}{kk});
         end
         for kk=1:length(fieldnm{2})
-        WAVE.([(fieldnm{2}{kk}),'_mc'])=WAVE.(fieldnm{2}{kk}); 
-        WAVE=rmfield(WAVE,fieldnm{2}{kk});
+            % add up multiple results of multiple conditions when climate with more than 1 condition at each timestep is evaluated
+            if ~isempty(findstr(fieldnm{2}{kk},'PHI')) && kk<=3
+                % add up for wave directions
+                fldnmHS=regexprep(fieldnm{2}{kk},'PHI','HS');
+                HStdp0=max(WAVE.(fldnmHS),1e-6);
+                wghtNR=repmat(WAVE.Prob,[1,size(WAVE.(fieldnm{2}{kk}),2)]);
+                wghtHS=HStdp0.^2;
+                sdr = sum(sind(WAVE.(fieldnm{2}{kk})).*wghtNR.*wghtHS,1);
+                cdr = sum(cosd(WAVE.(fieldnm{2}{kk})).*wghtNR.*wghtHS,1);
+                WAVE.(fieldnm{2}{kk})=mod(atan2d(sdr,cdr),360);
+            elseif size(WAVE.(fieldnm{2}{kk}),1)~=1 
+                % add up for wave height of multiple conditions using probability of each wave condition
+                wghtNR=repmat(WAVE.Prob,[1,size(WAVE.(fieldnm{2}{kk}),2)]);
+                WAVE.(fieldnm{2}{kk})=sum(WAVE.(fieldnm{2}{kk}).*wghtNR,1);
+            end
+            WAVE.([(fieldnm{2}{kk}),'_mc'])=WAVE.(fieldnm{2}{kk}); 
+            %WAVE=rmfield(WAVE,fieldnm{2}{kk});
         end
         for kk=1:length(fieldnm{3})
-        TRANSP.([(fieldnm{3}{kk}),'_mc'])=TRANSP.(fieldnm{3}{kk}); 
-        TRANSP=rmfield(TRANSP,fieldnm{3}{kk});
+            if size(TRANSP.(fieldnm{3}{kk}),1)~=1
+                % add up for transport of multiple conditions using probability of each wave condition
+                TRANSP.(fieldnm{3}{kk})=sum(TRANSP.(fieldnm{3}{kk}).*repmat(WAVE.Prob,[1,size(TRANSP.(fieldnm{3}{kk}),2)]),1);
+            end
+            TRANSP.([(fieldnm{3}{kk}),'_mc'])=TRANSP.(fieldnm{3}{kk}); 
+            %TRANSP=rmfield(TRANSP,fieldnm{3}{kk});
         end
         
     else 
         for kk=1:length(fieldnm{1})
         COAST.([(fieldnm{1}{kk}),'_mc'])=[COAST.([(fieldnm{1}{kk}),'_mc']),nan,COAST.(fieldnm{1}{kk})]; 
-        COAST=rmfield(COAST,fieldnm{1}{kk});
+        %COAST=rmfield(COAST,fieldnm{1}{kk});
         end
         for kk=1:length(fieldnm{2})
-        WAVE.([(fieldnm{2}{kk}),'_mc'])=[WAVE.([(fieldnm{2}{kk}),'_mc']),nan,WAVE.(fieldnm{2}{kk})]; 
-        WAVE=rmfield(WAVE,fieldnm{2}{kk});
+            if size(WAVE.(fieldnm{2}{kk}),1)~=1
+                WAVE.(fieldnm{2}{kk})=sum(WAVE.(fieldnm{2}{kk}).*repmat(WAVE.Prob,[1,size(WAVE.(fieldnm{2}{kk}),2)]),1);
+            end
+            WAVE.([(fieldnm{2}{kk}),'_mc'])=[WAVE.([(fieldnm{2}{kk}),'_mc']),nan,WAVE.(fieldnm{2}{kk})]; 
+            %WAVE=rmfield(WAVE,fieldnm{2}{kk});
         end
         for kk=1:length(fieldnm{3})
-        TRANSP.([(fieldnm{3}{kk}),'_mc'])=[TRANSP.([(fieldnm{3}{kk}),'_mc']),nan,TRANSP.(fieldnm{3}{kk})]; 
-        TRANSP=rmfield(TRANSP,fieldnm{3}{kk});
+            if size(TRANSP.(fieldnm{3}{kk}),1)~=1
+                TRANSP.(fieldnm{3}{kk})=sum(TRANSP.(fieldnm{3}{kk}).*repmat(WAVE.Prob,[1,size(TRANSP.(fieldnm{3}{kk}),2)]),1);
+            end
+            TRANSP.([(fieldnm{3}{kk}),'_mc'])=[TRANSP.([(fieldnm{3}{kk}),'_mc']),nan,TRANSP.(fieldnm{3}{kk})]; 
+            %TRANSP=rmfield(TRANSP,fieldnm{3}{kk});
         end
     end
     COAST.dSds_mc=[];
     WAVE.diff_mc(isnan(WAVE.diff_mc))=0;
     WAVE.diff_mc=logical(WAVE.diff_mc);
     
-    % make sure to get rid of the temporary x1,y1,xq1,yq1
-    % and put the x1_mc,y1_mc,xq1_mc,yq1_mc back to the regular mc
-    if i_mc==COAST.n_mc
-        COAST.x_mc=COAST.x1_mc;
-        COAST.y_mc=COAST.y1_mc;
-        COAST.xq_mc=COAST.xq1_mc;
-        COAST.yq_mc=COAST.yq1_mc;
+    % make sure to store the current grid before merging/splitting in x1_mc, y1_mc, xq1_mc, yq1_mc, PHIcxy1_mc)
+    if i_mc==COAST.n_mc && TIME.it==0
+        [COAST0]=get_reconnectedgroynes(COAST,GROYNE); 
+        COAST.x0_mc=COAST0.x_mc; % x_mc and y_mc have been adjusted in make_sgrid
+        COAST.y0_mc=COAST0.y_mc; % x_mc and y_mc have been adjusted in make_sgrid
+        COAST.n0_mc=length(find(isnan(COAST.x0_mc)))+1;
+    end
+    if i_mc==COAST.n_mc 
+        COAST.x1_mc=COAST.x_mc; % x_mc and y_mc have been adjusted in make_sgrid
+        COAST.y1_mc=COAST.y_mc; % x_mc and y_mc have been adjusted in make_sgrid
+        COAST.n1_mc=length(find(isnan(COAST.x1_mc)))+1;
+        COAST.xq1_mc=COAST.xq_mc;
+        COAST.yq1_mc=COAST.yq_mc;
+        COAST.PHIc1_mc=COAST.PHIc_mc;
+        COAST.PHIcxy1_mc=COAST.PHIcxy0_mc;
     end
        
     % remove any local fields of the segment that are not further used
@@ -112,7 +144,6 @@ function [COAST,WAVE,TRANSP]=collect_variables(COAST,WAVE,TRANSP,DUNE,MUD,i_mc)
     WAVE=rmfield(WAVE,'ntdp');
     WAVE=rmfield(WAVE,'dPHItdp_sh');
     WAVE=rmfield(WAVE,'dPHIcritbr');
-    WAVE=rmfield(WAVE,'diff2');
     
     if COAST.i_mc==COAST.n_mc
     WAVE.dPHIcrit_mc0=WAVE.dPHIcrit_mc;

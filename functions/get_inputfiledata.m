@@ -38,10 +38,10 @@ function [D]=get_inputfiledata(DATAfile,TIME)
         % re-organize input wave files 
         if ischar(DATAfile)
             DATAfile = {DATAfile};
-        end       
+        end 
         if (size(DATAfile,2)>1 && size(DATAfile,1)==1)
             DATAfile=DATAfile';
-        end
+        end 
         
         %% CONVERT FILES THAT REFERENCE MULTIPLE WAVE CLIMATE FILES/LOCATIONS
         % convert file format if a WVT/WVC file is used as input with reference to a large number of WVT/WVC files 
@@ -50,6 +50,7 @@ function [D]=get_inputfiledata(DATAfile,TIME)
               || strcmpi(DATAfile{1}(end-3:end),'.WND')) && length(DATAfile)==1
             try 
                 Draw=load(DATAfile{1});
+                Draw(Draw<=-999)=nan;
             catch 
                 fid0=fopen(DATAfile{1},'r');
                 DATAfile = {};
@@ -60,14 +61,28 @@ function [D]=get_inputfiledata(DATAfile,TIME)
                         gg=gg+1;
                         line=fgetl(fid0);
                     end
-                    info = textscan(line,'%s %f %f');
-                    [dirnm,filnm,extnm]=fileparts(info{1}{1});
-                    if isempty(dirnm)
-                       dirnm='.'; 
-                    end    
-                    DATAfile{gg,1} = [dirnm,filesep,filnm,extnm];
-                    DATAfile{gg,2} = info{2};
-                    DATAfile{gg,3} = info{3};
+                    if ~isempty(deblank(line))
+                        info = textscan(line,'%s %f %f %f %f');
+                        if isempty(info{3})
+                            info = textscan(line,'%f %f %s %f %f');
+                            info = {info{3},info{1},info{2},info{4},info{5}};
+                        end
+                        if isempty(info{4})
+                            info{4}=1;       % default wave energy factor is 1 (i.e. 100% of Hs) 
+                        end
+                        if isempty(info{5})
+                            info{5}=0;       % default calibration for wave direciton is zero (i.e. use original wave direction) 
+                        end
+                        [dirnm,filnm,extnm]=fileparts(info{1}{1});
+                        if isempty(dirnm)
+                           dirnm='.'; 
+                        end    
+                        DATAfile{gg,1} = [dirnm,filesep,filnm,extnm];
+                        DATAfile{gg,2} = info{2};
+                        DATAfile{gg,3} = info{3};
+                        DATAfile{gg,4} = info{4};
+                        DATAfile{gg,5} = info{5};
+                    end
                 end
             end
         end
@@ -103,20 +118,20 @@ function [D]=get_inputfiledata(DATAfile,TIME)
         kk1=1;
         D(1).spacevaryingwave=size(DATAfile,1)>1;
         for kk=1:size(DATAfile,1)
-            fprintf('   reading file : %s\n',DATAfile{kk});
+            fprintf('   reading file : %s\n',DATAfile{kk,1});
             warning off;
             
             % READ NC-FILES FROM SNAPWAVE
-            if strcmpi(DATAfile{kk}(end-2:end),'.nc')
-                x=ncread(DATAfile{kk},'station_x');
-                y=ncread(DATAfile{kk},'station_y');
-                hm0=ncread(DATAfile{kk},'point_hm0');
-                tp=ncread(DATAfile{kk},'point_tp');
-                wd=ncread(DATAfile{kk},'point_wavdir');
+            if strcmpi(DATAfile{kk,1}(end-2:end),'.nc')
+                x=ncread(DATAfile{kk,1},'station_x');
+                y=ncread(DATAfile{kk,1},'station_y');
+                hm0=ncread(DATAfile{kk,1},'point_hm0');
+                tp=ncread(DATAfile{kk,1},'point_tp');
+                wd=ncread(DATAfile{kk,1},'point_wavdir');
                 
-                timeunits=ncreadatt(DATAfile{kk},'time','units');
+                timeunits=ncreadatt(DATAfile{kk,1},'time','units');
                 reftime=datenum(timeunits(15:end)); %reftime=datenum(1979,01,01);
-                tt=ncread(DATAfile{kk},'time');
+                tt=ncread(DATAfile{kk,1},'time');
                 time=reftime+double(tt)/24/60/60;   % single precision unable to make out seconds->years
                 for kk2=1:length(x)
                     D(kk1).x=x(kk2);
@@ -136,10 +151,10 @@ function [D]=get_inputfiledata(DATAfile,TIME)
                 D(1).spacevaryingwave=length(D)>1;
             
             % READ WAVE TIME-SERIES OR CLIMATE DATA (FOR RUNUP)
-            elseif strcmpi(DATAfile{kk}(end-3:end),'.WVC') || strcmpi(DATAfile{kk}(end-3:end),'.WVT') ...
-                   || strcmpi(DATAfile{kk}(end-3:end),'.WVD') || strcmpi(DATAfile{kk}(end-3:end),'.TXT')
-                Draw=load(DATAfile{kk});
-                if strcmpi(DATAfile{kk}(end-3:end),'.WVT') || Draw(1,1)>1000 
+            elseif strcmpi(DATAfile{kk,1}(end-3:end),'.WVC') || strcmpi(DATAfile{kk,1}(end-3:end),'.WVT') ...
+                   || strcmpi(DATAfile{kk,1}(end-3:end),'.WVD') || strcmpi(DATAfile{kk,1}(end-3:end),'.TXT')
+                Draw=load(DATAfile{kk,1});
+                if strcmpi(DATAfile{kk,1}(end-3:end),'.WVT') || Draw(1,1)>1000 
                     % offshore wave time-series
                     if length(num2str(Draw(1,1)))==12
                         D(kk).timenum=datenum([num2str(Draw(:,1))],'yyyymmddHHMM');
@@ -151,30 +166,30 @@ function [D]=get_inputfiledata(DATAfile,TIME)
                     D(kk).Hs=interpNANs(Draw(:,2));
                     D(kk).Tp=interpNANs(Draw(:,3));
                     D(kk).Dir=interpNANsDIR(Draw(:,4));
-                else % strcmpi(DATAfile{kk}(end-3:end),'.WVC') 
+                else % strcmpi(DATAfile{kk,1}(end-3:end),'.WVC') 
                     % offshore wave climate
                     D(kk).timenum=[];
-                    D(kk).Hs=interpNANs(Draw(:,1))';
-                    D(kk).Tp=interpNANs(Draw(:,2))';
-                    D(kk).Dir=interpNANsDIR(Draw(:,3))';
+                    D(kk).Hs=interpNANs(Draw(:,1));
+                    D(kk).Tp=interpNANs(Draw(:,2));
+                    D(kk).Dir=interpNANsDIR(Draw(:,3));
                     if size(Draw,2)>3
-                        D(kk).Prob=interpNANs(Draw(:,4))';
+                        D(kk).Prob=interpNANs(Draw(:,4));
                         
                         % scale to 1.0
                         if sum(D(kk).Prob)>1.1 && sum(D(kk).Prob)<100      % percentage -> fraction of 1
                             D(kk).Prob=D(kk).Prob/100.; 
-                        elseif sum(D(kk).Prob)>200                      % days -> fraction of 1
+                        elseif sum(D(kk).Prob)>200                         % days -> fraction of 1
                             D(kk).Prob=D(kk).Prob/365.; 
-                        else                                          % other -> fraction of 1
+                        else                                               % other -> fraction of 1
                             D(kk).Prob=D(kk).Prob/sum(D(kk).Prob);
                         end
                     end
                 end
             
             % READ WATER-LEVEL DATA
-            elseif strcmpi(DATAfile{kk}(end-3:end),'.WAT') 
-                Draw=load(DATAfile{kk});
-                if Draw(1,1)>1000
+            elseif strcmpi(DATAfile{kk,1}(end-3:end),'.WAT') || strcmpi(DATAfile{kk,1}(end-3:end),'.WLT') || strcmpi(DATAfile{kk,1}(end-3:end),'.WLC') 
+                Draw=load(DATAfile{kk,1});
+                if Draw(1,1)>1000 || strcmpi(DATAfile{kk,1}(end-3:end),'.WLT')
                     % read waterlevel time-series data
                     if length(num2str(Draw(1,1)))==12
                         D(kk).timenum=datenum([num2str(Draw(:,1))],'yyyymmddHHMM');
@@ -184,28 +199,49 @@ function [D]=get_inputfiledata(DATAfile,TIME)
                         D(kk).timenum=datenum([num2str(Draw(:,1))],'yyyymmddHHMMSS');       
                     end
                     D(kk).swl=interpNANs(Draw(:,2));
+                    if size(Draw,2)==5
+                        D(kk).htide=interpNANs(Draw(:,3));
+                        D(kk).vtide=interpNANs(Draw(:,4));
+                        D(kk).refdep=interpNANs(Draw(:,5));
+                    else
+                        D(kk).htide=zeros(size(D(kk).swl));
+                        D(kk).vtide=[];
+                        D(kk).refdep=[];
+                    end
+                    D(kk).Prob=[];
                 else
                     % read waterlevel climate data
                     D(kk).timenum=[];
-                    D(kk).swl=interpNANs(Draw(:,1))';
-                    if size(Draw,2)>2
-                        D(kk).Prob=interpNANs(Draw(:,2))';    
+                    D(kk).swl=interpNANs(Draw(:,1));
+                    if size(Draw,2)>=4
+                        D(kk).htide=interpNANs(Draw(:,2));
+                        D(kk).vtide=interpNANs(Draw(:,3));
+                        D(kk).refdep=interpNANs(Draw(:,4));
+                    else
+                        D(kk).htide=zeros(size(D(kk).swl));
+                        D(kk).vtide=[];
+                        D(kk).refdep=[];
+                    end
+                    D(kk).Prob=[];
+                    ncol=size(Draw,2);
+                    if ncol==2 || ncol==5
+                        D(kk).Prob=interpNANs(Draw(:,ncol));    
                         
                         % scale to 1.0
                         if sum(D(kk).Prob)>1.1 && sum(D(kk).Prob)<100      % percentage -> fraction of 1
                             D(kk).Prob=D(kk).Prob/100.; 
-                        elseif sum(D(kk).Prob)>200                      % days -> fraction of 1
+                        elseif sum(D(kk).Prob)>200                         % days -> fraction of 1
                             D(kk).Prob=D(kk).Prob/365.; 
-                        else                                          % other -> fraction of 1
+                        else                                               % other -> fraction of 1
                             D(kk).Prob=D(kk).Prob/sum(D(kk).Prob);
                         end
                     end
                 end
             
             % READ WIND DATA
-            elseif strcmpi(DATAfile{kk}(end-3:end),'.WND') || strcmpi(DATAfile{kk}(end-3:end),'.WDT') || strcmpi(DATAfile{kk}(end-3:end),'.WDC')  
-                Draw=load(DATAfile{kk});
-                if Draw(1,1)>1000
+            elseif strcmpi(DATAfile{kk,1}(end-3:end),'.WND') || strcmpi(DATAfile{kk,1}(end-3:end),'.WDT') || strcmpi(DATAfile{kk,1}(end-3:end),'.WDC')  
+                Draw=load(DATAfile{kk,1});
+                if Draw(1,1)>1000 || strcmpi(DATAfile{kk,1}(end-3:end),'.WDT')
                     % wind time-series data
                     if length(num2str(Draw(1,1)))==12
                         D(kk).timenum=datenum([num2str(Draw(:,1))],'yyyymmddHHMM');
@@ -216,27 +252,30 @@ function [D]=get_inputfiledata(DATAfile,TIME)
                     end
                     D(kk).uz=interpNANs(Draw(:,2));
                     D(kk).Dir=interpNANs(Draw(:,3));
+                    D(kk).Prob=[];
                 else
                     % wind climate data
                     D(kk).timenum=[];
-                    D(kk).uz=interpNANs(Draw(:,1))';
-                    D(kk).Dir=interpNANsDIR(Draw(:,2))';
-                    if size(Draw,2)>2
-                        D(kk).Prob=interpNANs(Draw(:,3))';    
+                    D(kk).uz=interpNANs(Draw(:,1));
+                    D(kk).Dir=interpNANsDIR(Draw(:,2));
+                    D(kk).Prob=[];
+                    ncol=size(Draw,2);
+                    if ncol==3
+                        D(kk).Prob=interpNANs(Draw(:,3));    
                         
                         % scale to 1.0
                         if sum(D(kk).Prob)>1.1 && sum(D(kk).Prob)<100      % percentage -> fraction of 1
                             D(kk).Prob=D(kk).Prob/100.; 
-                        elseif sum(D(kk).Prob)>200                      % days -> fraction of 1
+                        elseif sum(D(kk).Prob)>200                         % days -> fraction of 1
                             D(kk).Prob=D(kk).Prob/365.; 
-                        else                                          % other -> fraction of 1
+                        else                                               % other -> fraction of 1
                             D(kk).Prob=D(kk).Prob/sum(D(kk).Prob);
                         end
                     end
                 end
             
             % TIME-SERIES OR STATIC RAY FILES
-            elseif strcmpi(DATAfile{kk}(end-3:end),'.RAY')
+            elseif strcmpi(DATAfile{kk,1}(end-3:end),'.RAY')
                 RAYdata=readRAY(DATAfile{kk,1});
                 D(kk).time     = [];  
                 D(kk).timenum  = TIME.timenum0;    % use as fall-back option the starttime of the simulation as starttime of the datafile
@@ -246,7 +285,7 @@ function [D]=get_inputfiledata(DATAfile,TIME)
                 if ~isempty(RAYdata.time)
                     D(kk).timenum  = D(kk).timenum+RAYdata.time/24;
                 end
-                D(kk).PHIequi  = RAYdata.Cequi;                  % angle of equilibrium also accounting for the net currents which are in QSoffset (=computeEQUI(D(kk).equi,D(kk).c1,D(kk).c2,D(kk).hoek,D(kk).QSoffset) 
+                D(kk).PHIequi  = RAYdata.Cequi;                            % angle of equilibrium also accounting for the net currents which are in QSoffset (=computeEQUI(D(kk).equi,D(kk).c1,D(kk).c2,D(kk).hoek,D(kk).QSoffset) 
                 D(kk).c1       = RAYdata.c1*10^6;     
                 D(kk).c2       = RAYdata.c2; 
                 D(kk).h0       = RAYdata.h0;    
@@ -256,15 +295,15 @@ function [D]=get_inputfiledata(DATAfile,TIME)
                 if ~isempty(RAYdata.QSoffset)
                     D(kk).QSoffset = RAYdata.QSoffset; % timeseries ray with tide offset
                 end
-                D(kk).Hs        = (abs(D(kk).c1).^0.5)/200.0;    % use a proxy     Hs=sqrt(c1)/200
-                D(kk).Tp        = D(kk).Hs*2+3;                  % use a proxy     Tp=Hs*2+3
-                D(kk).Dir       = RAYdata.hoek-RAYdata.equi;       % angle of equilibrium accounting only for the wave part (i.e. hoek-equi)              % use a proxy     Dir=Cequi
+                D(kk).Hs        = (abs(D(kk).c1).^0.5)/200.0;              % use a proxy     Hs=sqrt(c1)/200
+                D(kk).Tp        = D(kk).Hs*2+3;                            % use a proxy     Tp=Hs*2+3
+                D(kk).Dir       = RAYdata.hoek-RAYdata.equi;               % angle of equilibrium accounting only for the wave part (i.e. hoek-equi)              % use a proxy     Dir=Cequi
             
             % TIME-SERIES FROM WAVE-MAT-FILE FOR DATA ASSIMILATION OR COUPLING
-            elseif strcmpi(DATAfile{kk}(end-3:end),'.mat')
+            elseif strcmpi(DATAfile{kk,1}(end-3:end),'.mat')
                 if readmatfile==1
                     % read Draw for each location, if not read earlier
-                    Draw=load(DATAfile{kk});
+                    Draw=load(DATAfile{kk,1});
                 end
                 if isfield(Draw,'WaveDA_record')
                     D(kk).timenum=Draw.WaveDA_record(:,1);
@@ -288,19 +327,26 @@ function [D]=get_inputfiledata(DATAfile,TIME)
             
             % IF NO SUITBALE INPUT IS PROVIDED
             else
-                fprintf(['   Warning : Wave condition file ''',DATAfile{kk},''' cannot be read. Please check the formatting! \n'])
+                struct2log('Warning',['   Warning : Wave condition file ''',DATAfile{kk,1},''' cannot be read. Please check the formatting!'],'a');
             end
             
             % ADD LOCATION X AND Y
-            if ~strcmpi(DATAfile{kk}(end-2:end),'.nc')
+            if ~strcmpi(DATAfile{kk,1}(end-2:end),'.nc')
                 D(kk).x = kk;
                 D(kk).y = kk;
-                if size(DATAfile,2)==3
+                if size(DATAfile,2)>=3
                     D(kk).x = DATAfile{kk,2};
                     D(kk).y = DATAfile{kk,3};
                 else
                     if kk>1
-                        fprintf([' Warning : please specify an X and Y location for ''',DATAfile{kk},''' (i.e. second and third column of S.wvcfile) \n']);
+                        struct2log('Warning',[' Warning : please specify an X and Y location for ''',DATAfile{kk,1},''' (i.e. second and third column of S.wvcfile).'],'a');
+                    end
+                end
+                if size(DATAfile,2)==5
+                    if DATAfile{kk,4}~=1 || DATAfile{kk,5}~=0
+                    fprintf('  + Adjusting climate point nr %1.0f with a Hs correction of %1.2fx and a wave direction correction of %1.1f°\n',kk,DATAfile{kk,4},DATAfile{kk,5});
+                    D(kk).Hs = D(kk).Hs.*DATAfile{kk,4};
+                    D(kk).Dir = D(kk).Dir+DATAfile{kk,5};
                     end
                 end
             end
@@ -309,18 +355,14 @@ function [D]=get_inputfiledata(DATAfile,TIME)
         %% check if timeseries covers valid time range (after model start / 'timenum0')
         for kk=1:length(D)
             if ~isempty(D(kk).timenum)
-                if D(kk).timenum(1) > TIME.timenum0
-                    fprintf([' Warning : The model start time is not covered by the wave data for timeseries file ''',DATAfile{kk},'''\n']);
+                dt=diff(D(kk).timenum(1:min(2,length(D(kk).timenum))));
+                if D(kk).timenum(1) > TIME.timenum0+dt
+                    struct2log('Warning',[' Warning : The model start time is not covered by the wave data for timeseries file ''',DATAfile{kk,1},''''],'a');
+                end
+                if D(kk).timenum(end) < TIME.tend-dt
+                    struct2log('Warning',[' Warning : The model end time is not covered by the wave data for timeseries file ''',DATAfile{kk,1},''''],'a');
                 end
             end
-        end
-        
-        %% determine additional counter which tracks the index of the next timestep after the current time. So, the index at t0 +1.
-        % this is used for determining the adaptive time step
-        % indxw should always be the index of the time+dt (i.e. timeseries timestep that comes after the current time).
-        for kk=1:length(D)
-            D(kk).indxw=find(D(kk).timenum>TIME.timenum0,1); 
-            D(kk).indxw=min(D(kk).indxw,length(D(kk).timenum));
         end
     end
 end

@@ -1,5 +1,5 @@
-function [ shadowS,elementnr ] = find_shadows_mc(xq,yq,x_mc,y_mc,PHI,PHItdp,PHIbr,distw)
-% function [ shadowS,elementnr ] = find_shadows_mc(xq,yq,x_mc,y_mc,PHI,PHItdp,PHIbr,distw)
+function [ shadowS,elementnr ] = find_shadows_mc(xq,yq,x_mc,y_mc,PHIo,PHItdp,PHIbr,distw)
+% function [ shadowS,elementnr ] = find_shadows_mc(xq,yq,x_mc,y_mc,PHIo,PHItdp,PHIbr,distw)
 % 
 % Computes the indices of locations in the shadow zone based on 
 % coastline shape, location of structures and wave incidence angle.
@@ -7,9 +7,9 @@ function [ shadowS,elementnr ] = find_shadows_mc(xq,yq,x_mc,y_mc,PHI,PHItdp,PHIb
 % INPUT: 
 %         x         : x-coordinate of coastline (only current section)
 %         y         : y-coordinate of coastline (only current section)
-%         x_mc      : x-coordinate of coastline (all sections)
-%         y_mc      : y-coordinate of coastline (all sections)
-%         PHI       : offshore wave incidence angle ([1] or [1xN] in degrees North)
+%         x_mc      : x-coordinate of coastline or shadowing element of structure (all sections)
+%         y_mc      : y-coordinate of coastline or shadowing element of structure (all sections)
+%         PHIo      : offshore wave incidence angle ([1] or [1xN] in degrees North)
 %         PHItdp    : wave incidence angle at depth of closure ([1] or [1xN] in degrees North, using offshore wave if CERC is used)
 %         PHIbr     : wave incidence angle at breaking point ([1] or [1xN] in degrees North, using offshore wave if CERC is used)
 %         hard      : switch for hard structures
@@ -49,11 +49,11 @@ function [ shadowS,elementnr ] = find_shadows_mc(xq,yq,x_mc,y_mc,PHI,PHItdp,PHIb
 
     % set QS-grid length and offshore wave angle
     nq=length(xq);   
-    if length(PHI)==1
-        PHI=repmat(PHI,[1,nq]);
+    if length(PHIo)==1
+        PHIo=repmat(PHIo,[1,nq]);
     end
     if nargin<6
-        PHItdp=PHI;
+        PHItdp=PHIo;
     end
     if nargin<7
         PHIbr=PHItdp;
@@ -63,12 +63,12 @@ function [ shadowS,elementnr ] = find_shadows_mc(xq,yq,x_mc,y_mc,PHI,PHItdp,PHIb
     end
     
     % determine the length of the offshore, breaker and surfzone part of the wave rays
-    lenSURF=repmat(250,[1,nq]);
-    lenBREAKER=repmat(50,[1,nq]);
+    lenSURF=250;
+    lenBREAKER=50;
     len=repmat(5*hypot(max(xq)-min(xq),max(yq)-min(yq)),[1,nq]);
     if ~isempty(distw)
-        lenBREAKER=min(lenBREAKER,distw*0.2);  % breaker zone cannot be more than 20% of distance to nearest wave output station 'distw'
-        lenSURF=min(lenSURF,distw*0.8);        % surfzone cannot be more than 80% of distance to nearest wave output station 'distw'
+        lenBREAKER=min(lenBREAKER,distw*0.5);  % breaker zone cannot be more than 50% of distance to nearest wave output station 'distw'
+        lenSURF=min(lenSURF,distw*1);        % surfzone cannot be more than 80% of distance to nearest wave output station 'distw'
         len=max(distw-lenBREAKER-lenSURF,1);   % offshore distance of ray is remainder that is not the surfzone or breaker zone, with minimum width of 1
     end
     
@@ -76,41 +76,48 @@ function [ shadowS,elementnr ] = find_shadows_mc(xq,yq,x_mc,y_mc,PHI,PHItdp,PHIb
     if nq==0
         shadowS=[];
     else
-        elementnr={};
-        shadowS=false(1,nq);
-        elementnr=cell(nq,1);
-        for i=1:nq
+        shadowS=false(size(PHIbr));
+        elementnr=cell(size(PHIbr));
+        for j=1:size(PHIbr,1)
             % using a line width a small bend at the point of breaking (using PHIbr) and nearshore depth of closure (using PHItdp)
-            xw=[xq(i)+1*sind(PHIbr(i)),...
-                xq(i)+lenBREAKER(i)*sind(PHIbr(i)),...
-                xq(i)+lenBREAKER(i)*sind(PHIbr(i))+lenSURF(i)*sind(PHItdp(i)),...
-                xq(i)+lenBREAKER(i)*sind(PHIbr(i))+lenSURF(i)*sind(PHItdp(i))+len(i)*sind(PHI(i))];
-            yw=[yq(i)+1*cosd(PHIbr(i)),...
-                yq(i)+lenBREAKER(i)*cosd(PHIbr(i)),...
-                yq(i)+lenBREAKER(i)*cosd(PHIbr(i))+lenSURF(i)*cosd(PHItdp(i)),...
-                yq(i)+lenBREAKER(i)*cosd(PHIbr(i))+lenSURF(i)*cosd(PHItdp(i))+len(i)*cosd(PHI(i))];
-            
-            % identify if the waves are blocked by any other section
-            [xx1,yy1,indc,inds]=get_intersections(x_mc,y_mc,xw,yw);
-            shadowS(i)=~isempty(xx1);
-            
-            % identify which coastal section (or coastal structure) is blocking the waves
-            if ~isempty(indc)
-                section0=[];
-                for cc=1:length(indc)
-                jjcross=sum(isnan(x_mc(1:floor(indc(cc)))))+1;         
-                section0(cc,1)=jjcross(1);
+            xw=[xq+1.*sind(PHIbr(j,:));...
+                xq+lenBREAKER.*sind(PHIbr(j,:));...
+                xq+lenBREAKER.*sind(PHIbr(j,:))+lenSURF.*sind(PHItdp(j,:));...
+                xq+lenBREAKER.*sind(PHIbr(j,:))+lenSURF.*sind(PHItdp(j,:))+len.*sind(PHIo(j,:))];
+            yw=[yq+1.*cosd(PHIbr(j,:));...
+                yq+lenBREAKER.*cosd(PHIbr(j,:));...
+                yq+lenBREAKER.*cosd(PHIbr(j,:))+lenSURF.*cosd(PHItdp(j,:));...
+                yq+lenBREAKER.*cosd(PHIbr(j,:))+lenSURF.*cosd(PHItdp(j,:))+len.*cosd(PHIo(j,:))];
+
+            for i=1:size(PHIbr,2)
+                % identify if the waves are blocked by any other section
+                if nargout==1
+                    indc=[];
+                    [xx1]=get_intersections(x_mc,y_mc,xw(:,i),yw(:,i));
+                    shadowS(j,i)=xx1;
+                else
+                    [xx1,yy1,indc]=get_intersections(x_mc,y_mc,xw,yw);
+                    shadowS(j,i)=~isempty(xx1);
+
+                    % identify which coastal section (or coastal structure) is blocking the waves
+                    if ~isempty(indc)
+                        section0=[];
+                        for cc=1:length(indc)
+                        jjcross=sum(isnan(x_mc(1:floor(indc(cc)))))+1;         
+                        section0(cc,1)=jjcross(1);
+                        end
+                        elementnr{j,i}=unique(section0);
+                    end
                 end
-                elementnr{i}=unique(section0);
-            end
-            
-            if 0
-                figure(10);clf
-                plot(xq,yq,'b+');hold on;
-                plot(x_mc,y_mc,'r.-');
-                plot(xw,yw,'g.-');
-                axis equal
-                drawnow
+                
+                if 0
+                    figure(100);clf
+                    plot(xq,yq,'b+');hold on;
+                    plot(x_mc,y_mc,'r.-');
+                    plot(xw(:,i),yw(:,i),'g.-');
+                    axis equal
+                    drawnow
+                end
             end
         end
     end

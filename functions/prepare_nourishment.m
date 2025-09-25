@@ -15,6 +15,7 @@ function [NOUR] = prepare_nourishment(S,COAST,STRUC)
 %       .nourstartfile   : nourishment start dates placed in order for each  nourishment polygons (not used if .NOR file is available
 %       .nourendfile     : nourishment end dates placed in order for each  nourishment polygons (not used if .NOR file is available
 %       .nourrate        : rate of nourishing (not used if .NOR file is available)
+%       .nourmethod      : a method can be chosen which uses only the begin and end point of the nourishment to identify where the nourishment needs to take place ('default') or a method that can distribute the sediment over more than 2 elements ('complex').
 %       .reftime         : reference time (i.e. 'yyyy-mm-dd')
 %       .endofsimulation : end time (i.e. 'yyyy-mm-dd')
 %    COAST
@@ -74,10 +75,16 @@ function [NOUR] = prepare_nourishment(S,COAST,STRUC)
     NOUR.rate=[];
     NOUR.nourish=S.nourish;
     NOUR.growth=S.growth;
+    NOUR.method=S.nourmethod;
     
     % in case keyword 'S.norfile' is used instead of 'ldbnourish'.
     if ~isempty(findstr(lower(S.norfile),'.nor'))
         S.ldbnourish=S.norfile;
+        NOUR.nourish=1;
+    elseif isfield(S,'ldbnour') & isempty(S.ldbnourish)
+        S.ldbnourish=S.ldbnour;
+        NOUR.nourish=1;
+    elseif ~isempty(findstr(lower(S.ldbnourish),'.nor'))
         NOUR.nourish=1;
     end
     

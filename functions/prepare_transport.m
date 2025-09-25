@@ -13,6 +13,7 @@ function [TRANSP]=prepare_transport(S)
 %     .d90                      : d90 grain diameter [m]
 %     .porosity                 : TRANSP.porosity (typically 0.4) [-]
 %     .tanbeta                  : mean bed slope [ratio 1/slope]
+%     .tanbetasetup             : default value for bed slope effect of the water-level setup driven currents impact on sediment transport (dHs/ds), with 1 as default for a very small impact on transport (for a steep slope)
 %     .ks                       : roughness parameter
 %     .rhos                     : density of sand [kg/m3]
 %     .rhow                     : density of water [kg/m3]
@@ -46,6 +47,7 @@ function [TRANSP]=prepare_transport(S)
 %     .d90                      : d90 grain diameter [m]
 %     .porosity                 : TRANSP.porosity (typically 0.4) [-]
 %     .tanbeta                  : mean bed slope [ratio 1/slope]
+%     .tanbetasetup             : default value for bed slope effect of the water-level setup driven currents impact on sediment transport (dHs/ds), with 1 as default for a very small impact on transport (for a steep slope)
 %     .ks                       : roughness parameter
 %     .rhos                     : density of sand [kg/m3]
 %     .rhow                     : density of water [kg/m3]
@@ -105,7 +107,8 @@ function [TRANSP]=prepare_transport(S)
     TRANSP.d50=S.d50;                                                                  % median grain diameter [m]
     TRANSP.d90=S.d90;                                                                  % d90 grain diameter [m]
     TRANSP.porosity=S.porosity;                                                        % TRANSP.porosity (typically 0.4) [-]
-    TRANSP.tanbeta=S.tanbeta;                                                          % mean bed slope [ratio 1/slope]
+    TRANSP.tanbeta=S.tanbeta;                                                          % mean bed slope used for computing the transport in formulas [ratio 1/slope]
+    TRANSP.tanbetasetup=S.tanbetasetup;                                                % bed slope value, scaling the effect of the water-level setup driven currents impact on sediment transport (dHs/ds), with 1 as default for a very small impact on transport (for a steep slope)
     TRANSP.ks=S.ks;
     TRANSP.rhos=S.rhos;                                                                % density of sand [kg/m3]
     TRANSP.rhow=S.rhow;                                                                % density of water [kg/m3]
@@ -116,15 +119,14 @@ function [TRANSP]=prepare_transport(S)
     TRANSP.gamma=S.gamma;                                                              % breaking coefficient (Hs/h) with 5% breaking waves
     TRANSP.pswell=S.pswell;                                                            % VR14 : Percentage swell (between 0 - 100) [-]
     TRANSP.aw=S.aw;                                                                    % factor for determining depth of closure at bypassing groyne (1.27 if time series is used) This value is used by default.
-    TRANSP.bypasscontrfac=S.bypasscontrfac;                                            % the maximum transport when the coastline is at the end of the structure (always >=1). Setting the bypass fraction larger than 1 means that the accretion does not go to the tip of the structure. 
-    TRANSP.relaxationlength=S.relaxationlength;                                        % length over which transport decelerates in meters, which adds inertia to the longshore current. It scales linearly with the wave height below 1m waves.
     if isempty(S.wvcfile)
         TRANSP.aw=S.awfixedhs;                                                         % factor for determining depth of closure at bypassing groyne ir a representative Hs is used instead of a climate or timeseries. This value is used instead of 'aw' if S.wvcfile is empty. 
     end
+    TRANSP.relaxationlength=S.relaxationlength;                                        % length over which transport decelerates in meters, which adds inertia to the longshore current. It scales linearly with the wave height below 1m waves.
     TRANSP.twopoints=S.twopoints;
     TRANSP.critwidth=S.critwidth;
     TRANSP.suppresshighangle=S.suppresshighangle;                                      % switch 0/1 to disable the high-angle instabilities by limiting the transport angle to the critical high-angle orientation (when it is set at 1)
-    TRANSP.Acal=S.Acal;                                                                % calibration factor for the Sulsby Van Rijn formulation in the tide module
+    TRANSP.acal=S.acal;                                                                % calibration factor for the Sulsby Van Rijn formulation in the tide module
     TRANSP.submerged=S.submerged;
     
     % boundary conditions

@@ -79,10 +79,11 @@ function [RUNUP]=introduce_runup(RUNUP,TIME,COAST,DUNE,STRUC,WAVE)
 %   --------------------------------------------------------------------
 
     if DUNE.used || STRUC.transmission==1
+        RUNUP.swl=RUNUP.swl0;
         if isempty(RUNUP)
             % static conditions specified as S.swl
-            RUNUP.nloc=1;
-        elseif ~isfield(RUNUP,'timenum')
+            RUNUP.nloc=0;
+        elseif isfield(RUNUP,'SWL')
             %% Interpolate conditions in time (all columns for all positions at once)
             x=COAST.x;
             y=COAST.y;
@@ -90,55 +91,69 @@ function [RUNUP]=introduce_runup(RUNUP,TIME,COAST,DUNE,STRUC,WAVE)
             %% interpolate SWL
             SWL=RUNUP.SWL;
             SWLnow=[];
+            RUNUP.nloc=length(SWL);
             for kk=1:length(SWL)
                 % interpolate swl at tnow
                 eps=1e-6;          
                 
                 % check how many time instances of the SWL are within the current coastline timestep
-                idt=find(SWL(kk).timenum>TIME.tprev & SWL(kk).timenum<=TIME.tnow);
+                tnow=TIME.tnow+WAVE.dtrewind(1);
+                tprev=TIME.tprev+WAVE.dtrewind(1);
+                idt=[];
+                if ~isempty(SWL(kk).timenum)
+                idt=find(SWL(kk).timenum>tprev & SWL(kk).timenum<=tnow);
+                end
                 
                 % construct dune timesteps in case a different dt is specified for the dunes than for the coastline
-                timenow=TIME.tnow;
+                timenow=tnow;
                 if ~isempty(DUNE.dt) && TIME.it~=0
-                    dt=min(DUNE.dt*365,TIME.tnow-TIME.tprev);
-                    timenow=[TIME.tprev+dt:dt:TIME.tnow]';
+                    dt=min(DUNE.dt*365,tnow-tprev);
+                    timenow=[tprev+dt:dt:tnow]';
+                end
+
+                if isfield(SWL,'htide') && ischar(RUNUP.swl0)
+                    % using htide (second data column of the water-level file) in addition to the surge-data (first data column of the water-level file)
+                    SWL(kk).htide=SWL(kk).htide;
+                else
+                    SWL(kk).htide=repmat(RUNUP.swl0,[length(SWL(1).swl),1]);
                 end
                 
-                % interpolate the water-levels
-                if length(idt)>1 && min(abs(SWL(kk).timenum-TIME.tnow))<eps && min(abs(SWL(kk).timenum-TIME.tprev))<eps && isempty(DUNE.dt)
+                %% draw swl condition from an SWL-climate
+                if ~isempty(WAVE.iwc) && isempty(SWL(kk).timenum)
+                    % in case of a swl climate
+                    if length(WAVE.WVC(1).Prob)==length(SWL(kk).Prob)
+                        % use wave climate condition if SWL and WAVE are synchronized
+                        RUNUP.iwc=WAVE.iwc;
+                        RUNUP.Prob=WAVE.Prob;
+                    elseif kk==1 && COAST.i_mc==1 && TIME.dtsteps==0
+                        if RUNUP.mergeconditions==1
+                            % draw all conditions with their respective probabilities
+                            RUNUP.iwc=[1:length(SWL(1).swl)]';
+                            RUNUP.Prob=SWL(1).Prob(:)./sum(SWL(1).Prob);
+                        elseif ~isempty(SWL(1).Prob) 
+                            % draw from swl climate based on probability
+                            RUNUP.iwc=get_randsample(length(SWL(1).swl),1,SWL(1).Prob);
+                            RUNUP.Prob=SWL(1).Prob(:)./sum(SWL(1).Prob);
+                        else
+                            % random number for drawing from swl climate
+                            RUNUP.iwc=round((rand*length(SWL(1).swl)+0.5));
+                            RUNUP.Prob=ones(length(SWL(1).swl),1)/length(SWL(1).swl);
+                        end
+                    end
+                    SWLnow(:,kk) = SWL(kk).swl(RUNUP.iwc)+SWL(kk).htide(RUNUP.iwc);
+
+                %% interpolate the water-levels from an SWL-timeseries
+                elseif length(idt)>1 && min(abs(SWL(kk).timenum-tnow))<eps && min(abs(SWL(kk).timenum-tprev))<eps && isempty(DUNE.dt)
                     % in case more dense time-series than timesteps of coastline model
-                    SWLnow(:,kk) = SWL(kk).swl(idt);
+                    SWLnow(:,kk) = SWL(kk).swl(idt)+SWL(kk).htide(idt);
                 elseif length(SWL(kk).timenum)>1 || TIME.it==0
                     % in case similar or larger timestep in data time-series than timesteps of coastline model
-                    SWLnow(:,kk) = interp1(SWL(kk).timenum,SWL(kk).swl,timenow);
+                    SWLnow(:,kk) = interp1(SWL(kk).timenum,SWL(kk).swl+SWL(kk).htide,timenow);
                 else
                     % in case a single value is specified as the swl
-                    SWLnow(1,kk) = SWL(kk).swl;
+                    SWLnow(1,kk) = SWL(kk).swl+SWL(kk).htide;
                 end
             end
-        elseif isfield(RUNUP,'swl')
-            % get wave climate
-            if length(WAVE.WVC(1).Hs)==length(SWL(kk).swl) && ~isempty(WAVE.iwc)
-                % obtain random climate condition from wave climate 
-                RUNUP.iwc=WAVE.iwc;
-            elseif COAST.i_mc==1 && isfield(RUNUP,'Prob')
-                % determine random climate condition based on probability
-                RUNUP.iwc=get_randsample(length(RUNUP(1).swl),1,RUNUP(1).Prob);
-            else
-                % determine random climate condition assuming equal probability of conditions
-                RUNUP.rnd=rand;
-                RUNUP.iwc=round((RUNUP.rnd*length(RUNUP(1).swl)+0.5));
-            end 
-            % use a wind climate conditiosn 
-            RUNUP.swl=[];
-            for kk=1:length(RUNUP)
-                RUNUP.swl=RUNUP(kk).swl(RUNUP.iwc);      
-                RUNUP.swl=RUNUP.swl(:)';
-                if isfield(RUNUP,'x')
-                xw(1,kk)=RUNUP(kk).x;
-                yw(1,kk)=RUNUP(kk).y;
-                end 
-            end 
         end
         if RUNUP.nloc==0
             RUNUP.swl=RUNUP.swl(1)*ones(size(COAST.x));
@@ -156,22 +171,54 @@ function [RUNUP]=introduce_runup(RUNUP,TIME,COAST,DUNE,STRUC,WAVE)
     if DUNE.used
         %% interpolate WVD
         WVD=RUNUP.WVD;
+        RUNUP.nlocw=length(WVD);
         for kk=1:length(WVD)
             % interpolate swl at tnow
             eps=1e-6;          
             
             % check how many time instances of the SWL are within the current coastline timestep
-            idt=find(WVD(kk).timenum>TIME.tprev & WVD(kk).timenum<=TIME.tnow);
-            
-            % construct dune timesteps in case a different dt is specified for the dunes than for the coastline
-            timenow=TIME.tnow;
-            if ~isempty(DUNE.dt) && TIME.it~=0
-                dt=min(DUNE.dt*365,TIME.tnow-TIME.tprev);
-                timenow=[TIME.tprev+dt:dt:TIME.tnow]';
+            tnow=TIME.tnow+WAVE.dtrewind(1);
+            tprev=TIME.tprev+WAVE.dtrewind(1);
+            idt=[];
+            if ~isempty(WVD(kk).timenum)
+            idt=find(WVD(kk).timenum>tprev & WVD(kk).timenum<=tnow);
             end
             
-            % interpolate the wave conditions
-            if length(idt)>1 && min(abs(WVD(kk).timenum-TIME.tnow))<eps && min(abs(WVD(kk).timenum-TIME.tprev))<eps && isempty(DUNE.dt)
+            % construct dune timesteps in case a different dt is specified for the dunes than for the coastline
+            timenow=tnow;
+            if ~isempty(DUNE.dt) && TIME.it~=0
+                dt=min(DUNE.dt*365,tnow-tprev);
+                timenow=[tprev+dt:dt:tnow]';
+            end
+            
+            %% draw swl condition from an SWL-climate
+            if ~isempty(WAVE.iwc) && isempty(WVD(kk).timenum)
+                % in case of a WVD climate
+                if length(WAVE.WVC(1).Prob)==length(WVD(kk).Prob)
+                    % use wave climate condition if WVD and WAVE are synchronized
+                    RUNUP.iwc=WAVE.iwc;
+                    RUNUP.Prob=WAVE.Prob;
+                elseif kk==1 && COAST.i_mc==1 && TIME.dtsteps==0
+                    if RUNUP.mergeconditions==1
+                        % draw all conditions with their respective probabilities
+                        RUNUP.iwc=[1:length(WVD(1).Hs)]';
+                        RUNUP.Prob=WVD(1).Prob(:)./sum(WVD(1).Prob);
+                    elseif ~isempty(WVD(1).Prob) 
+                        % draw from WVD climate based on probability
+                        RUNUP.iwc=get_randsample(length(WVD(1).Hs),1,WVD(1).Prob);
+                        RUNUP.Prob=WVD(1).Prob(:)./sum(WVD(1).Prob);
+                    else
+                        % random number for drawing from WVD climate
+                        RUNUP.iwc=round((rand*length(WVD(1).Hs)+0.5));
+                        RUNUP.Prob=ones(length(WVD(1).Hs),1)/length(WVD(1).Hs);
+                    end
+                end
+                HSnow(:,kk) = WVD(kk).Hs(RUNUP.iwc)';
+                TPnow(:,kk) = WVD(kk).Tp(RUNUP.iwc)';
+                DIRnow(:,kk) = WVD(kk).Dir(RUNUP.iwc)';
+
+            %% interpolate the water-levels from an SWL-timeseries
+            elseif length(idt)>1 && min(abs(WVD(kk).timenum-tnow))<eps && min(abs(WVD(kk).timenum-tprev))<eps && isempty(DUNE.dt)
                 % in case more dense time-series than timesteps of coastline model
                 HSnow(:,kk) = WVD(kk).Hs(idt);
                 TPnow(:,kk) = WVD(kk).Tp(idt);
@@ -195,9 +242,9 @@ function [RUNUP]=introduce_runup(RUNUP,TIME,COAST,DUNE,STRUC,WAVE)
             RUNUP.Tp=RUNUP.Tp(1)*ones(size(COAST.x));
             RUNUP.Dir=RUNUP.Dir(1)*ones(size(COAST.x));
         elseif RUNUP.nlocw==1
-            RUNUP.Hs=HSnow*ones(size(COAST.x));
-            RUNUP.Tp=TPnow*ones(size(COAST.x));
-            RUNUP.Dir=DIRnow*ones(size(COAST.x));
+            RUNUP.Hs=HSnow(:)*ones(size(COAST.x));
+            RUNUP.Tp=TPnow(:)*ones(size(COAST.x));
+            RUNUP.Dir=DIRnow(:)*ones(size(COAST.x));
         else
             % Interpolate conditions along the coast
             method='weighted_distance';

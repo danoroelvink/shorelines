@@ -1,5 +1,5 @@
-function [TRANSP,COAST]=transport_revetment(COAST,STRUC,TRANSP,TIME)
-%function [TRANSP,COAST]=transport_revetment(COAST,STRUC,TRANSP,TIME)
+function [TRANSP,COAST]=transport_revetment(COAST,STRUC,TRANSP,TIME,WAVE)
+%function [TRANSP,COAST]=transport_revetment(COAST,STRUC,TRANSP,TIME,WAVE)
 %
 % Reduces transports if the coastline is near a revetment; limits
 % the transport out of a cell to the volume of the cell divided by the 
@@ -65,21 +65,23 @@ function [TRANSP,COAST]=transport_revetment(COAST,STRUC,TRANSP,TIME)
 
     %% Initializations
     eps=1e-6;
+    nw       = size(TRANSP.QS,1); % number of wave conditions taken along at this timestep (can be more than 1 in case of simultaneous wave conditions)
+    nq       = size(TRANSP.QS,2); % number of coastline points
+    nc       = length(COAST.x);    % number of coastline points
     x        = COAST.x;                
     y        = COAST.y;               
     s        = COAST.s; 
     ds0      = COAST.ds0;
     ds       = COAST.ds; % cell size
-    QS       = TRANSP.QS;              
-    wcrit    = TRANSP.critwidth;   
+    QS       = TRANSP.QS;          
     iterrev  = STRUC.iterrev;
     h0       = COAST.h0;
-    reducfac = ones(size(QS));
-    dnrev    = ones(size(x))*1e4;       % waterline distance in front of revetment (very wide by default)
-    dnrevq   = ones(size(QS))*1e4;   % waterline distance in front of revetment (very wide by default)
-    TRANSP.idrev=zeros(1,length(QS));    % QS-indices with a revetment -> used to communicate to 'upwind correction' and 'bypass function'
+    reducfac = ones(1,nq);
+    dnrev    = ones(1,nc)*1e4;     % waterline distance in front of revetment (very wide by default)
+    dnrevq   = ones(1,nq)*1e4;     % waterline distance in front of revetment on transport grid cells (very wide by default)
+    TRANSP.idrev=zeros(1,nq);      % QS-indices with a revetment -> used to communicate to 'upwind correction' and 'bypass function'
     if length(h0)==1
-        h0=repmat(h0,size(x));
+        h0=repmat(h0,[1,nc]);
     end
     if ~isscalar(ds0)
         ds0=min(ds0(:,3));
@@ -90,10 +92,12 @@ function [TRANSP,COAST]=transport_revetment(COAST,STRUC,TRANSP,TIME)
     [x_sed,y_sed,n_sed]=get_one_polygon(TRANSP.xsedlim,TRANSP.ysedlim,1);
     
     %% for all revetments
+    TRANSP.reducfac=ones(1,nq);
+    TRANSP.idrevq=zeros(1,nq);
     if n_str>0 || n_sed>0
         for i_str = 1:n_str+n_sed
             if i_str<=n_str
-                % get the revetment
+                % get the revetment coordinates
                 [x_rev,y_rev,n_str]=get_one_polygon(STRUC.xrevet,STRUC.yrevet,i_str);
                 wcrit = TRANSP.critwidth;
                 wreduce = 0;
@@ -110,7 +114,7 @@ function [TRANSP,COAST]=transport_revetment(COAST,STRUC,TRANSP,TIME)
             % compute distances from the coast to the revetment
             usepolydistance=1;
             if usepolydistance==0
-                [dmin,x_dmin, y_dmin, is_vertex, idc]=p_poly_dist(x,y,x_rev,y_rev);
+                [dmin,x_dmin,y_dmin,is_vertex,idc]=p_poly_dist(x,y,x_rev,y_rev);
                 % Convert from column to row vectors
                 dmin=dmin';x_dmin=x_dmin';y_dmin=y_dmin';is_vertex=is_vertex';idc=idc';
                 % determine coast points within the revetment area
@@ -150,33 +154,62 @@ function [TRANSP,COAST]=transport_revetment(COAST,STRUC,TRANSP,TIME)
                 x(behind)=x_dmin(behind);
                 y(behind)=y_dmin(behind);
                 dnrevq(insideq)=max(dnrevq(insideq),0);
+                %% insert x,y back into COAST.x_mc,COAST.y_mc
+                COAST.x=x;
+                COAST.y=y;
+                [COAST.x_mc,COAST.y_mc]=insert_section(COAST.x,COAST.y,COAST.x_mc,COAST.y_mc,COAST.i_mc);
             end
             % reduction factor
             reducfac(insideq)=max(min(dnrevq(insideq)/wcrit,1),0);               
             TRANSP.idrev=TRANSP.idrev | behindq(:)';    % QS-indices with a revetment -> used to communicate to upwind correction and bypass function
-            
+            TRANSP.reducfac=reducfac;
             % debug plot
             % figure;plot(COAST.x,COAST.y,'k.-');hold on;plot(COAST.xq(insideq),COAST.yq(insideq),'gs');hold on;plot(COAST.x(inside),COAST.y(inside),'r+');
             
-            % reduce transports to mimic limitation to bypass
-            QS=QS.*reducfac;
-            
             % reduce transports to avoid emptying coastal cells in front of revetments
-            iddivergence=QS(2:end)>0 & QS(1:end-1)<0;
+            iddivergence=zeros(1,nq-1);
+            for kk=1:nw
+            iddivergence=iddivergence | (QS(kk,2:end)>1e-6 & QS(kk,1:end-1)<1e-6);
+            end
             dnrev(iddivergence)=dnrev(iddivergence)/2;
-            for iter=1:iterrev 
-                QS0=QS;
-                for i=2:length(QS)
-                    if QS(i)>=0
-                        QS(i)=min(QS(i),QS0(i-1)+dnrev(i-1)*ds(i-1)*h0(i-1)/TIME.adt);
-                        %QS(i)=min(QS(i),dnrev(i-1)*ds(i-1)*h0(i-1)/TIME.adt);        % <- basic approach, also works well, but bypass transport is a linear function of the time step
+            
+            % reduce transports to mimic limitation to bypass
+            for kk=1:nw
+                QS(kk,:)=QS(kk,:).*reducfac;
+                if isempty(WAVE.Prob)
+                    Prob=1;
+                else
+                    Prob=WAVE.Prob(kk)/sum(WAVE.Prob(1:nw));
+                end
+                for iter=1:iterrev 
+                    QS0=QS(kk,:);
+                    for i=2:nq
+                        if QS(kk,i)>=0
+                            QS(kk,i)=min(QS(kk,i),QS0(i-1)+dnrev(i-1)*ds(i-1)*h0(i-1)/TIME.adt/Prob);
+                            %QS(kk,i)=min(QS(kk,i),dnrev(i-1)*ds(i-1)*h0(i-1)/TIME.adt);        % <- basic approach, also works well, but bypass transport is a linear function of the time step
+                        end
+                    end
+                    for i=[nq-1:-1:1]
+                        if QS(kk,i)<0
+                            QS(kk,i)=max(QS(kk,i),QS0(i+1)-dnrev(i)*ds(i)*h0(i)/TIME.adt/Prob);
+                            %QS(kk,i)=max(QS(kk,i),-dnrev(i)*ds(i)*h0(i)/TIME.adt);        % <- basic approach, also works well, but bypass transport is a linear function of the time step
+                        end
                     end
                 end
-                for i=[length(QS)-1:-1:1]
-                    if QS(i)<0
-                        QS(i)=max(QS(i),QS0(i+1)-dnrev(i)*ds(i)*h0(i)/TIME.adt);
-                        %QS(i)=max(QS(i),-dnrev(i)*ds(i)*h0(i)/TIME.adt);        % <- basic approach, also works well, but bypass transport is a linear function of the time step
-                    end
+                
+                %% shadowing of the revetment
+                % TRANSP.QS(dnrevq==1e4 & TRANSP.shadowS_rev)=0;
+                TRANSP.idrevq=(dnrevq<100);
+                TRANSP.idrevs=(dnrev<100);
+                % idrevq2=[0,cumsum(abs(diff(dnrevq<1e4)))];
+                idshadowrevneg=intersect(find((TRANSP.shadowS_revq(kk,:) | [TRANSP.shadowS_rev(kk,:),0]) ),[1:find(TRANSP.idrevq==1,1)]);
+                idshadowrevpos=intersect(find((TRANSP.shadowS_revq(kk,:) | [0,TRANSP.shadowS_rev(kk,:)]) ),[find(TRANSP.idrevq==1,1,'last'):nq]);
+                % idshadowrevpos=find(TRANSP.shadowS_rev & TRANSP.QS>=0 & idrevq2==0);
+                if length(idshadowrevneg)>=2
+                    QS(kk,idshadowrevneg)=min(QS(kk,min(idshadowrevneg(end)+1,nq)),0)*[0:1/(length(idshadowrevneg)-1):1];
+                end
+                if length(idshadowrevpos)>=2
+                    QS(kk,idshadowrevpos)=max(QS(kk,max(idshadowrevpos(1)-1,1)),0).*[1:-1/(length(idshadowrevpos)-1):0];
                 end
             end
         end

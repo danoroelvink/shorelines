@@ -19,7 +19,7 @@ function [RUNUP]=prepare_runupconditions(S,TIME)
 %    RUNUP
 %         .dune         : switch for computing dune evolution (0/1)
 %         .watfile      : filename with time-series data of water-levels (leave empty to use static value)
-%         .swl          : static value of the water-level [m w.r.t. MSL]
+%         .swl0         : static value of the water-level [m w.r.t. MSL]
 %         .SWL          : data structure with time-series of the water-level (with timenum and data field) from 'watfile', which overrules the static .swl
 %             .timenum  : dates of water-level timeseries [days in datenum format]
 %             .swl      : timeseries of surge water-levels [m]
@@ -74,8 +74,9 @@ function [RUNUP]=prepare_runupconditions(S,TIME)
         %% Waterlevel information for dune evolution and wave transmission over breakwaters
         % create structure
         RUNUP=struct;        
-        RUNUP.swl=S.swl0;
+        RUNUP.swl0=S.swl0;
         RUNUP.watfile=S.watfile;
+        RUNUP.mergeconditions=S.mergeconditions;
 
         % Use regular wave climate of wvdfile is not specified
         if isempty(RUNUP.watfile)

@@ -76,8 +76,8 @@ function [FORMAT] = initialize_plot(S,COAST)
     xlim(S.xlimits);ylim(S.ylimits); 
     
     try
-        FORMAT.IMGfilename=S.IMGfilename;
-        FORMAT.WORLDfilename=S.WORLDfilename;
+        FORMAT.IMGfilename=S.imgfilename;
+        FORMAT.WORLDfilename=S.worldfilename;
     end
     
     if S.yesplot
@@ -131,6 +131,7 @@ function [FORMAT] = initialize_plot(S,COAST)
     FORMAT.video=S.video;
     FORMAT.outputdir=S.outputdir;
     FORMAT.fignryear=S.fignryear;
+    FORMAT.figplotfreq=S.figplotfreq;
     FORMAT.ld=S.ld;
     FORMAT.xywave=S.xywave;
     FORMAT.plotqs=S.plotqs;

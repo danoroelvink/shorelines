@@ -84,12 +84,21 @@ function [COAST]=interpolate_props(COAST,DUNE,MUD,TIME)
           COAST.dcelev  = var1i.dcelev(:)';
           
           % Interpolate cohesive dune properties alongshore
+          fieldnm1={'cs'};
+          if ~isempty(DUNE.xtill)
           fieldnm1={'cs','cstill','xtill','perctill'};
+          end
           [var1i,idGRID,distw]=get_interpolation_on_grid(method,x,y,DUNE.xdune0,DUNE.ydune0,DUNE,fieldnm1,{});
           COAST.cs = var1i.cs(:)';
-          COAST.cstill = var1i.cstill(:)';
-          COAST.perctill = var1i.perctill(:)';
-          COAST.xtill  = var1i.xtill(:)';
+          if ~isempty(DUNE.xtill)
+              COAST.cstill = var1i.cstill(:)';
+              COAST.perctill = var1i.perctill(:)';
+              COAST.xtill  = var1i.xtill(:)';
+          else
+              COAST.cstill=COAST.cs;
+              COAST.perctill = zeros(size(COAST.cs));
+              COAST.xtill  = [];
+          end
           
           % Make sure to either initialize the 'xtill' or re-interpolate. 
           if TIME.it~=0 && ~isempty(DUNE.xtill)

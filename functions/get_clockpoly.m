@@ -48,9 +48,14 @@ function rot=get_clockpoly(x,y)
     xc=mean(x);
     Rot=0;
     if ~isempty(x) && ~isempty(y)
+        
         xd=diff([x;x(1)]);
         yd=diff([y;y(1)]);
-    
+        if abs(x(end)-x(1))<1e-8 && abs(y(end)-y(1))<1e-8
+            xd(end)=xd(1);
+            yd(end)=yd(1);
+        end
+
         mark=(xd==0);
         xd(mark)=NaN;
         a=(xc-x)./xd;
@@ -63,6 +68,7 @@ function rot=get_clockpoly(x,y)
     
         ycm=max(yc); % highest crossing of x=xc somewhere between i and i+1
         i=find(yc==ycm);
+        %i=find(yc(~mark)==ycm);
     
         Rot=0;
         if all(xd(i)>=0) && any(xd(i)>0) % going right

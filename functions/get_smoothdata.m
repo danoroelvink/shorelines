@@ -1,4 +1,4 @@
-function [VAR2]=get_smoothdata(VAR,smoothtype,smoothsteps,movwindow)
+function [VAR]=get_smoothdata(VAR,smoothtype,smoothsteps,movwindow)
 % function [VAR]=get_smoothdata(VAR,smoothtype,smoothsteps,movwindow)
 % 
 % INPUT: 
@@ -47,47 +47,62 @@ function [VAR2]=get_smoothdata(VAR,smoothtype,smoothsteps,movwindow)
        smoothsteps=0;
     end
 
-    VAR2=VAR;
-    for nn=1:max(smoothsteps,1)
-        if strcmpi(smoothtype,'avgmean') 
-            VAR2=mean(VAR2);        
-        elseif (strcmpi(smoothtype,'angle') ||  strcmpi(smoothtype,'vector')) && nargin<4
-            sVAR=sind(VAR2(:))';
-            cVAR=cosd(VAR2(:))';
-            sVARavg=[sVAR(1),(sVAR(1:end-1)+sVAR(2:end))/2,sVAR(end)];
-            cVARavg=[cVAR(1),(cVAR(1:end-1)+cVAR(2:end))/2,cVAR(end)];
-            sVAR2=(sVARavg(1:end-1)+sVARavg(2:end))/2;
-            cVAR2=(cVARavg(1:end-1)+cVARavg(2:end))/2;
-            VAR2=atan2d(sVAR2,cVAR2);
-            VAR2=mod(VAR2,360);   
-            if smoothsteps<1
-                alfa=smoothsteps;
-                VAR2=atan2d((1-alfa)*sVAR+alfa*sVAR2,(1-alfa)*cVAR+alfa*cVAR2);
+    if size(VAR,1)>1 && size(VAR,2)==1
+        VAR=VAR(:)';
+    end
+
+    for kk=1:size(VAR,1)
+        VAR2=VAR(kk,:);
+        for nn=1:max(smoothsteps,1)
+            if strcmpi(smoothtype,'avgmean') 
+                VAR2=mean(VAR2);        
+            elseif ((strcmpi(smoothtype,'angle') ||  strcmpi(smoothtype,'vector')) && nargin<4) ...
+                   || strcmpi(smoothtype,'anglemean') && nn<max(smoothsteps,1)
+                sVAR=sind(VAR2(:))';
+                cVAR=cosd(VAR2(:))';
+                sVARavg=[sVAR(1),(sVAR(1:end-1)+sVAR(2:end))/2,sVAR(end)];
+                cVARavg=[cVAR(1),(cVAR(1:end-1)+cVAR(2:end))/2,cVAR(end)];
+                sVAR2=(sVARavg(1:end-1)+sVARavg(2:end))/2;
+                cVAR2=(cVARavg(1:end-1)+cVARavg(2:end))/2;
+                VAR2=atan2d(sVAR2,cVAR2);
+                VAR2=mod(VAR2,360);   
+                if smoothsteps<1
+                    alfa=smoothsteps;
+                    VAR2=atan2d((1-alfa)*sVAR+alfa*sVAR2,(1-alfa)*cVAR+alfa*cVAR2);
+                    VAR2=mod(VAR2,360);
+                end 
+            elseif (strcmpi(smoothtype,'angle') || strcmpi(smoothtype,'vector')) && nargin==4
+                cVAR=smoothdata(cosd(VAR2),'movmean',movwindow);
+                sVAR=smoothdata(sind(VAR2),'movmean',movwindow);
+                VAR2=atan2d(sVAR,cVAR);
                 VAR2=mod(VAR2,360);
-            end 
-        elseif (strcmpi(smoothtype,'angle') || strcmpi(smoothtype,'vector')) && nargin==4
-            cVAR=smoothdata(cosd(VAR2),'movmean',movwindow);
-            sVAR=smoothdata(sind(VAR2),'movmean',movwindow);
-            VAR2=atan2d(sVAR,cVAR);
-            VAR2=mod(VAR2,360);
-        elseif strcmpi(smoothtype,'angleavgmean')
-            sVAR=mean(sind(VAR2));
-            cVAR=mean(cosd(VAR2));
-            VAR2=atan2d(sVAR,cVAR);
-            VAR2=mod(VAR2,360);  
-        elseif nargin==4
-            VAR2=smoothdata(VAR2,'movmean',movwindow);
-        elseif strcmpi(smoothtype,'anglemean') && nargin<4
-            sVAR=sind(VAR2(:))';
-            cVAR=cosd(VAR2(:))';
-            sVARavg=(sVAR(1:end-1)+sVAR(2:end))/2;
-            cVARavg=(cVAR(1:end-1)+cVAR(2:end))/2;
-            VAR2=atan2d(sVARavg,cVARavg);
-            VAR2=mod(VAR2,360);   
-        else
-            VAR2=VAR2(:)';
-            VARavg=[VAR2(1),(VAR2(1:end-1)+VAR2(2:end))/2,VAR2(end)];
-            VAR2=(VARavg(1:end-1)+VARavg(2:end))/2;  
+            elseif strcmpi(smoothtype,'angleavgmean')
+                sVAR=mean(sind(VAR2));
+                cVAR=mean(cosd(VAR2));
+                VAR2=atan2d(sVAR,cVAR);
+                VAR2=mod(VAR2,360);  
+            elseif nargin==4
+                VAR2=smoothdata(VAR2,'movmean',movwindow);
+            elseif strcmpi(smoothtype,'anglemean') && nargin<4
+                sVAR=sind(VAR2(:))';
+                cVAR=cosd(VAR2(:))';
+                sVARavg=(sVAR(1:end-1)+sVAR(2:end))/2;
+                cVARavg=(cVAR(1:end-1)+cVAR(2:end))/2;
+                VAR2=atan2d(sVARavg,cVARavg);
+                VAR2=mod(VAR2,360);   
+            else
+                VAR2=VAR2(:)';
+                VARavg=[VAR2(1),(VAR2(1:end-1)+VAR2(2:end))/2,VAR2(end)];
+                VAR2=(VARavg(1:end-1)+VARavg(2:end))/2;  
+            end
         end
-    end      
+        if ~(strcmpi(smoothtype,'anglemean') && nn==max(smoothsteps,1))
+            VAR(kk,:)=VAR2;
+        else
+            VAR(kk,1:end-1)=VAR2;
+            if kk==size(VAR,1)
+                VAR=VAR(:,1:end-1);
+            end
+        end
+    end
 end

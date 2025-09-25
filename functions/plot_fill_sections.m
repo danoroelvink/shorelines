@@ -143,6 +143,9 @@ function [FORMAT] = plot_fill_sections(COAST,FORMAT,TIME)
                         xb{i_mc}=xb{i_mc}(2:end-1);
                         yb{i_mc}=yb{i_mc}(2:end-1);
                     end
+                else
+                    xb{i_mc}=[];
+                    yb{i_mc}=[];
                 end
             end
             

@@ -73,6 +73,7 @@ function [ COAST,SPIT ] = find_overwash_mc(COAST,WAVE,SPIT,STRUC,TRANSP,DUNE,MUD
     for ii=1:COAST.n_mc
         
         [COAST,WAVE,~]=get_segmentdata(COAST,WAVE,TRANSP,DUNE,MUD,ii);
+
         if length(COAST.x)<3
             return
         end
@@ -80,49 +81,62 @@ function [ COAST,SPIT ] = find_overwash_mc(COAST,WAVE,SPIT,STRUC,TRANSP,DUNE,MUD
         
         % compute phiw_coast at nodes from PHIWI at transport points
         phiw_coast=mod(atan2d(sind(0.5*(WAVE.PHI(1:end-1)+WAVE.PHI(2:end))),cosd(0.5*(WAVE.PHI(1:end-1)+WAVE.PHI(2:end)))),360.0);
-        
+
+        % construct line in coast normal direction x_nl, y_nl (normal landward) at each coastline point
+        x_nl=[COAST.x-eps*sind(COAST.PHIcxy);COAST.x-SPIT.spitwidth*sind(COAST.PHIcxy)];
+        y_nl=[COAST.y-eps*cosd(COAST.PHIcxy);COAST.y-SPIT.spitwidth*cosd(COAST.PHIcxy)];
+
         % loop over coastal elements
         for i=1:length(COAST.x)
             
             if ~COAST.shadow(i)
-                if COAST.cyclic
-                    im1=i-1;if im1<1;im1=COAST.n-1;end
-                    ip1=i+1;if ip1>COAST.n;ip1=2;end
-                else
-                    im1=max(i-1,1);
-                    ip1=min(i+1,COAST.n);
+                if 0 % old approach
+                    if COAST.cyclic
+                        im1=i-1;if im1<1;im1=COAST.n-1;end
+                        ip1=i+1;if ip1>COAST.n;ip1=2;end
+                    else
+                        im1=max(i-1,1);
+                        ip1=min(i+1,COAST.n);
+                    end
                 end
                 
-                % construct line in coast normal direction x_nl, y_nl (normal landward)
-                phic=360-atan2d(COAST.y(ip1)-COAST.y(im1),COAST.x(ip1)-COAST.x(im1));
-                x_nl=[COAST.x(i)-eps*sind(phic),COAST.x(i)-SPIT.spitwidth*sind(phic)];
-                y_nl=[COAST.y(i)-eps*cosd(phic),COAST.y(i)-SPIT.spitwidth*cosd(phic)];
-                
                 % get intersections with x_mc, y_mc
-                [xcr,ycr,~,~,ind_mc,~,ui,~]=get_intersections(COAST.x_mc,COAST.y_mc,x_nl,y_nl);
+                [xcr,ycr,~,~,ind_mc,~,ui,~]=get_intersections(COAST.x_mc,COAST.y_mc,x_nl(:,i),y_nl(:,i));
                 
-                if ~isempty(xcr)&~isnan(xcr)&~isnan(ycr)
-                    % find closest point, distance, reference points and weights
-                    [distance,closest] = min(hypot(xcr-COAST.x(i),ycr-COAST.y(i)));
-                    SPIT.width(i)      = distance;
-                    j                  = ind_mc(closest);
-                    weight_j           = 1-ui(closest);
-                    weight_jp1         = ui(closest);
-                    if weight_j==1
-                        jp1=j;
-                        weight_jp1=1;
-                    else
-                        jp1=j+1;
-                    end
+                % find if structure is crossed
+                % if a structure is crossed, then no overwash can take place
+                [xhr,yhr]=get_intersections(STRUC.xhard,STRUC.yhard,x_nl(:,i),y_nl(:,i));
+
+                if ~isempty(xcr) & ~isnan(xcr) & ~isnan(ycr) & isempty(xhr)
                     
+                    % find closest point, distance, reference points and weights
+                    ind_mc=unique([ind_mc,ind_mc+1]);
+                    xcr2               = COAST.x_mc(ind_mc);
+                    ycr2               = COAST.y_mc(ind_mc);
+                    distance           = hypot(xcr2-COAST.x(i),ycr2-COAST.y(i));
+                    [dist2,ids]        = sort(distance);
+                    [SPIT.width(i)]    = min(distance);
+                    j                  = ind_mc(ids(1));
+                    jp1                = ind_mc(ids(2));
+                    weight_j           = max(min(1-distance(ids(1))/SPIT.spitwidth,1),0);
+                    weight_jp1         = max(min(1-distance(ids(2))/SPIT.spitwidth,1),0);
+                    wght2              = weight_j+weight_jp1;
+                    weight_j           = min(weight_j/wght2,1);
+                    weight_jp1         = min(weight_jp1/wght2,1);
+                    
+                    % hold on;plot(xcr,ycr,'r.')
+                    % hold on;plot(COAST.x_mc(j),COAST.y_mc(j),'rs');
+                    % hold on;plot(COAST.x_mc(jp1),COAST.y_mc(jp1),'ro');
+                    % fprintf('whght_j=%8.2f wght_jp1=%8.2f\n',weight_j,weight_jp1);
+
                     % compute shift of coastline due to overwashing, depending on method
                     switch lower(SPIT.method)
                         case ('default')
                             if SPIT.owtimescale>0
-                                dn_sea  = -TIME.dt/SPIT.owtimescale*(SPIT.spitwidth-SPIT.width(i))*max(cosd(phiw_coast(i)-phic),0);
+                                dn_sea  = -TIME.dt/SPIT.owtimescale*max(SPIT.spitwidth-SPIT.width(i),0)*max(cosd(phiw_coast(i)-COAST.PHIcxy(i)),0);
                                 dn_back = -dn_sea  *(SPIT.Dsf+SPIT.bheight)/(SPIT.Dbb+SPIT.bheight);
                             else
-                                dn_sea  = -SPIT.owscale*(SPIT.spitwidth-SPIT.width(i))*max(cosd(phiw_coast(i)-phic),0);
+                                dn_sea  = -SPIT.owscale*max(SPIT.spitwidth-SPIT.width(i),0)*max(cosd(phiw_coast(i)-COAST.PHIcxy(i)),0);
                                 dn_back = -dn_sea  *(SPIT.Dsf+SPIT.bheight)/(SPIT.Dbb+SPIT.bheight);
                             end
                         case ('dune_overwash')
@@ -130,28 +144,33 @@ function [ COAST,SPIT ] = find_overwash_mc(COAST,WAVE,SPIT,STRUC,TRANSP,DUNE,MUD
                             dn_back = TIME.dt*COAST.ql(i)/(COAST.dcelev(i)+SPIT.Dbb);                     
                     end
                     
-                    
                     % apply shift to seaward point
-                    ds_sea=hypot(COAST.x(ip1)-COAST.x(im1),COAST.y(ip1)-COAST.y(im1));
-                    dx=-dn_sea*(COAST.y(ip1)-COAST.y(im1))/ds_sea;
-                    dy= dn_sea*(COAST.x(ip1)-COAST.x(im1))/ds_sea;
-                    %
+                    if 0 % old approach
+                        ds_sea=hypot(COAST.x(ip1)-COAST.x(im1),COAST.y(ip1)-COAST.y(im1));
+                        dx=-dn_sea*(COAST.y(ip1)-COAST.y(im1))/ds_sea;
+                        dy= dn_sea*(COAST.x(ip1)-COAST.x(im1))/ds_sea;
+                    else
+                        dx= dn_sea*sind(COAST.PHIcxy_mc(j)); 
+                        dy= dn_sea*cosd(COAST.PHIcxy_mc(j));
+                    end
+
                     % update coastline change in global arrays
                     dxt(i+COAST.i1-1)=dxt(i+COAST.i1-1)+dx;
                     dyt(i+COAST.i1-1)=dyt(i+COAST.i1-1)+dy;
                     
                     % apply shift to backbarrier point
-                    try
+                    if 0 % old approach
                         ds_back=hypot(COAST.x_mc(j+1)-COAST.x_mc(j),COAST.y_mc(j+1)-COAST.y_mc(j));
-                    catch
-                        disp('problem')
+                        dxt(j)=-dn_back*(COAST.y_mc(j+1)-COAST.y_mc(j))/ds_back*weight_j;
+                        dyt(j)= dn_back*(COAST.x_mc(j+1)-COAST.x_mc(j))/ds_back*weight_j;
+                        dxt(jp1)=-dn_back*(COAST.y_mc(jp1)-COAST.y_mc(j))/ds_back*weight_jp1;
+                        dyt(jp1)= dn_back*(COAST.x_mc(jp1)-COAST.x_mc(j))/ds_back*weight_jp1;
+                    else
+                        dxt(j)= dn_back*sind(COAST.PHIcxy_mc(j))*weight_j; 
+                        dyt(j)= dn_back*cosd(COAST.PHIcxy_mc(j))*weight_j; 
+                        dxt(jp1)= dn_back*sind(COAST.PHIcxy_mc(jp1))*weight_jp1; 
+                        dyt(jp1)= dn_back*cosd(COAST.PHIcxy_mc(jp1))*weight_jp1; 
                     end
-                    %dn_back=dn_back*ds_sea/2/ds_back;  % ds_back taken only over 1 cell
-                    
-                    dxt(j)=-dn_back*(COAST.y_mc(j+1)-COAST.y_mc(j))/ds_back*weight_j;
-                    dyt(j)= dn_back*(COAST.x_mc(j+1)-COAST.x_mc(j))/ds_back*weight_j;
-                    dxt(jp1)=-dn_back*(COAST.y_mc(jp1)-COAST.y_mc(j))/ds_back*weight_jp1;
-                    dyt(jp1)= dn_back*(COAST.x_mc(jp1)-COAST.x_mc(j))/ds_back*weight_jp1;
                 end
             end
         end
@@ -174,9 +193,10 @@ function [ COAST,SPIT ] = find_overwash_mc(COAST,WAVE,SPIT,STRUC,TRANSP,DUNE,MUD
     end
     
     %% Now update the coastlines
+    dxt(isnan(dxt))=0;
+    dyt(isnan(dyt))=0;
     COAST.x_mc = COAST.x_mc + dxt;
     COAST.y_mc = COAST.y_mc + dyt;
-    
     
     if yesplot
         plot(COAST.x_mc,COAST.y_mc,'--k')

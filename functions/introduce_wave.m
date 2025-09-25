@@ -124,6 +124,33 @@ function [WAVE]=introduce_wave(WAVE,TIME,COAST,CC)
         fieldnm2=get_fields(var2);
         for kk=1:length(WVC) 
             if length(unique(WVC(kk).timenum))>1 
+                
+                if TIME.tnow>max(WVC(kk).timenum) || TIME.tnow<min(WVC(kk).timenum)
+                    dt=WVC(kk).timenum-TIME.tnow;
+                    idt=find(mod(dt,365.25)<min(mod(dt,365.25))+1/24,1);
+                    dtrewind=dt(idt);
+                    if min(mod(dt,365.25))>30 || (max(WVC(kk).timenum)-min(WVC(kk).timenum))<120 % if time-series too short
+                        idt=1;
+                        dtrewind=dt(1);
+                    end
+                    if (TIME.tnow+6/24)>min(WVC(kk).timenum) && TIME.tnow<min(WVC(kk).timenum)
+                        % extend first and second timepoint to before the first model time instance when it is less than 6 hours
+                        WVC(kk).timenum(1)=WVC(kk).timenum(1)-dtrewind;
+                        WVC(kk).timenum(2)=WVC(kk).timenum(2)-dtrewind/2;
+                        %WAVE.dtrewind(kk)=WAVE.dtrewind(kk)+dtrewind;
+                        WAVE.WVC=WVC;                       
+                    else
+                        % shift the whole time-series by dtrewind in case of larger than 6 hour difference
+                        WVC(kk).timenum=WVC(kk).timenum-dtrewind;
+                        WAVE.dtrewind(kk)=WAVE.dtrewind(kk)+dtrewind;
+                        WAVE.WVC=WVC;
+                    end
+                end 
+
+                if kk==length(WVC) && sum(WAVE.dtrewind)~=0 && COAST.i_mc==1
+                    struct2log('Warning',['   Warning : Current time is not covered by wave time-series. Recycling wave data, using ',datestr(TIME.tnow+WAVE.dtrewind(kk),'yyyy-mm-dd'),' for points ',num2str(find(WAVE.dtrewind),'%1.0f '),'!'],'a');
+                end
+
                 % regular wave parameters
                 for jj=1:length(fieldnm1)
                     var1.(fieldnm1{jj})(1,kk)=interp1(WVC(kk).timenum,WVC(kk).(fieldnm1{jj}),TIME.tnow); 
@@ -134,27 +161,34 @@ function [WAVE]=introduce_wave(WAVE,TIME,COAST,CC)
                     var2.(fieldnm2{jj})(1,kk)=mod(atan2d(interp1(WVC(kk).timenum,sind(WVC(kk).(fieldnm2{jj})),TIME.tnow),...
                                                          interp1(WVC(kk).timenum,cosd(WVC(kk).(fieldnm2{jj})),TIME.tnow)),360);
                 end
+                WAVE.Prob=1;
             else 
                 % wave climate
                 if kk==1
-                    if COAST.i_mc==1
+                    if COAST.i_mc==1 && TIME.dtsteps==0 
                         if TIME.tc~=0
-                            fprintf('   Warning : Wave climate input should not be combined with a flexible timestep!\n')
+                            struct2log('Warning','   Warning : Wave climate input should not be combined with a flexible timestep!','a');
                         end
-                        if isfield(WVC(1),'Prob')
+                        if WAVE.mergeconditions==1
+                            WAVE.rnd=[];
+                            WAVE.iwc=[1:length(WVC(1).Hs)]';
+                            WAVE.Prob=WVC(1).Prob(:)./sum(WVC(1).Prob);
+                        elseif isfield(WVC(1),'Prob')
+                            WAVE.rnd=[];
                             WAVE.iwc=get_randsample(length(WVC(1).Hs),1,WVC(1).Prob);
+                            WAVE.Prob=WVC(1).Prob(:)./sum(WVC(1).Prob);
                         else
                             WAVE.rnd=rand;    % random number for drawing from wave climate
                             WAVE.iwc=round((WAVE.rnd*length(WVC(1).Hs)+0.5));
+                            WAVE.Prob=ones(length(WVC(1).Hs),1)/length(WVC(1).Hs);
                         end
                     end
                 end
-                
                 for jj=1:length(fieldnm1)
-                    var1.(fieldnm1{jj})(1,kk)=WVC(kk).(fieldnm1{jj})(WAVE.iwc); 
+                    var1.(fieldnm1{jj})(:,kk)=WVC(kk).(fieldnm1{jj})(WAVE.iwc)'; 
                 end
                 for jj=1:length(fieldnm2)
-                    var2.(fieldnm2{jj})(1,kk)=WVC(kk).(fieldnm2{jj})(WAVE.iwc); 
+                    var2.(fieldnm2{jj})(:,kk)=WVC(kk).(fieldnm2{jj})(WAVE.iwc)'; 
                 end
             end 
             if isfield(WVC(kk),'x')
@@ -187,10 +221,10 @@ function [WAVE]=introduce_wave(WAVE,TIME,COAST,CC)
                 PHIequi=var2N.PHIequi';
             end
         else
-            Hs=var1.Hs;
-            Tp=var1.Tp;
-            PHIw=var2.Dir; 
-            WVCid0=1:nq;
+            Hs=repmat(var1.Hs,[1,length(xq)]); 
+            Tp=repmat(var1.Tp,[1,length(xq)]); 
+            PHIw=repmat(var2.Dir,[1,length(xq)]); 
+            WVCid0=[1:nq]';
         end
         
     %-------------------------------------------------------------------------------------%
@@ -207,7 +241,7 @@ function [WAVE]=introduce_wave(WAVE,TIME,COAST,CC)
         WAVE.Hso=WAVE.Hso;        % wave height [m]
         WAVE.phiw0=WAVE.phiw0;    % deep water wave angle in degrees [?N]
         WAVE.spread=WAVE.spread;  % wave spreading [?] (wave_dir from range:  S.phiw0 +/- 0.5*S.spread)
-
+        WAVE.Prob=1;
     end
     
     % store spacevarying wave

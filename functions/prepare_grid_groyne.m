@@ -382,6 +382,7 @@ function [COAST,STRUC,GROYNE]=prepare_grid_groyne(COAST,STRUC,yesplot)
         % determine number of coastline segments
         nans=find(isnan(COAST.x_mc));
         COAST.n_mc=length(nans)+1;
+        COAST.BNDgroyne=zeros(COAST.n_mc,2);
 
         if yesplot
            figure(11);

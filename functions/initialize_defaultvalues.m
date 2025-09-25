@@ -56,17 +56,25 @@ function [S]=initialize_defaultvalues(S0)
     S.ddeep=25;                                                                % Waterdepth the location of wave climate, corresponding with S.hso [m]
     S.dnearshore=8;                                                            % Waterdepth at the 'dynamic boundary', corresponding with S.phif [m]
     S.randomseed=-1;                                                           % Seed to generate randomized series
+    S.randomseedsettings='';                                                   % Random generator settings
     S.interpolationmethod='weighted_distance';  %'alongshore_mapping';         % Method for interpolating wave data of multiple wave stations on the coast (either 'alongshore_mapping' / 'weighted_distance')
+    S.mergeconditions=0;                                                       % switch to turn on the use of all wave, wind and runup climate conditions simultaneously (of a WVC-file/WND-file/WVD-file/WLC-file) instead of just using a single wvc-condition per timestep (no effect for wvt-files)
+    %% ---------------------simulation tide parameters ------------------------
+    S.tidefile='';                                                             % tidal forcing needed as input for tidemodule S.trform = 'tideprof'. Input colums [xstat ystat etaM2 etaM4 detadsM2 detadsM4 phiM2 phiM4 kM2 kM4 ss]
+    S.tideprofile='';                                                          % cross-shore profile needed as input for tidemodule S.trform = 'tideprof'
+    S.tidedx=10;                                                               % cross-shore distance resolution needed as input for tidemodule S.trform = 'tideprof'
+    S.tiden=[];                                                                % manning coefficient for wave induced currents in the tide module [s/m^(1/3)] tidemodule S.trform = 'tideprof'
     %% ------------------- simulation coastline definition --------------------        
     S.ldbcoastline='';                                                         % file with initial coastline shape ([Nx2] ASCII FILE WITHOUT HEADER), or directly [Nx2] data <- leave empty to use interactive mode!
     S.xmc='';                                                                  % x-coordinates of coastline [Nx1], with NaNs separating the elements <- leave empty to use interactive mode!
     S.ymc='';                                                                  % y-coordinates of coastline [Nx1], with NaNs separating the elements <- leave empty to use interactive mode!
-    S.gisconvention = 0;                                                       % coastline defined accordsing to GIS convention (e.g. counter clockwise)
+    S.gisconvention=0;                                                         % switch to swap coastline definition according to GIS convention (i.e. counter clockwise)
     S.ds0=100;                                                                 % initial space step [m]
     S.griddingmethod=2;                                                        % method for regenerating the grid (1: only splitting and merging cells if they are too small, 2: uniform grid regeneration if criteria for gridsize or exceeded)
     S.d=10;                                                                    % active profile height [m]
     S.phif=[];                                                                 % Orientation of the foreshore [?N] (in degrees) <- only relevant for 'KAMP', 'MILH' or 'VR14'
     S.maxangle=60;                                                             % maximum coastline re-orientation between individual grid cells (affecting spit width and stabilizing small scale features in case of dense grids)
+    S.preserveorientation=0;                                                   % switch for preserving the original orientation of the shoreline (either 0 or 1, by default this is switched off)
     %% ------------------- simulation transport parameters --------------------    
     S.trform='CERC';                                                           % switch for transport formulation (e.g. S.trform='CERC', 'KAMP', 'MILH' or 'VR14')
     S.b=1e6;                                                                   % CERC : coeff in simple cerc formula
@@ -75,6 +83,7 @@ function [S]=initialize_defaultvalues(S0)
     S.d90=3.0e-4;                                                              % 90th percentile grain diameter [m] (KAMP & MILH & VR14)
     S.porosity=0.4;                                                            % S.porosity (typically 0.4) [-] (KAMP & MILH & VR14)
     S.tanbeta=0.03;                                                            % mean bed slope [ratio 1/slope] (KAMP & MILH & VR14)
+    S.tanbetasetup=1;                                                          % bed slope value, scaling the effect of the water-level setup driven currents impact on sediment transport (dHs/ds), with 1 as default for a very small impact on transport (for a steep slope)
     S.rhos=2650;                                                               % density of sand [kg/m3] (KAMP & MILH & VR14)
     S.rhow=1025;                                                               % density of water [kg/m3] (KAMP & MILH & VR14)
     S.g=9.81;                                                                  % gravitational acceleration [m2/s] (KAMP & MILH & VR14)
@@ -84,8 +93,8 @@ function [S]=initialize_defaultvalues(S0)
     S.ks=0.05;                                                                 % roughness height [m] 
     S.hclosure=8;                                                              % depth-of-closure [m] 
     S.cf=0.0023;                                                               % roughness factor [-] used in transport formulation TIDEPROF
-    S.n=0.002;                                                                 % manning roughness coefficient [s/m^(1/3)], if specified it is used instead of the 'cf' in the tide module
-    S.Acal=0.2;                                                                % calibration coefficient for Soulsby Van Rijn [-]
+    S.n=0.02;                                                                  % manning roughness coefficient [s/m^(1/3)], if specified it is used instead of the 'cf' in the tide module, then cf=9.81*(n^2)./h.^(1/3)
+    S.acal=0.2;                                                                % calibration coefficient for Soulsby Van Rijn [-]
     S.hmin=0.1;                                                                % minimum depth [m] used in transport formulation TIDEPROF
     S.sphimax=[];                                                              % the computation of the maximum angle of the waves can be bypassed by specifying this sphimax value (e.g. at sphimax=42) or by using 'auto' which means that it is computed only at t0
     S.relaxationlength=[];                                                     % length over which transport decelerates in meters, which adds inertia to the longshore current. It scales linearly with the wave height below 1m waves.
@@ -117,7 +126,7 @@ function [S]=initialize_defaultvalues(S0)
     S.awfixedhs=5;                                                             % factor for determining depth of closure at bypassing groyne for a representative Hs is used instead of a climate or timeseries. This value is used instead of 'aw' if S.wvcfile is empty.
     S.bypasscontrfac=1;                                                        % scaling factor for the transport bypass at a groyne as a result of contraction of the flow (always >=1). Setting the bypass contraction factor larger than 1 means that the accretion does not go to the tip of the structure. 
     S.bypassdistpwr=1;                                                         % this power controls the distribution of bypassed sediment of groynes in the shadow zone. It will be a triangle with pwr=1 (default), and more sediment will end up closer to the structure for a higher power (e.g. pwr=2).
-    S.submerged=0;                                                             % keyword for submerged groynes
+    S.submerged=0;                                                             % switch (0/1) to use submerged groynes (experimental feature)
     S.groinelev=[];                                                            % elevation of submerged groynes
     %% ------------- wave transmission over submerged breakwater --------------
     S.transmission=0;                                                          % switch to allow for wave transmission over breakwaters (0/1)
@@ -148,10 +157,12 @@ function [S]=initialize_defaultvalues(S0)
     S.kdform='Kamphuis';                                                       % computation of kd according to 'Kamphuis' or 'Roelvink' analytical approx. The Roelvink method has been derived on the basis of our data. The Kamphuis method gives a smoother result for the wave energy distribution. 
     S.rotfac=1.5;                                                              % factor determining the rotation of waves due to diffraction
     S.diffdist=[];                                                             % specify the maximum distance of structures to coastline points with diffraction (limits influence area)
+    S.diffsmooth=0;                                                            % smooth the computed diffraction (re-orientation) [0 - 1] (0 means no smoothing, 1 means smoothed once)
     %% ---------------------------- nourishments ------------------------------
     S.nourish=0;                                                               % switch for using nourishments (0, 1 or 2) -> 2 is common method used
     S.growth=1;                                                                % calibration of nourishment growth rate
-    S.norfile='';                                                              % file with nourishments (recmmended method), which stores a table with at each line the properties of a nourishment (x1,y1,x2,y2,t1,t2,volume)
+    S.norfile='';                                                              % file with nourishments (recommended method), which stores a table with at each line the properties of a nourishment (x1,y1,x2,y2,t1,t2,volume)
+    S.nourmethod='default';                                                    % The 'default' method uses only the begin and end point of the nourishment to identify where the nourishment needs to take place, while the 'complex' method sub-diveds the nourishment in 20 smaller parts which eahc can be attributed to a specific coastal element.
     S.ldbnourish='';                                                           % LDB with nourishment locations ([Nx2] ASCII FILE WITHOUT HEADER) (i.e. polygon around relevant grid cells) <- leave empty to use interactive mode!
     S.nourratefile='';                                                         % nourishment rates placed in order for each nourishment polygons (not used if .NOR file is available
     S.nourstartfile='';                                                        % nourishment start dates placed in order for each nourishment polygons (not used if .NOR file is available
@@ -178,21 +189,22 @@ function [S]=initialize_defaultvalues(S0)
     S.perctill=80;                                                             % percentage of till that is present in the till layer of the dunes (i.e. when dune erosion is beyond xtill). A spatially varying value can be specified by using a [Nx3] table with x,y,perctill per location at each line. 
     S.d50r=2.5e-4;                                                             % median reference grain size
     S.rhoa=1.225;                                                              % air density []
-    S.duneaw=0.1;                                                              % coefficient (Bagnold, 1937)
+    S.duneaw=0.1;                                                              % coefficient (Bagnold, 1937). A larger value increases the threshhold for aeolian transport, and therefore decreases supply
     S.kw=4.2;                                                                  % empirical coefficient (Sherman et al. 2013)
     S.k=0.41;                                                                  % von Karman's coefficient
     S.segmaw=0.1;                                                              % empirical factor used for scaling impact of the fetch length
     S.maxslope=1/15;                                                           % the maximum slope angle (1:slope) with default of 1:20. The dunefoot height is lowered if the beach gets too steep (preserving the max slope).
     S.aoverwash=3;                                                             % rate of overwash
-    S.xdune=0;                                                                 % x coords where wberm and dfelev are given (only used if ldbdune is empty)
-    S.ydune=0;                                                                 % y coords where wberm and dfelev are given (only used if ldbdune is empty)
-    S.wberm=50;                                                                % berm width (m), relevant for the fetch of the eolian transport & the run-up of Stockdon and Ghonim (only used if ldbdune is empty)
+    S.xdune=0;                                                                 % x-coordinates where wberm and dfelev are given (only used if ldbdune is empty)
+    S.ydune=0;                                                                 % y-coordinates where wberm and dfelev are given (only used if ldbdune is empty)
+    S.wberm=50;                                                                % initial condition for the berm width (m), relevant for the fetch of the eolian transport & the run-up of Stockdon and Ghonim (only used if ldbdune is empty)
     S.dfelev=3;                                                                % dune foot elevation w.r.t. MSL (m) (only used if ldbdune is empty)
     S.dcelev=8;                                                                % dune crest elevation w.r.t. MSL (m) (only used if ldbdune is empty)
+    S.csmodel='';                                                              % file for the input of the CS-model (if non-empty, then the CS-model is used for the dunes isntead of the regular dune model)
     %% --------------------------- wind conditions ----------------------------
     S.wndfile='';                                                              % wind time-series filename <-leave empty to use 'S.uz', 'S.phiwnd0' and 'S.spread'
-    S.Cd=0.002;                                                                % wind drag coefficient (-)
-    S.uz='';                                                                   % wind velocity at z (m)
+    S.cd=0.002;                                                                % wind drag coefficient (-)
+    S.uz=8;                                                                    % wind velocity at z (m)
     S.z=10;                                                                    % elevation of measured wind data
     S.phiwnd0=330;                                                             % wind angle [degN]
     %% --------------------- still water levels and run-up---------------------
@@ -200,7 +212,7 @@ function [S]=initialize_defaultvalues(S0)
     S.runupfactor=1;                                                           % tuning factor for runup (linear)
     S.watfile='';                                                              % Water levels time series file with [Nx2] date/time in 'yyyymmddHHMM' and waterlevel relative to MSL
     S.wvdfile='';                                                              % Wave height time series file with [Nx2] date/time in 'yyyymmddHHMM' and wave height, wave period and wave direction
-    S.swl0=0;                                                                  % Fixed still water level relative to MSL
+    S.swl0=0;                                                                  % Fixed still water level relative to MSL. This value will be added to any water-level data provided in a WAT-file (i.e. values in a .WLC or WLT file)
     %%------------------------- Sediment limitations --------------------------
     S.sedlim=1;                                                                % switch for sediment limiter (0/1)
     S.ldbsedlim='';                                                            % file with sediment limitation coordinates and properties, with [Nx3] specification. The columns have the x and y coordinates and width at which transport starts to reduce gradually to zero, separated with NaN's for different sections.
@@ -257,15 +269,13 @@ function [S]=initialize_defaultvalues(S0)
     S.yspitpol=[];                                                             % y-coordinates of the spit polygon
     S.dxf=50;                                                                  % resolution of flood delta area [m]
     S.overdepth=2;                                                             % initial overdepth flood delta [m]
-    %% ------------------------- formatting / output --------------------------
+    %% ------------------------ formatting / plotting -------------------------
     S.plotvisible=1;                                                           % plot and update figure with wave conditions and modeled shoreline during run
     S.xlimits=[];                                                              % x-limits of plot [m] [1x2] <- leave empty to automatically do this
     S.ylimits=[];                                                              % y-limits of plot [m] [1x2] <- leave empty to automatically do this
     S.xywave =[];                                                              % X,Y location and scale of wave arrow [m] [1x2] (automatically determined on the basis of xy-limits and wave angle
     S.xyoffset=[0,0];                                                          % shift in X,Y locaton for plotting <- leave empty to automatically shift grid <- use [0,0] for no shift
     S.pauselength=[];                                                          % pause between subsequent timesteps (e.g. 0.0001) <- leave empty to not pause plot
-    S.outputdir='Output\';                                                     % output directory
-    S.rundir='Delft3D\def_model\';                                             % run directory of a coupled Delft3D flow model
     S.ldbplot = {};                                                            % cell array with at every line a string with LDB-filename, string with legend entry, string with plot format (e.g. 'b--') <- e.g. {'abc.ldb','line 1','k--'; 'def.ldb','line 2','r-.'; etc} <- leave empty to not use additional plots
     S.ploths = 0;                                                              % plot wave height at depth-of-closure (TDP) as coloured markers and text along the coast (use 0/1 as switch). A larger value than 1 plots at every 'nth' grid cell (so 5 at every five cells).
     S.plotdir = 0;                                                             % plot wave direction at depth-of-closure (TDP) as quivers and text along the coast (use 0/1 as switch). A larger value than 1 plots at every 'nth' grid cell (so 5 at every five cells).
@@ -277,10 +287,18 @@ function [S]=initialize_defaultvalues(S0)
     S.usefillpoints = 0;                                                       % option that can be used to force the model to use a specified number of landpoints landward of open coastlines for the plotting of filled-land (e.g. 6 means that a landward points is computed for 6 points, while 0 means the model automatically determines a land fill at 1 of the 4 sides)
     S.fignryear=12;                                                            % the number of plots that need to be stored to a file each year [1/year]
     S.plotinterval=1;                                                          % the interval at which the coastline is plotted (in number of timesteps inbetween)
+    S.figplotfreq=[];                                                          % stores the coastline at this frequency w.r.t. model start, and plots it [years of interval]
     S.fastplot=1;                                                              % use imwrite plotter, that is ~2x as fast as print
+    %% -------------------------------- output --------------------------------
+    S.outputdir='Output\';                                                     % output directory
+    S.outputfile = 'shorelines_output';                                        % default filename (either the .mat or .nc extension will be added)
+    S.rundir='Delft3D\def_model\';                                             % run directory of a coupled Delft3D flow model
     S.xyout=[];                                                                % specify multiple curvi-linear output grids that remain fixed at storageinterval frequency. There are 2 options: Option 1: Specify two coordinates as [x1,y1,x2,y2]. A linear grid is made with ds0 spacing. Each line in the matrix represents a new grid. Option 2: Specify a grid as a cell {} with [Nx2] arrays of xy-coordinates. The grid is used 1 on 1. You can specify multiple grids by adding more cells. For example: {[5x2],[12x2],...} 
     S.xyprofiles=[];                                                           % specify multiple output profile locations [Nx2 with x,y; ...]. The model will determine the closest coastline and dune point. 
     S.storageinterval=50;                                                      % time interval of storage of output data to a file ('output.mat'; in [day])
+    S.storagedate={};                                                          % moments in time at which data needs to be stored {'yyyy-mm-dd', 'yyyy-mm-dd', 'yyyy-mm-dd', ...}, when specified this keyword is used instead of 'storageinterval'
+    S.netcdf=0;                                                                % switch for using nc-files (1) or the mat-files (0) as output
+    S.separatepgrids=1;                                                        % creates separate nc-files for each of the P-grids (when 1) while the p-grids will be included as a group in the main ncfile otherwise (when 0)
     %% -------------------------- extract shorelines --------------------------
     S.slplot={};                                                               % slplot
     S.extractxy=0;                                                             % get file with shorelines coordinates x,y

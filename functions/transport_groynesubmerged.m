@@ -68,12 +68,12 @@ function [QSt,Dltr,zs]=transport_groynesubmerged(Slong,vw,h,zb,x,Aw,gammabr,HStd
             end
         end
         if noDLT==0
-            Dltr(i,tt)=-zb(jj);
+            Dltr(tt)=-zb(jj);
         else
-            Dltr(i,tt)=Aw*HStdp/gammabr;
+            Dltr(tt)=Aw*HStdp/gammabr;
         end
-        QSt(i,tt)=sum(Slong(:,tt))*(x(2)-x(1));
-        zs(i,tt)=h(1,tt)+zb(1);
+        QSt(tt)=sum(Slong(:,tt))*(x(2)-x(1));
+        zs(tt)=h(1,tt)+zb(1);
     end
 end
 

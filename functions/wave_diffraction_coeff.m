@@ -68,15 +68,17 @@ function [kd]=wave_diffraction_coeff(omega,kdform,wdform,dspr)
         elseif kdform=='Kamphuis'
 
             omk=-omr;   % Note: we define omega positive towards shadow zone
-            kdi=ones(size(omk));
-            kdi(omk <= 0 & omk >=-90) = abs(0.69+0.008*omk(omk <= 0 & omk >=-90)); % 
-            kdi(omk >  0 & omk <= 40) = 0.71+0.37*sind(omk(omk >  0 & omk <= 40));
-            kdi(omk > 40 & omk <= 90) = 0.83+0.17*sind(omk(omk > 40 & omk <= 90));
-            kdi(omk < -90 ) = 0;
+            kdi=ones(size(omk));           
+            %kdi(omk < -90 ) = 0;
+            %kdi(omk <= 0 & omk >=-90) = 0.71+ 0.0093*omk(omk <= 0 & omk >=-90) + 0.0000156*omk(omk <= 0 & omk >=-90); % formulation that goeas to 0 at 90° and connects better at 0°
+            kdi(omk < -86.25 ) = 0;
+            kdi(omk <= 0 & omk >=-86.25) = max(0.69+0.008*omk(omk <= 0 & omk >=-86.25),0); 
+            kdi(omk > 0 & omk <= 40) = 0.71+0.356686*sind(omk(omk >  0 & omk <= 40));
+            kdi(omk > 40 & omk <= 90) = min(0.83+0.17*sind(omk(omk > 40 & omk <= 90)),1);
         end
 
         % recombine the discretized components of the directional spectrum based on their energy (quadratic)
         kdiprob=kdi.^2.*repmat(prob(:),[1,size(kdi,2)]);
         kd(j,:)=(sum(kdiprob,1)).^0.5;
     end
-end
+end            
