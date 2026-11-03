@@ -122,8 +122,14 @@ function [WAVE]=introduce_wave(WAVE,TIME,COAST,CC)
         
         fieldnm1=get_fields(var1);
         fieldnm2=get_fields(var2);
+        nW=length(WVC);
+        wpend=false(1,nW);   % stations that are interpolated on a 2-point time window
+        TW=nan(2,nW);
+        Y1=repmat({nan(2,nW)},[1,length(fieldnm1)]);
+        Y2s=repmat({nan(2,nW)},[1,length(fieldnm2)]);
+        Y2c=Y2s;
         for kk=1:length(WVC) 
-            if length(unique(WVC(kk).timenum))>1 
+            if any(WVC(kk).timenum~=WVC(kk).timenum(1)) % (same as length(unique(timenum))>1, without sorting the whole series)
                 
                 if TIME.tnow>max(WVC(kk).timenum) || TIME.tnow<min(WVC(kk).timenum)
                     dt=WVC(kk).timenum-TIME.tnow;
@@ -151,15 +157,36 @@ function [WAVE]=introduce_wave(WAVE,TIME,COAST,CC)
                     struct2log('Warning',['   Warning : Current time is not covered by wave time-series. Recycling wave data, using ',datestr(TIME.tnow+WAVE.dtrewind(kk),'yyyy-mm-dd'),' for points ',num2str(find(WAVE.dtrewind),'%1.0f '),'!'],'a');
                 end
 
-                % regular wave parameters
-                for jj=1:length(fieldnm1)
-                    var1.(fieldnm1{jj})(1,kk)=interp1(WVC(kk).timenum,WVC(kk).(fieldnm1{jj}),TIME.tnow); 
-                end
-              
-                % other parameters
-                for jj=1:length(fieldnm2)
-                    var2.(fieldnm2{jj})(1,kk)=mod(atan2d(interp1(WVC(kk).timenum,sind(WVC(kk).(fieldnm2{jj})),TIME.tnow),...
-                                                         interp1(WVC(kk).timenum,cosd(WVC(kk).(fieldnm2{jj})),TIME.tnow)),360);
+                % Linear interpolation only needs the two time points around TIME.tnow.
+                % For a strictly increasing time axis, interpolating on that 2-point
+                % window gives the same result as interp1 on the full series, but
+                % avoids passing (and taking sind/cosd of) the full series every step.
+                % The 2-point windows of all stations are interpolated together
+                % after this loop.
+                tt=WVC(kk).timenum;
+                it=find(tt<=TIME.tnow,1,'last');
+                if ~isempty(it) && it<length(tt) && all(diff(tt(:))>0)
+                    iw=[it,it+1];
+                    wpend(kk)=true;
+                    TW(:,kk)=tt(iw);
+                    for jj=1:length(fieldnm1)
+                        Y1{jj}(:,kk)=WVC(kk).(fieldnm1{jj})(iw);
+                    end
+                    for jj=1:length(fieldnm2)
+                        vw=WVC(kk).(fieldnm2{jj})(iw);
+                        Y2s{jj}(:,kk)=sind(vw);
+                        Y2c{jj}(:,kk)=cosd(vw);
+                    end
+                else
+                    % regular wave parameters
+                    for jj=1:length(fieldnm1)
+                        var1.(fieldnm1{jj})(1,kk)=interp1(WVC(kk).timenum,WVC(kk).(fieldnm1{jj}),TIME.tnow); 
+                    end
+                    % other parameters
+                    for jj=1:length(fieldnm2)
+                        var2.(fieldnm2{jj})(1,kk)=mod(atan2d(interp1(WVC(kk).timenum,sind(WVC(kk).(fieldnm2{jj})),TIME.tnow),...
+                                                             interp1(WVC(kk).timenum,cosd(WVC(kk).(fieldnm2{jj})),TIME.tnow)),360);
+                    end
                 end
                 WAVE.Prob=1;
             else 
@@ -196,6 +223,28 @@ function [WAVE]=introduce_wave(WAVE,TIME,COAST,CC)
                yw(1,kk)=WVC(kk).y; 
             end
         end 
+        
+        % interpolate the 2-point time windows (one interp1 call per parameter
+        % when all stations share the same time axis, which is the usual case)
+        idw=find(wpend);
+        if ~isempty(idw)
+            if all(TW(1,idw)==TW(1,idw(1))) && all(TW(2,idw)==TW(2,idw(1)))
+                grp={idw};
+            else
+                grp=num2cell(idw);
+            end
+            for gg=1:length(grp)
+                ig=grp{gg};
+                tw=TW(:,ig(1));
+                for jj=1:length(fieldnm1)
+                    var1.(fieldnm1{jj})(1,ig)=interp1(tw,Y1{jj}(:,ig),TIME.tnow);
+                end
+                for jj=1:length(fieldnm2)
+                    var2.(fieldnm2{jj})(1,ig)=mod(atan2d(interp1(tw,Y2s{jj}(:,ig),TIME.tnow),...
+                                                         interp1(tw,Y2c{jj}(:,ig),TIME.tnow)),360);
+                end
+            end
+        end
         
         % find the right alongshore location for each of the wave climates
         % sort locations alongshore

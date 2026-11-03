@@ -58,6 +58,11 @@ function make_video(S,vi)
         video=VideoWriter(label,'Motion JPEG AVI'); % for surfsara runs
         video.FrameRate=FR;
         open(video)
+        % frames are stored at index TIME.it+1, so with S.plotinterval>1 the
+        % frame array contains empty frames that writeVideo cannot handle
+        if ~isempty(vi)
+            vi=vi(~arrayfun(@(f) isempty(f.cdata),vi));
+        end
         try
             writeVideo(video,vi)
         end

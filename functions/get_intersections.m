@@ -87,54 +87,88 @@ function [xcr,ycr,indc,inds,indi,indj,ui,uj]=get_intersections(xi0,yi0,xj0,yj0)
     m0=length(xi0)-1;
     n0=length(xj0)-1;
     
-    xi=repmat(xi0(1:m0)',[1,n0]);
-    yi=repmat(yi0(1:m0)',[1,n0]);
-    xj=repmat(xj0(1:n0),[m0,1]);
-    yj=repmat(yj0(1:n0),[m0,1]);
+    % Segment bounding boxes (column vectors for polygon i, row vectors for j)
+    ximin=min(xi0(1:m0),xi0(2:m0+1))';
+    ximax=max(xi0(1:m0),xi0(2:m0+1))';
+    yimin=min(yi0(1:m0),yi0(2:m0+1))';
+    yimax=max(yi0(1:m0),yi0(2:m0+1))';
+    xjmin=min(xj0(1:n0),xj0(2:n0+1));
+    xjmax=max(xj0(1:n0),xj0(2:n0+1));
+    yjmin=min(yj0(1:n0),yj0(2:n0+1));
+    yjmax=max(yj0(1:n0),yj0(2:n0+1));
     
-    ximin=min(repmat(xi0(1:m0)',[1,n0]),repmat(xi0(2:m0+1)',[1,n0]));
-    ximax=max(repmat(xi0(1:m0)',[1,n0]),repmat(xi0(2:m0+1)',[1,n0]));
-    yimin=min(repmat(yi0(1:m0)',[1,n0]),repmat(yi0(2:m0+1)',[1,n0]));
-    yimax=max(repmat(yi0(1:m0)',[1,n0]),repmat(yi0(2:m0+1)',[1,n0]));
-
-    xjmin=min(repmat(xj0(1:n0),[m0,1]),repmat(xj0(2:n0+1),[m0,1]));
-    xjmax=max(repmat(xj0(1:n0),[m0,1]),repmat(xj0(2:n0+1),[m0,1]));
-    yjmin=min(repmat(yj0(1:n0),[m0,1]),repmat(yj0(2:n0+1),[m0,1]));
-    yjmax=max(repmat(yj0(1:n0),[m0,1]),repmat(yj0(2:n0+1),[m0,1]));
+    % Only segments whose bounding box overlaps the bounding box of the other
+    % polygon can produce a crossing (the tolerance is larger than the 2*eps
+    % used in the crossing test below), so the m0 x n0 crossing matrices are
+    % only evaluated for those segments. This gives the same crossings as
+    % evaluating all segment pairs, but is much faster for short lines.
+    ri=(1:max(m0,0))';
+    cj=1:max(n0,0);
+    if removesameindex==0 && m0>0 && n0>0
+        tol=4*eps;
+        % segments next to a NaN (section separator), and vertical segments
+        % when the other polygon has NaN-segments, are always kept, so that
+        % results are exactly identical to the full evaluation
+        nani=isnan(xi0(1:m0)+xi0(2:m0+1)+yi0(1:m0)+yi0(2:m0+1))';
+        nanj=isnan(xj0(1:n0)+xj0(2:n0+1)+yj0(1:n0)+yj0(2:n0+1));
+        nani=nani | (any(nanj) & (xi0(2:m0+1)-xi0(1:m0))'==0);
+        nanj=nanj | (any(nani) & (xj0(2:n0+1)-xj0(1:n0))==0);
+        ri=find(nani | (ximin<=max(xjmax)+tol & ximax>=min(xjmin)-tol & yimin<=max(yjmax)+tol & yimax>=min(yjmin)-tol));
+        if isempty(ri)
+            cj=find(nanj & false);
+        else
+            cj=find(nanj | (xjmin<=max(ximax(ri))+tol & xjmax>=min(ximin(ri))-tol & yjmin<=max(yimax(ri))+tol & yjmax>=min(yimin(ri))-tol));
+        end
+        ri=ri(:);
+        cj=cj(:)';
+    end
+    ximin=reshape(ximin(ri),[],1);ximax=reshape(ximax(ri),[],1);yimin=reshape(yimin(ri),[],1);yimax=reshape(yimax(ri),[],1);
+    xjmin=reshape(xjmin(cj),1,[]);xjmax=reshape(xjmax(cj),1,[]);yjmin=reshape(yjmin(cj),1,[]);yjmax=reshape(yjmax(cj),1,[]);
+    m1=length(ri);
+    n1=length(cj);
     
-    nn=0;    
-    dx1=repmat(diff(xi0)',[1,n0]);
-    dy1=repmat(diff(yi0)',[1,n0]);
-    dx2=repmat(diff(xj0),[m0,1]);
-    dy2=repmat(diff(yj0),[m0,1]);
+    xi=reshape(xi0(ri),[m1,1]);
+    yi=reshape(yi0(ri),[m1,1]);
+    xj=reshape(xj0(cj),[1,n1]);
+    yj=reshape(yj0(cj),[1,n1]);
+    dx1=reshape(xi0(ri+1),[m1,1])-xi;
+    dy1=reshape(yi0(ri+1),[m1,1])-yi;
+    dx2=reshape(xj0(cj+1),[1,n1])-xj;
+    dy2=reshape(yj0(cj+1),[1,n1])-yj;
 
-    % compute the derivative/gradient
+    % crossing of the two (infinite) lines through each pair of segments
+    % (implicit expansion: column vectors for polygon i, row vectors for j)
     rc1 = dy1./dx1;
     rc2 = dy2./dx2;
     y1r = yi-xi.*rc1;
     y2r = yj-xj.*rc2;
     
-    % compute potential crossings xcr1,xcr2 and xcr3
-    xcr1 = (y2r-y1r)./(rc1-rc2);
-    ycr1 = rc1.*xcr1+y1r;
-    xcr2 = xi;
-    ycr2 = rc2.*xcr2+y2r;
-    xcr3 = xj;
-    ycr3 = rc1.*xcr3+y1r;
+    xc = (y2r-y1r)./(rc1-rc2);
+    yc = rc1.*xc+y1r;
+    both = (dx1~=0) & (dx2~=0);
+    xc(~both)=nan;
+    yc(~both)=nan;
     
-    % apply potential crossings for cases where they can exist (e.g. where dx1 | dy1 is not zero)
-    xc=nan(m0,n0);
-    xc(dx1==0 & dx2~=0)=xcr2(dx1==0 & dx2~=0);
-    xc(dx1~=0 & dx2==0)=xcr3(dx1~=0 & dx2==0);
-    xc(dx1~=0 & dx2~=0)=xcr1(dx1~=0 & dx2~=0);
-    yc=nan(m0,n0);
-    yc(dx1==0 & dx2~=0)=ycr2(dx1==0 & dx2~=0);
-    yc(dx1~=0 & dx2==0)=ycr3(dx1~=0 & dx2==0);
-    yc(dx1~=0 & dx2~=0)=ycr1(dx1~=0 & dx2~=0);
-    %cs(dx1==0 & dx2==0 | (rc1-rc2)==0)=4;
+    % vertical segment on polygon i
+    id2 = (dx1==0) & (dx2~=0);
+    if any(id2(:))
+        xcr2 = xi+zeros(1,n1);
+        ycr2 = rc2.*xcr2+y2r;
+        xc(id2)=xcr2(id2);
+        yc(id2)=ycr2(id2);
+    end
+    % vertical segment on polygon j
+    id3 = (dx1~=0) & (dx2==0);
+    if any(id3(:))
+        xcr3 = xj+zeros(m1,1);
+        ycr3 = rc1.*xcr3+y1r;
+        xc(id3)=xcr3(id3);
+        yc(id3)=ycr3(id3);
+    end
+    xc=reshape(xc,[m1,n1]);
+    yc=reshape(yc,[m1,n1]);
 
-    % check if it is on line segment
-    % remove any crossings that are beyond the length of the considered segments
+    % remove crossings that lie outside the segments
     idnan1=xc<max(ximin,xjmin)-eps | xc>min(ximax,xjmax)+eps;
     xc(idnan1)=nan;
     yc(idnan1)=nan;
@@ -142,8 +176,6 @@ function [xcr,ycr,indc,inds,indi,indj,ui,uj]=get_intersections(xi0,yi0,xj0,yj0)
     xc(idnan2)=nan;
     yc(idnan2)=nan;
     
-    % remove the same index crossings in case similar lines are used (around the diagonal)
-    % so all segment crossings with at least 1 exactly the same segment are nanned out
     if removesameindex==1
         idremove=[1:m0+1:m0*n0];
         xc(idremove)=nan;
@@ -174,56 +206,54 @@ function [xcr,ycr,indc,inds,indi,indj,ui,uj]=get_intersections(xi0,yi0,xj0,yj0)
     
     % find the x,y coordinates of the crossing points 
     idnotnan=find(~isnan(xc));
-    xcr=min(length(idnotnan),1);
-    
-    if nargout>1
-        xcr=xc(idnotnan); 
-        ycr=yc(idnotnan); 
-
-        % find the indices of the line segment points just before the crossings (so never after!)
-        [indi,indj]=find(~isnan(xc));
-        
-        % find the fraction of the line segement where the crossing is located 
-        % (e.g. ui=0.25 means at 25% the length of the considered segment of xi,yi)
-        % the indi and ui may be added to get the fraction of the polygon where the crossing is located 
-        % (e.g. indj+uj = 16.3 means after the 16th node of xj,yj and at 30% of length in the direction of the 17th node of xj,yj)
-        for nn=1:length(xcr)
-            i=indi(nn);
-            j=indj(nn);
-            ui(1,nn)=((xcr(nn)-xi0(i)).*(xi0(i+1)-xi0(i))+(ycr(nn)-yi0(i))*(yi0(i+1)-yi0(i))) ./ ((xi0(i+1)-xi0(i)).^2+(yi0(i+1)-yi0(i)).^2);
-            uj(1,nn)=((xcr(nn)-xj0(j)).*(xj0(j+1)-xj0(j))+(ycr(nn)-yj0(j))*(yj0(j+1)-yj0(j))) ./ ((xj0(j+1)-xj0(j)).^2+(yj0(j+1)-yj0(j)).^2);
-        end
-        
-        % select only the unique points
-        % and cosmetic changes to makes sure the vectors are horizontal
-        ui=max(ui,0);
-        uj=max(uj,0);
-        ui=min(ui,1);
-        uj=min(uj,1);
-        [~,idu]=uniquetol(indi(:)+ui(:),eps);
-        xcr=xcr(idu);
-        ycr=ycr(idu);
-        indi=indi(idu);
-        indj=indj(idu);
-        ui=ui(idu);
-        uj=uj(idu);
-        [~,idv]=uniquetol(indj(:)+uj(:),eps);
-        xcr=xcr(idv);
-        ycr=ycr(idv);
-        indi=indi(idv);
-        indj=indj(idv);
-        ui=ui(idv);
-        uj=uj(idv);
-        %figure;plot(xi,yi,'b.-');hold on;plot(xj,yj,'r.-');
-        %plot(xcr,ycr,'k*');
-        
-        xcr=double(xcr(:)');
-        ycr=double(ycr(:)');
-        indi=double(indi(:)');
-        indj=double(indj(:)'); 
-        ui=double(ui(:)');
-        uj=double(uj(:)');
-        indc=double(indi+ui);
-        inds=double(indj+uj);
+    if nargout<=1
+        % only whether there is a crossing (0 or 1)
+        xcr=min(length(idnotnan),1);
+        return
     end
+    xcr=reshape(xc(idnotnan),[],1);
+    ycr=reshape(yc(idnotnan),[],1);
+
+    % find the indices of the line segment points just before the crossings (so never after!)
+    [indi,indj]=find(~isnan(xc));
+    indi=ri(indi);
+    indj=cj(indj);
+    indi=indi(:);
+    indj=indj(:);
+    
+    % fraction along segment i and j of each crossing
+    ui=(((xcr-xi0(indi)').*(xi0(indi+1)'-xi0(indi)')+(ycr-yi0(indi)').*(yi0(indi+1)'-yi0(indi)')) ./ ((xi0(indi+1)'-xi0(indi)').^2+(yi0(indi+1)'-yi0(indi)').^2))';
+    uj=(((xcr-xj0(indj)').*(xj0(indj+1)'-xj0(indj)')+(ycr-yj0(indj)').*(yj0(indj+1)'-yj0(indj)')) ./ ((xj0(indj+1)'-xj0(indj)').^2+(yj0(indj+1)'-yj0(indj)').^2))';
+    
+    ui=max(ui,0);
+    uj=max(uj,0);
+    ui=min(ui,1);
+    uj=min(uj,1);
+    [~,idu]=uniquetol(indi(:)+ui(:),eps);
+    xcr=xcr(idu);
+    ycr=ycr(idu);
+    indi=indi(idu);
+    indj=indj(idu);
+    ui=ui(idu);
+    uj=uj(idu);
+    [~,idv]=uniquetol(indj(:)+uj(:),eps);
+    xcr=xcr(idv);
+    ycr=ycr(idv);
+    indi=indi(idv);
+    indj=indj(idv);
+    ui=ui(idv);
+    uj=uj(idv);
+    %figure;plot(xi,yi,'b.-');hold on;plot(xj,yj,'r.-');
+    %plot(xcr,ycr,'k*');
+    
+    xcr=double(xcr(:)');
+    ycr=double(ycr(:)');
+    indi=double(indi(:)');
+    indj=double(indj(:)'); 
+    ui=double(ui(:)');
+    uj=double(uj(:)');
+    indc=double(indi+ui);
+    inds=double(indj+uj);
+       
 end
+

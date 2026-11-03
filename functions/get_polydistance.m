@@ -72,22 +72,86 @@ function [dmin,xcr,ycr,ujmin,dmax,xcm,ycm,ujmax] = get_polydistance(Xr,Yr,Xc,Yc,
     Xrnormal = [Xr,Xr]+[-Lcrit./Lxy.*dy2,Lcrit./Lxy.*dy2];
     Yrnormal = [Yr,Yr]+[Lcrit./Lxy.*dx2,-Lcrit./Lxy.*dx2];
     
-    for ii=1:length(Xr)
-        %quick=1;
-        [xcr0,ycr0,~,~,~,~,ui,uj]=get_intersections(Xrnormal(ii,:),Yrnormal(ii,:),Xc,Yc);
-        if ~isempty(xcr0)
-            imin=find(ui==min(ui));
-            xcr(ii)=xcr0(imin);
-            ycr(ii)=ycr0(imin);
-            dmin(ii)=(0.5-ui(imin))*Lcrit*2;
-            ujmin(ii)=uj(imin); % alongshore location index
-            if nargout>4
-                imax=find(ui==max(ui));
-                xcm(ii)=xcr0(imax);
-                ycm(ii)=ycr0(imax);
-                dmax(ii)=(0.5-ui(imax))*Lcrit*2;
-                ujmax(ii)=uj(imax);
+    % Intersect all cross-shore normals with the coastline at once. Only
+    % (normal, coastline segment) pairs whose bounding boxes overlap can cross
+    % (pairs with NaN-adjacent segments are always kept, as get_intersections
+    % can report those), so the crossing computation is done for those pairs
+    % only. This uses the same arithmetic as get_intersections, and picks per
+    % normal the crossing closest to the seaward end of the normal (smallest
+    % ui, first coastline segment on ties), as the former loop did.
+    eps=1e-5;                         % same tolerance as in get_intersections
+    tol=4*eps;                        % bounding-box tolerance (> 2*eps)
+    Xc=Xc(:);
+    Yc=Yc(:);
+    nseg=length(Xc)-1;
+    if nseg>=1
+        % normals (A) and coastline segments (B) as column vectors
+        xa=Xrnormal(:,1); ya=Yrnormal(:,1);
+        dxa=Xrnormal(:,2)-xa; dya=Yrnormal(:,2)-ya;
+        xamin=min(Xrnormal,[],2); xamax=max(Xrnormal,[],2);
+        yamin=min(Yrnormal,[],2); yamax=max(Yrnormal,[],2);
+        nana=isnan(sum(Xrnormal,2)+sum(Yrnormal,2));
+        xb=Xc(1:nseg); yb=Yc(1:nseg);
+        dxb=Xc(2:end)-xb; dyb=Yc(2:end)-yb;
+        xbmin=min(xb,Xc(2:end)); xbmax=max(xb,Xc(2:end));
+        ybmin=min(yb,Yc(2:end)); ybmax=max(yb,Yc(2:end));
+        nanb=isnan(xb+Xc(2:end)+yb+Yc(2:end));
+        ov=(xamin<=xbmax'+tol & xamax>=xbmin'-tol & yamin<=ybmax'+tol & yamax>=ybmin'-tol) ...
+           | nana | nanb';
+        [ia,ib]=find(ov);
+        if ~isempty(ia)
+            xi=xa(ia); yi=ya(ia); dx1=dxa(ia); dy1=dya(ia);
+            xj=xb(ib); yj=yb(ib); dx2=dxb(ib); dy2=dyb(ib);
+            rc1=dy1./dx1;
+            rc2=dy2./dx2;
+            y1r=yi-xi.*rc1;
+            y2r=yj-xj.*rc2;
+            xc=(y2r-y1r)./(rc1-rc2);
+            yc=rc1.*xc+y1r;
+            both=(dx1~=0) & (dx2~=0);
+            xc(~both)=nan;
+            yc(~both)=nan;
+            id2=(dx1==0) & (dx2~=0);
+            xc(id2)=xi(id2);
+            yc(id2)=rc2(id2).*xi(id2)+y2r(id2);
+            id3=(dx1~=0) & (dx2==0);
+            xc(id3)=xj(id3);
+            yc(id3)=rc1(id3).*xj(id3)+y1r(id3);
+            idnan=xc<max(xamin(ia),xbmin(ib))-eps | xc>min(xamax(ia),xbmax(ib))+eps;
+            xc(idnan)=nan;
+            yc(idnan)=nan;
+            idnan=yc<max(yamin(ia),ybmin(ib))-eps | yc>min(yamax(ia),ybmax(ib))+eps;
+            xc(idnan)=nan;
+            yc(idnan)=nan;
+            ok=~isnan(xc);
+            ia=ia(ok); ib=ib(ok); xc=xc(ok); yc=yc(ok);
+            xi=xi(ok); yi=yi(ok); dx1=dx1(ok); dy1=dy1(ok);
+            xj=xj(ok); yj=yj(ok); dx2=dx2(ok); dy2=dy2(ok);
+            
+            % fraction along the normal (0 = seaward end, 1 = landward end)
+            ui=((xc-xi).*dx1+(yc-yi).*dy1)./(dx1.^2+dy1.^2);
+            ui=min(max(ui,0),1);
+            uj=((xc-xj).*dx2+(yc-yj).*dy2)./(dx2.^2+dy2.^2);
+            uj=min(max(uj,0),1);
+            
+            if ~isempty(ia)
+                [~,order]=sortrows([ia,ui,ib]);
+                first=order([true;diff(ia(order))~=0]);
+                rows=ia(first);
+                xcr(rows)=xc(first);
+                ycr(rows)=yc(first);
+                dmin(rows)=(0.5-ui(first))*Lcrit*2;
+                ujmin(rows)=uj(first);              % alongshore location index
+                if nargout>4
+                    [~,order]=sortrows([ia,-ui,ib]);
+                    first=order([true;diff(ia(order))~=0]);
+                    rows=ia(first);
+                    xcm(rows)=xc(first);
+                    ycm(rows)=yc(first);
+                    dmax(rows)=(0.5-ui(first))*Lcrit*2;
+                    ujmax(rows)=uj(first);
+                end
             end
-        end 
-    end 
+        end
+    end
 end 

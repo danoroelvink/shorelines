@@ -101,17 +101,20 @@ function [WAVE,TRANSP]=get_Sphimax(WAVE,TIDE,TRANSP,STRUC)
         dPHImold=dPHIm;
         in=(err>eps);
         [ivals,jvals]=find(in);
+        % suppress (near-)singular matrix warnings of A\B, and restore the previous
+        % warning state afterwards (a blanket 'warning on' would switch on all
+        % warnings for the rest of the run)
+        warnstate=warning('off','all');
         for i=1:length(ivals)
             i1=ivals(i);
             j1=jvals(i);
             % compute better estimate for dPHIm using computed dPHI's and QS's
             A=[dPHI1(i1,j1)^2,dPHI1(i1,j1),1;dPHI2(i1,j1)^2,dPHI2(i1,j1),1;dPHIm(i1,j1)^2,dPHIm(i1,j1),1];              % at depth-of-closure
             B=[QS1(i1,j1);QS2(i1,j1);QSm(i1,j1)];
-            warning off
             a=A\B;
-            warning on
             dPHIm(i1,j1)=-a(2)/(2*a(1));     % at depth-of-closure
         end
+        warning(warnstate);
         
         % renew the dPHI1/dPHI2 and QS1/QS2 for the next iteration cycle
         dPHI2(QS1>QS2)=dPHImold(QS1>QS2);
