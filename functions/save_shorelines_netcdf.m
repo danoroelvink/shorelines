@@ -121,9 +121,13 @@ function [O,P] = save_shorelines_netcdf(O, P, TIME, COAST, WAVE, TRANSP, DUNE, M
    else
       storagedatenum=unique(datenum(O.storagedate));
    end
+   % last time step of the run: the next time 'tnext' ends the time loop of ShorelineS.m
+   % (which continues while tnow<tend, or tnow==tend for TIME.tc==0; TIME.dt is in years)
+   tnext=TIME.tnow+TIME.dt*365;
+   laststep=tnext>TIME.tend || (tnext==TIME.tend && TIME.tc~=0);
    storedata=0;
-   if O.itout<=length(storagedatenum) && TIME.dtsteps==0 || (TIME.tnow+TIME.dt)>=TIME.tend
-      storedata=TIME.tnow>=storagedatenum(O.itout) || (TIME.tnow+TIME.dt)>=TIME.tend;
+   if O.itout<=length(storagedatenum) && TIME.dtsteps==0 || laststep
+      storedata=laststep || TIME.tnow>=storagedatenum(O.itout);
    end
 
    %% Average data over the current output timestep
@@ -248,7 +252,7 @@ function [O,P] = save_shorelines_netcdf(O, P, TIME, COAST, WAVE, TRANSP, DUNE, M
    end
    %netcdf.close(O.ncid);
 
-   if (TIME.tnow + TIME.dt) >= TIME.tend
+   if laststep
       clear save_shorelines_netcdf
    end
 end

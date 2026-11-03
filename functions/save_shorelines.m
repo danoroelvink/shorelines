@@ -170,21 +170,40 @@ function [O,P]=save_shorelines(O,P,TIME,COAST,WAVE,TRANSP,STRUC,NOUR,FNOUR,GROYN
     if TIME.dtsteps==0 && O.itout<=length(storagedatenum)
         storedata=TIME.tnow>=storagedatenum(O.itout);
     end
-    if (TIME.tnow+TIME.dt)>=TIME.tend 
-        storedata=1;
+    
+    % make sure that the end of the run is stored. The time loop in ShorelineS.m
+    % continues while tnow<tend (or tnow==tend for TIME.tc==0), so this is the last 
+    % time step when the next time 'tnext' ends the loop (TIME.dt is in years, tnow in days).
+    % - if this step is at the end time, store it like any other output time
+    % - if the run ends after this step (e.g. when the time step does not fit the 
+    %   simulation period exactly, or sub-steps overshoot tend by round-off), 
+    %   also store the updated coastline (x_mc) at time tnext
+    tnext=TIME.tnow+TIME.dt*365;
+    laststep=tnext>TIME.tend || (tnext==TIME.tend && TIME.tc~=0);
+    storefinal=0;
+    if laststep
+        if TIME.tnow>=TIME.tend
+            storedata=1;
+        else
+            storefinal=1;
+        end
     end
     
     %% export directly the data to O structure (with variable grid size)
-    if storedata
+    for irec=find([storedata,storefinal])
         it=TIME.it;
         dt=TIME.dt;
         tc=TIME.tc;
         nt=TIME.nt;
+        tstore=TIME.tnow;
         x_mc=COAST.x1_mc;
         y_mc=COAST.y1_mc;
         PHIc_mc=COAST.PHIc1_mc;
         PHIcxy_mc=COAST.PHIcxy1_mc;
-        if (TIME.tnow+TIME.dt)>=TIME.tend
+        if irec==2
+            % coastline after the last update, at the end of the run 
+            % (waves, transport and orientations are those of the last time step)
+            tstore=tnext;
             x_mc=COAST.x_mc;
             y_mc=COAST.y_mc;
             PHIc_mc=COAST.PHIc_mc;
@@ -243,8 +262,8 @@ function [O,P]=save_shorelines(O,P,TIME,COAST,WAVE,TRANSP,STRUC,NOUR,FNOUR,GROYN
         [O.dt]        = addVECTOR(O.dt, dt);
         [O.tc]        = addVECTOR(O.dt, tc);
         [O.nt]        = addVECTOR(O.nt, nt);
-        [O.time]      = addVECTOR(O.time, TIME.tnow-TIME.timenum0);
-        [O.timenum]   = addVECTOR(O.timenum, TIME.tnow);
+        [O.time]      = addVECTOR(O.time, tstore-TIME.timenum0);
+        [O.timenum]   = addVECTOR(O.timenum, tstore);
         
         % parameters after coastline change
         [O.x]         = addVECTOR(O.x, x_mc');
@@ -407,7 +426,7 @@ function [O,P]=save_shorelines(O,P,TIME,COAST,WAVE,TRANSP,STRUC,NOUR,FNOUR,GROYN
             end
             
             % store the cross-shore location of the coastline w.r.t. 
-            if storedata
+            if storedata || storefinal
                 Lcrit=5000;
                 x_mc=interpNANs(COAST.x1_mc);
                 y_mc=interpNANs(COAST.y1_mc);
@@ -491,7 +510,7 @@ function [O,P]=save_shorelines(O,P,TIME,COAST,WAVE,TRANSP,STRUC,NOUR,FNOUR,GROYN
     end
     
     %% Store all shoreline data to file
-    if storedata
+    if storedata || storefinal
         if ~isoctave, warning off, end
         save(fullfile(pwd,O.outputdir,O.outputfile),'O','P');
         if ~isoctave, warning on, end
